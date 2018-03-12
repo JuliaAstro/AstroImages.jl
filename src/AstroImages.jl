@@ -4,9 +4,9 @@ module AstroImages
 
 using FITSIO, FileIO, Images
 
-export load
+export load, AstroImage
 
-FileIO.load(f::File{format"FITS"}, ext::Int) = read(FITS(f.filename)[ext])
+FileIO.load(f::File{format"FITS"}, ext::Int=1) = read(FITS(f.filename)[ext])
 
 function FileIO.load(f::File{format"FITS"}, ext::NTuple{N,Int}) where {N}
     fits = FITS(f.filename)
@@ -34,5 +34,8 @@ end
 struct AstroImage{T<:Color}
     data::Matrix{T}
 end
+
+AstroImage(file::String, ext::Int=1) =
+    AstroImage(Gray.(_float.(load(file, 1))))
 
 end # module
