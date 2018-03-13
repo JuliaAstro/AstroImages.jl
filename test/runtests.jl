@@ -45,6 +45,8 @@ end
         @test load(fname, (1, 1)) == (data, data)
         img = AstroImage(fname)
         @test img.data == Gray.(_float.(data))
+        @test convert(typeof(img.data), img) == img.data
+        @test convert(Matrix{Gray}, img)     == img.data
     end
     rm(fname, force=true)
 end
