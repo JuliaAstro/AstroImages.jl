@@ -50,3 +50,5 @@ end
     end
     rm(fname, force=true)
 end
+
+include("plots.jl")
