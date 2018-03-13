@@ -55,4 +55,6 @@ Base.convert(::Type{Matrix{T}}, img::AstroImage{T}) where {T<:Color} = img.data
 Base.convert(::Type{Matrix{T}}, img::AstroImage{S}) where {T<:Color, S<:T} = img.data
 
 include("showmime.jl")
+include("plot-recipes.jl")
+
 end # module
