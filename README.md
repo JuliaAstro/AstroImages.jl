@@ -65,7 +65,7 @@ the same syntax as `load`.  This command:
 
 ```julia
 julia> img = AstroImage("file.fits")
-AstroImages.AstroImage{ColorTypes.Gray{FixedPointNumbers.Normed{UInt16,16}}}(ColorTypes.Gray{FixedPointNumbers.Normed{UInt16,16}}[...]
+AstroImages.AstroImage{UInt16,ColorTypes.Gray}[...]
 ```
 
 will read the first extension from the `file.fits` file and wrap its content in
