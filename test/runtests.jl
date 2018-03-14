@@ -1,7 +1,7 @@
 using AstroImages, FITSIO, Images
 using Base.Test
 
-import AstroImages: _float
+import AstroImages: _float, render
 
 @testset "Conversion to float and fixed-point" begin
     @testset "Float" begin
@@ -38,9 +38,8 @@ end
         @test load(fname) == data
         @test load(fname, (1, 1)) == (data, data)
         img = AstroImage(fname)
-        @test img.data == Gray.(_float.(data))
-        @test convert(typeof(img.data), img) == img.data
-        @test convert(Matrix{Gray}, img)     == img.data
+        @test render(img) == Gray.(_float.(data))
+        @test convert(Matrix{Gray}, img) == render(img)
     end
     rm(fname, force=true)
 end

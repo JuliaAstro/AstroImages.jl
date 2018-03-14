@@ -39,20 +39,33 @@ for n in (8, 16, 32, 64)
     end
 end
 
-struct AstroImage{T<:Color}
+struct AstroImage{T<:Real,C<:Color}
     data::Matrix{T}
 end
 
 """
-    AstroImage(filename::String, n::Int=1)
+    AstroImage([color=Gray,] data::Matrix{Real})
+
+Construct an `AstroImage` object of `data`, using `color` as color map, `Gray` by default.
+"""
+AstroImage(color::Type{<:Color}, data::Matrix{T}) where {T<:Real} =
+    AstroImage{T,color}(data)
+AstroImage(data::Matrix{T}) where {T<:Real} = AstroImage{T,Gray}(data)
+
+"""
+    AstroImage([color=Gray,] filename::String, n::Int=1)
 
 Create an `AstroImage` object by reading the `n`-th extension from FITS file `filename`.
+Use `color` as color map, this is `Gray` by default.
 """
-AstroImage(file::String, ext::Int=1) =
-    AstroImage(Gray.(_float.(load(file, 1))))
+AstroImage(color::Type{<:Color}, file::String, ext::Int=1) =
+    AstroImage(color, load(file, 1))
+AstroImage(file::String, ext::Int=1) = AstroImage(Gray, file, ext)
 
-Base.convert(::Type{Matrix{T}}, img::AstroImage{T}) where {T<:Color} = img.data
-Base.convert(::Type{Matrix{T}}, img::AstroImage{S}) where {T<:Color, S<:T} = img.data
+# Lazily render the image as a Matrix{Color}, upon request.
+render(img::AstroImage{T,C}) where {T,C} = C.(_float.(img.data))
+
+Base.convert(::Type{Matrix{C}}, img::AstroImage{T,C}) where {T,C<:Color} = render(img)
 
 include("showmime.jl")
 include("plot-recipes.jl")
