@@ -5,6 +5,7 @@ using RecipesBase
     img = AstroImage(data)
     rec = RecipesBase.apply_recipe(Dict{Symbol, Any}(), img)
     @test rec[1].d == Dict{Symbol, Any}(:seriestype   => :heatmap,
-                                        :aspect_ratio => :equal)
+                                        :aspect_ratio => :equal,
+                                        :color        => :grays)
     @test rec[1].args == (img.data,)
 end
