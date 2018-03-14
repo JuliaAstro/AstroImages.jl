@@ -25,17 +25,17 @@ end
 # utilities to convert all data types supported by FITS format to float or fixed-point:
 #
 #   * Float numbers are left as they are
-#   * Signed integers are mapped to [-1, 1) with Fixed type
 #   * Unsigned integers are mapped to [0, 1] with Normed type
+#   * Signed integers are mapped to unsigned integers and then to Normed
 _float(x::AbstractFloat) = x
 for n in (8, 16, 32, 64)
     SIT = Symbol("Int", n) # signed integer type
-    FPT = Expr(:curly, :Fixed, SIT, n-1) # fixed-point type for signed float
     UIT = Symbol("UInt", n) # unsigned integer type
     NIT = Symbol("N0f", n) # fixed-point type for unsigned float
+    @eval maxint = $UIT(big(2) ^ ($n - 1)) #
     @eval begin
-        _float(x::$SIT) = reinterpret($FPT, x)
         _float(x::$UIT) = reinterpret($NIT, x)
+        _float(x::$SIT) = _float(xor(reinterpret($UIT, x), $maxint))
     end
 end
 
