@@ -63,7 +63,13 @@ AstroImage(color::Type{<:Color}, file::String, ext::Int=1) =
 AstroImage(file::String, ext::Int=1) = AstroImage(Gray, file, ext)
 
 # Lazily render the image as a Matrix{Color}, upon request.
-render(img::AstroImage{T,C}) where {T,C} = C.(_float.(img.data))
+function render(img::AstroImage{T,C}) where {T,C}
+    imgmin, imgmax = extrema(img.data)
+    # Add one to maximum to work around this issue:
+    # https://github.com/JuliaMath/FixedPointNumbers.jl/issues/102
+    f = scaleminmax(_float(imgmin), _float(max(imgmax, imgmax + one(T))))
+    return C.(f.(_float.(img.data)))
+end
 
 Base.convert(::Type{Matrix{C}}, img::AstroImage{T,C}) where {T,C<:Color} = render(img)
 

@@ -38,8 +38,9 @@ end
         @test load(fname) == data
         @test load(fname, (1, 1)) == (data, data)
         img = AstroImage(fname)
-        @test render(img) == Gray.(_float.(data))
-        @test convert(Matrix{Gray}, img) == render(img)
+        rendered_img = render(img)
+        @test iszero(minimum(rendered_img))
+        @test convert(Matrix{Gray}, img) == rendered_img
     end
     rm(fname, force=true)
 end
