@@ -59,7 +59,7 @@ Create an `AstroImage` object by reading the `n`-th extension from FITS file `fi
 Use `color` as color map, this is `Gray` by default.
 """
 AstroImage(color::Type{<:Color}, file::String, ext::Int=1) =
-    AstroImage(color, load(file, 1))
+    AstroImage(color, load(file, ext))
 AstroImage(file::String, ext::Int=1) = AstroImage(Gray, file, ext)
 
 # Lazily render the image as a Matrix{Color}, upon request.
