@@ -1,5 +1,5 @@
 using AstroImages, FITSIO, Images
-using Base.Test
+using Base
 
 import AstroImages: _float, render
 

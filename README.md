@@ -18,11 +18,10 @@ read FITS files.
 Installation
 ------------
 
-`AstroImage.jl` is available for Julia 0.6 and later versions, and can be
-installed
-with
-[Julia built-in package manager](http://docs.julialang.org/en/stable/manual/packages/).
-This is not yet registered, so in a Julia session run the command
+`AstroImage.jl` is available for Julia 0.7 and later versions, and can be
+installed with [Julia built-in package
+manager](https://docs.julialang.org/en/stable/stdlib/Pkg/).  This is not yet
+registered, so in a Julia session run the command
 
 ```julia
 julia> Pkg.clone("https://github.com/JuliaAstro/AstroImages.jl")
