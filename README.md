@@ -20,11 +20,12 @@ Installation
 
 `AstroImage.jl` is available for Julia 0.7 and later versions, and can be
 installed with [Julia built-in package
-manager](https://docs.julialang.org/en/stable/stdlib/Pkg/).  This is not yet
-registered, so in a Julia session run the command
+manager](https://docs.julialang.org/en/v1/stdlib/Pkg/).  This packages is not
+yet registered, after entering into the package manager by pressing `]` run the
+command
 
 ```julia
-julia> Pkg.clone("https://github.com/JuliaAstro/AstroImages.jl")
+pkg> add https://github.com/JuliaAstro/AstroImages.jl
 ```
 
 Usage
