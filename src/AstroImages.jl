@@ -43,6 +43,11 @@ struct AstroImage{T<:Real,C<:Color}
     data::Matrix{T}
 end
 
+#  
+struct AstroImage{N,M<:AbstractMatrix{<:Real},C<:AbstractRGB}
+	data::Tuple{N,M}
+end
+
 """
     AstroImage([color=Gray,] data::Matrix{Real})
 
