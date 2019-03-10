@@ -2,9 +2,9 @@ __precompile__()
 
 module AstroImages
 
-using FITSIO, FileIO, Images
+using FITSIO, FileIO, Images, Interact
 
-export load, AstroImage
+export load, AstroImage, visualize
 
 
 """
@@ -77,3 +77,11 @@ include("showmime.jl")
 include("plot-recipes.jl")
 
 end # module
+
+function visualize(img::AstroImage{T,C}) where {T,C}
+    @manipulate for brightness  in 0:255, contrast in 1:1000
+        tmp = (float.(img.data))./255
+        tmp = ((tmp .* contrast) .+ (brightness/255))
+        colorview(Gray, tmp)
+    end
+end
