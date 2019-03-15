@@ -76,12 +76,22 @@ Base.convert(::Type{Matrix{C}}, img::AstroImage{T,C}) where {T,C<:Color} = rende
 include("showmime.jl")
 include("plot-recipes.jl")
 
-end # module
+"""
+    visualize(image::AstroImage)
 
+Visualize the fits image by changing the brightness and contrast of image.
+Also, threshold filters out(remove) pixels less than it's value.
+"""
 function visualize(img::AstroImage{T,C}) where {T,C}
-    @manipulate for brightness  in 0:255, contrast in 1:1000
-        tmp = (float.(img.data))./255
-        tmp = ((tmp .* contrast) .+ (brightness/255))
-        colorview(Gray, tmp)
+    @manipulate for brightness  in 0:255, contrast in 1:1000, threshold in 1:255
+        tmp = img.data/255
+     @. tmp = (tmp * contrast) + brightness/255
+        
+        for ind in eachindex(tmp)
+            tmp[ind] = tmp[ind] >= threshold/255 ? tmp[ind] : 0 
+        end
+        colorview(Gray, tmp)             # Currently for GrayScale images only
     end
 end
+
+end # module
