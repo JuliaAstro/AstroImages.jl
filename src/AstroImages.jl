@@ -77,20 +77,21 @@ include("showmime.jl")
 include("plot-recipes.jl")
 
 """
-    visualize(image::AstroImage)
+    visualize(image::AstroImage; brightness_range = (0, 255), contrast_range = (1,1000), threshold_range = (1, 255))
 
 Visualize the fits image by changing the brightness and contrast of image.
 Also, threshold filters out(remove) pixels less than it's value.
+Users can also provide their own range as keyword arguments.
 """
-function visualize(img::AstroImage{T,C}) where {T,C}
-    @manipulate for brightness  in 0:255, contrast in 1:1000, threshold in 1:255
+function visualize(img::AstroImage{T,C}; brightness_range = (0, 255), contrast_range = (1,1000), threshold_range = (1, 255)) where {T,C}
+    @manipulate for brightness in brightness_range[1] : brightness_range[2], contrast in contrast_range[1] : contrast_range[2], threshold in threshold_range[1] : threshold_range[2]
         tmp = img.data/255
      @. tmp = (tmp * contrast) + brightness/255
         
         for ind in eachindex(tmp)
             tmp[ind] = tmp[ind] >= threshold/255 ? tmp[ind] : 0 
         end
-        colorview(Gray, tmp)             # Currently for GrayScale images only
+        colorview(Gray, tmp)             # Currently works for GrayScale images only
     end
 end
 
