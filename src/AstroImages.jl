@@ -4,7 +4,7 @@ module AstroImages
 
 using FITSIO, FileIO, Images, Interact
 
-export load, AstroImage, visualize
+export load, AstroImage
 
 
 """
@@ -75,17 +75,5 @@ Base.convert(::Type{Matrix{C}}, img::AstroImage{T,C}) where {T,C<:Color} = rende
 
 include("showmime.jl")
 include("plot-recipes.jl")
-
-"""
-    visualize(image::AstroImage; brightness_range = 0:255, contrast_range = 1:1000, threshold_range = 1:255)
-
-Visualize the fits image by changing the brightness and contrast of image.
-Users can also provide their own range as keyword arguments.
-"""
-function visualize(img::AstroImage{T,C}; brightness_range = 0:255, contrast_range = 1:1000) where {T,C}
-    @manipulate for brightness  in brightness_range, contrast in contrast_range
-        @. C.((img.data/255 * contrast) + brightness/255)
-    end
-end
 
 end # module
