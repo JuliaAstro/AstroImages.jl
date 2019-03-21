@@ -6,6 +6,7 @@ using FITSIO, FileIO, Images
 
 export load, AstroImage
 
+_load(fits::FITS, ext) = read(fits[ext])
 
 """
     load(fitsfile::String, n=1)
@@ -14,7 +15,7 @@ Read and return the data from `n`-th extension of the FITS file.  Second argumen
 be a tuple of integers, in which case a tuple with the data of each corresponding extension
 is returned.
 """
-FileIO.load(f::File{format"FITS"}, ext::Int=1) = read(FITS(f.filename)[ext])
+FileIO.load(f::File{format"FITS"}, ext::Int=1) = _load(FITS(f.filename), ext)
 
 function FileIO.load(f::File{format"FITS"}, ext::NTuple{N,Int}) where {N}
     fits = FITS(f.filename)
@@ -58,22 +59,27 @@ AstroImage(data::Matrix{T}) where {T<:Real} = AstroImage{T,Gray}(data)
 Create an `AstroImage` object by reading the `n`-th extension from FITS file `filename`.
 Use `color` as color map, this is `Gray` by default.
 """
-AstroImage(color::Type{<:Color}, file::String, ext::Int=1) =
-    typeof(FITS(file, ext)) == ImageHUD ? AstroImage(color, load(file, ext)) : loader_util(color, file, ext)
-AstroImage(file::String, ext::Int=1) = AstroImage(Gray, file, ext)
+AstroImage(color::Type{<:Color}, file::String, ext::Int) =
+    AstroImage(color, load(file, ext))
+AstroImage(file::String, ext::Int) = AstroImage(Gray, file, ext)
 
-"""
-	loader_util(color, filename::String, ext::Int)
-Helper function for loading the next valid Image if the default index or input index given
-by user is not an ImageHUD.
-"""
-function loader_util(color, file, ext)
-	ind = ext
-	size = length(FITS(file))
-	while ind <= size && typeof(FITS(file, ind)) != ImageHUD
-		ind += 1
-	end
-	AstroImage(color, load(file, ind))
+AstroImage(color::Type{<:Color}, fits::FITS, ext::Int) =
+    AstroImage(color, _load(fits, ext))
+function AstroImage(file::String)
+    fits = FITS(file)
+    ext = 0
+    for (i, hdu) in enumerate(fits)
+        if hdu isa ImageHDU && length(size(hdu)) >= 2	# check if Image is atleast 2D
+            ext = i
+            break
+        end
+    end
+    if ext > 0
+        AstroImage(Gray, fits, ext)
+	@info "Image was loaded from HDU $ext"
+    else
+        error("There are no ImageHDU extensions in \"$file\"")
+    end
 end
 
 # Lazily render the image as a Matrix{Color}, upon request.
@@ -91,3 +97,4 @@ include("showmime.jl")
 include("plot-recipes.jl")
 
 end # module
+
