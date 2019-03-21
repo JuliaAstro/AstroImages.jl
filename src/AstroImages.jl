@@ -59,8 +59,22 @@ Create an `AstroImage` object by reading the `n`-th extension from FITS file `fi
 Use `color` as color map, this is `Gray` by default.
 """
 AstroImage(color::Type{<:Color}, file::String, ext::Int=1) =
-    AstroImage(color, load(file, ext))
+    typeof(FITS(file, ext)) == ImageHUD ? AstroImage(color, load(file, ext)) : loader_util(color, file, ext)
 AstroImage(file::String, ext::Int=1) = AstroImage(Gray, file, ext)
+
+"""
+	loader_util(color, filename::String, ext::Int)
+Helper function for loading the next valid Image if the default index or input index given
+by user is not an ImageHUD.
+"""
+function loader_util(color, file, ext)
+	ind = ext
+	size = length(FITS(file))
+	while ind <= size && typeof(FITS(file, ind)) != ImageHUD
+		ind += 1
+	end
+	AstroImage(color, load(file, ind))
+end
 
 # Lazily render the image as a Matrix{Color}, upon request.
 function render(img::AstroImage{T,C}) where {T,C}
