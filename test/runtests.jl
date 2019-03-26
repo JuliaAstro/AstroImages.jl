@@ -1,4 +1,4 @@
-using AstroImages, FITSIO, Images
+using AstroImages, FITSIO, Images, Random
 using Test
 
 import AstroImages: _float, render
@@ -41,8 +41,50 @@ end
         rendered_img = render(img)
         @test iszero(minimum(rendered_img))
         @test convert(Matrix{Gray}, img) == rendered_img
+
+	img = AstroImage(fname, 1)
+        rendered_img = render(img)
+        @test iszero(minimum(rendered_img))
+        @test convert(Matrix{Gray}, img) == rendered_img
+        
+        img = AstroImage(Gray, fname, 1)
+        rendered_img = render(img)
+        @test iszero(minimum(rendered_img))
+        @test convert(Matrix{Gray}, img) == rendered_img
     end
     rm(fname, force=true)
 end
 
+
+@testset "default handler" begin
+    fname = tempname() * ".fits"
+    @testset "less dimensions than 2" begin
+        data = rand(2)
+        FITS(fname, "w") do f
+            write(f, data)
+        end
+        @test_throws ErrorException AstroImage(fname)
+    end
+    
+    @testset "no ImageHDU" begin
+        f = FITS(fname, "w")
+        ## Binary table
+        indata = Dict{String, Array}()
+        i = length(indata) + 1
+        indata["col$i"] = [randstring(10) for j=1:20]  # ASCIIString column
+        i += 1
+        indata["col$i"] = ones(Bool, 20)  # Bool column
+        i += 1
+        indata["col$i"] = reshape([1:40;], (2, 20))  # vector Int64 column
+        i += 1
+        indata["col$i"] = [randstring(5) for j=1:2, k=1:20]  # vector ASCIIString col
+        indata["vcol"] = [randstring(j) for j=1:20]  # variable length column
+        indata["VCOL"] = [collect(1.:j) for j=1.:20.] # variable length
+
+        # test writing
+        write(f, indata; varcols=["vcol", "VCOL"])
+
+        @test_throws MethodError AstroImage(f)
+    end
+end
 include("plots.jl")

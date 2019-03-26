@@ -75,8 +75,8 @@ function AstroImage(file::String)
         end
     end
     if ext > 0
-        AstroImage(Gray, fits, ext)
-	@info "Image was loaded from HDU $ext"
+       	@info "Image was loaded from HDU $ext"
+	AstroImage(Gray, fits, ext)
     else
         error("There are no ImageHDU extensions in \"$file\"")
     end
