@@ -15,5 +15,5 @@ function brightness_contrast(img::AstroImage{T,C}; brightness_range = 0:255,
 end
 
 # This is used in Jupyter notebooks
-Base.show(io::IO, mime::MIME"image/png", img::AstroImage; kwargs...) =
-    show(io, mime, render(img), kwargs...)
+Base.show(io::IO, mime::MIME"text/html", img::AstroImage; kwargs...) =
+    show(io, mime, brightness_contrast(img), kwargs...)
