@@ -57,17 +57,19 @@ end
 
 
 @testset "default handler" begin
-    fname = tempname() * ".fits"
+    fname1 = tempname() * ".fits"
     @testset "less dimensions than 2" begin
         data = rand(2)
-        FITS(fname, "w") do f
+        FITS(fname1, "w") do f
             write(f, data)
         end
-        @test_throws ErrorException AstroImage(fname)
+        @test_throws ErrorException AstroImage(fname1)
     end
-    
+    rm(fname1, force = true)
+
+    fname2 = tempname() * ".fits"
     @testset "no ImageHDU" begin
-        f = FITS(fname, "w")
+        f = FITS(fname2, "w")
         ## Binary table
         indata = Dict{String, Array}()
         i = length(indata) + 1
@@ -85,6 +87,9 @@ end
         write(f, indata; varcols=["vcol", "VCOL"])
 
         @test_throws MethodError AstroImage(f)
+	close(f)
     end
+    rm(fname2, force = true)
 end
 include("plots.jl")
+
