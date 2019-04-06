@@ -41,6 +41,7 @@ end
 
 struct AstroImage{T<:Real,C<:Color}
     data::Matrix{T}
+    minmax::Tuple{T,T}
 end
 
 """
@@ -49,8 +50,8 @@ end
 Construct an `AstroImage` object of `data`, using `color` as color map, `Gray` by default.
 """
 AstroImage(color::Type{<:Color}, data::Matrix{T}) where {T<:Real} =
-    AstroImage{T,color}(data)
-AstroImage(data::Matrix{T}) where {T<:Real} = AstroImage{T,Gray}(data)
+    AstroImage{T,color}(data, extrema(data))
+AstroImage(data::Matrix{T}) where {T<:Real} = AstroImage{T,Gray}(data, extrema(data))
 
 """
     AstroImage([color=Gray,] filename::String, n::Int=1)
@@ -62,9 +63,9 @@ AstroImage(color::Type{<:Color}, file::String, ext::Int=1) =
     AstroImage(color, load(file, ext))
 AstroImage(file::String, ext::Int=1) = AstroImage(Gray, file, ext)
 
-# Lazily render the image as a Matrix{Color}, upon request.
+# Lazily reinterpret the image as a Matrix{Color}, upon request.
 function render(img::AstroImage{T,C}) where {T,C}
-    imgmin, imgmax = extrema(img.data)
+    imgmin, imgmax = img.minmax
     # Add one to maximum to work around this issue:
     # https://github.com/JuliaMath/FixedPointNumbers.jl/issues/102
     f = scaleminmax(_float(imgmin), _float(max(imgmax, imgmax + one(T))))
