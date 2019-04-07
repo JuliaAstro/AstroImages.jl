@@ -3,6 +3,8 @@ using Test
 
 import AstroImages: _float, render
 
+fname = tempname() * ".fits"
+
 @testset "Conversion to float and fixed-point" begin
     @testset "Float" begin
         for T in (Float16, Float32, Float64)
@@ -28,7 +30,6 @@ import AstroImages: _float, render
 end
 
 @testset "FITS and images" begin
-    fname = tempname() * ".fits"
     for T in [UInt8, Int8, UInt16, Int16, UInt32, Int32, Int64,
               Float32, Float64]
         data = reshape(T[1:100;], 5, 20)
@@ -38,39 +39,23 @@ end
         @test load(fname) == data
         @test load(fname, (1, 1)) == (data, data)
         img = AstroImage(fname)
-        rendered_img = colorview(img)
-        @test iszero(minimum(rendered_img))
-        @test convert(Matrix{Gray}, img) == rendered_img
-
-	img = AstroImage(fname, 1)
         rendered_img = render(img)
         @test iszero(minimum(rendered_img))
         @test convert(Matrix{Gray}, img) == rendered_img
-        
-        img = AstroImage(Gray, fname, 1)
-        rendered_img = render(img)
-        @test iszero(minimum(rendered_img))
-        @test convert(Matrix{Gray}, img) == rendered_img
-
     end
-    rm(fname, force=true)
 end
 
 
 @testset "default handler" begin
-    fname1 = tempname() * ".fits"
     @testset "less dimensions than 2" begin
         data = rand(2)
-        FITS(fname1, "w") do f
+        FITS(fname, "w") do f
             write(f, data)
         end
-        @test_throws ErrorException AstroImage(fname1)
+        @test_throws ErrorException AstroImage(fname)
     end
-    rm(fname1, force = true)
 
-    fname2 = tempname() * ".fits"
     @testset "no ImageHDU" begin
-        f = FITS(fname2, "w")
         ## Binary table
         indata = Dict{String, Array}()
         i = length(indata) + 1
@@ -84,13 +69,19 @@ end
         indata["vcol"] = [randstring(j) for j=1:20]  # variable length column
         indata["VCOL"] = [collect(1.:j) for j=1.:20.] # variable length
 
-        # test writing
-        write(f, indata; varcols=["vcol", "VCOL"])
-
-        @test_throws MethodError AstroImage(f)
-	close(f)
+        FITS(fname, "w") do f
+            write(f, indata; varcols=["vcol", "VCOL"])
+            @test_throws MethodError AstroImage(f)
+        end
     end
-    rm(fname2, force = true)
+    
+    @testset "Opening AstroImage in different ways" begin
+        data = rand(2,2)
+        FITS(fname, "w") do f
+            write(f, data)
+        end
+        @test AstroImage(fname, 1) isa AstroImage
+        @test AstroImage(Gray ,fname, 1) isa AstroImage
+    end
 end
 include("plots.jl")
-
