@@ -88,10 +88,10 @@ function render(img::AstroImage{T,C}) where {T,C}
     # Add one to maximum to work around this issue:
     # https://github.com/JuliaMath/FixedPointNumbers.jl/issues/102
     f = scaleminmax(_float(imgmin), _float(max(imgmax, imgmax + one(T))))
-    return C.(f.(_float.(img.data)))
+    return colorview(C, f.(_float.(img.data)))
 end
 
-Base.convert(::Type{Matrix{C}}, img::AstroImage{T,C}) where {T,C<:Color} = render(img)
+Images.colorview(img::AstroImage) = render(img)
 
 include("showmime.jl")
 include("plot-recipes.jl")

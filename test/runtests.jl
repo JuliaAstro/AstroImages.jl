@@ -38,7 +38,7 @@ end
         @test load(fname) == data
         @test load(fname, (1, 1)) == (data, data)
         img = AstroImage(fname)
-        rendered_img = render(img)
+        rendered_img = colorview(img)
         @test iszero(minimum(rendered_img))
         @test convert(Matrix{Gray}, img) == rendered_img
 
@@ -51,6 +51,7 @@ end
         rendered_img = render(img)
         @test iszero(minimum(rendered_img))
         @test convert(Matrix{Gray}, img) == rendered_img
+
     end
     rm(fname, force=true)
 end
