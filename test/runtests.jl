@@ -83,5 +83,27 @@ end
         @test AstroImage(fname, 1) isa AstroImage
         @test AstroImage(Gray ,fname, 1) isa AstroImage
     end
+
+    @testset "Image HDU is not at 1st position" begin
+        ## Binary table
+        indata = Dict{String, Array}()
+        i = length(indata) + 1
+        indata["col$i"] = [randstring(10) for j=1:20]  # ASCIIString column
+        i += 1
+        indata["col$i"] = ones(Bool, 20)  # Bool column
+        i += 1
+        indata["col$i"] = reshape([1:40;], (2, 20))  # vector Int64 column
+        i += 1
+        indata["col$i"] = [randstring(5) for j=1:2, k=1:20]  # vector ASCIIString col
+        indata["vcol"] = [randstring(j) for j=1:20]  # variable length column
+        indata["VCOL"] = [collect(1.:j) for j=1.:20.] # variable length
+
+        FITS(fname, "w") do f
+            write(f, indata; varcols=["vcol", "VCOL"])
+            write(f, rand(2, 2))
+        end
+        
+        @test @test_logs (:info, "Image was loaded from HDU 3") AstroImage(fname) isa AstroImage
+    end
 end
 include("plots.jl")
