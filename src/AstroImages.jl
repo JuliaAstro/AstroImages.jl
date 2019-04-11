@@ -14,11 +14,18 @@ Read and return the data from `n`-th extension of the FITS file.  Second argumen
 be a tuple of integers, in which case a tuple with the data of each corresponding extension
 is returned.
 """
-FileIO.load(f::File{format"FITS"}, ext::Int=1) = _load(FITS(f.filename), ext)
+function FileIO.load(f::File{format"FITS"}, ext::Int=1)
+    fits = FITS(f.filename)
+    out = _load(fits, ext)
+    close(fits)
+    return out
+end
 
 function FileIO.load(f::File{format"FITS"}, ext::NTuple{N,Int}) where {N}
     fits = FITS(f.filename)
-    return ntuple(i -> read(fits[ext[i]]), N)
+    out = ntuple(i -> read(fits[ext[i]]), N)
+    close(fits)
+    return out
 end
 
 # Images.jl expects data to be either a float or a fixed-point number.  Here we define some
