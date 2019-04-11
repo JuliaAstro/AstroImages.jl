@@ -83,7 +83,9 @@ function AstroImage(file::String)
     elseif ext == 0
         error("There are no ImageHDU extensions in \"$file\"")
     end
-    AstroImage(Gray, fits, ext)
+    out = AstroImage(Gray, fits, ext)
+    close(fits)
+    return out
 end
 
 # Lazily render the image as a Matrix{Color}, upon request.
