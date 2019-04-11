@@ -39,9 +39,8 @@ end
         @test load(fname) == data
         @test load(fname, (1, 1)) == (data, data)
         img = AstroImage(fname)
-        rendered_img = render(img)
+        rendered_img = colorview(img)
         @test iszero(minimum(rendered_img))
-        @test convert(Matrix{Gray}, img) == rendered_img
     end
 end
 
@@ -74,7 +73,7 @@ end
             @test_throws MethodError AstroImage(f)
         end
     end
-    
+
     @testset "Opening AstroImage in different ways" begin
         data = rand(2,2)
         FITS(fname, "w") do f
@@ -102,7 +101,7 @@ end
             write(f, indata; varcols=["vcol", "VCOL"])
             write(f, rand(2, 2))
         end
-        
+
         @test @test_logs (:info, "Image was loaded from HDU 3") AstroImage(fname) isa AstroImage
     end
 end
