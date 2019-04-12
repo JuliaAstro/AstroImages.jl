@@ -3,8 +3,6 @@ using Test
 
 import AstroImages: _float, render
 
-fname = tempname() * ".fits"
-
 @testset "Conversion to float and fixed-point" begin
     @testset "Float" begin
         for T in (Float16, Float32, Float64)
@@ -30,6 +28,7 @@ fname = tempname() * ".fits"
 end
 
 @testset "FITS and images" begin
+    fname = tempname() * ".fits"
     for T in [UInt8, Int8, UInt16, Int16, UInt32, Int32, Int64,
               Float32, Float64]
         data = reshape(T[1:100;], 5, 20)
@@ -43,10 +42,12 @@ end
         @test iszero(minimum(rendered_img))
         @test convert(Matrix{Gray}, img) == rendered_img
     end
+    rm(fname, force = true)
 end
 
 
 @testset "default handler" begin
+    fname = tempname() * ".fits"
     @testset "less dimensions than 2" begin
         data = rand(2)
         FITS(fname, "w") do f
@@ -105,5 +106,6 @@ end
         
         @test @test_logs (:info, "Image was loaded from HDU 3") AstroImage(fname) isa AstroImage
     end
+    rm(fname, force = true)
 end
 include("plots.jl")
