@@ -6,6 +6,7 @@ using FITSIO, FileIO, Images
 
 export load, AstroImage
 
+_load(fits::FITS, ext) = read(fits[ext])
 
 """
     load(fitsfile::String, n=1)
@@ -16,7 +17,7 @@ is returned.
 """
 function FileIO.load(f::File{format"FITS"}, ext::Int=1)
     fits = FITS(f.filename)
-    out = read(fits[ext])
+    out = _load(fits, ext)
     close(fits)
     return out
 end
@@ -65,9 +66,30 @@ AstroImage(data::Matrix{T}) where {T<:Real} = AstroImage{T,Gray}(data)
 Create an `AstroImage` object by reading the `n`-th extension from FITS file `filename`.
 Use `color` as color map, this is `Gray` by default.
 """
-AstroImage(color::Type{<:Color}, file::String, ext::Int=1) =
+AstroImage(color::Type{<:Color}, file::String, ext::Int) =
     AstroImage(color, load(file, ext))
-AstroImage(file::String, ext::Int=1) = AstroImage(Gray, file, ext)
+AstroImage(file::String, ext::Int) = AstroImage(Gray, file, ext)
+
+AstroImage(color::Type{<:Color}, fits::FITS, ext::Int) =
+    AstroImage(color, _load(fits, ext))
+function AstroImage(file::String)
+    fits = FITS(file)
+    ext = 0
+    for (i, hdu) in enumerate(fits)
+        if hdu isa ImageHDU && length(size(hdu)) >= 2	# check if Image is atleast 2D
+            ext = i
+            break
+        end
+    end
+    if ext > 1
+       	@info "Image was loaded from HDU $ext"
+    elseif ext == 0
+        error("There are no ImageHDU extensions in \"$file\"")
+    end
+    out = AstroImage(Gray, fits, ext)
+    close(fits)
+    return out
+end
 
 # Lazily render the image as a Matrix{Color}, upon request.
 function render(img::AstroImage{T,C}) where {T,C}
