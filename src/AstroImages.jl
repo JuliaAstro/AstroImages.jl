@@ -6,6 +6,7 @@ using FITSIO, FileIO, Images, Interact
 
 export load, AstroImage
 
+_load(fits::FITS, ext) = read(fits[ext])
 
 """
     load(fitsfile::String, n=1)
@@ -14,11 +15,18 @@ Read and return the data from `n`-th extension of the FITS file.  Second argumen
 be a tuple of integers, in which case a tuple with the data of each corresponding extension
 is returned.
 """
-FileIO.load(f::File{format"FITS"}, ext::Int=1) = read(FITS(f.filename)[ext])
+function FileIO.load(f::File{format"FITS"}, ext::Int=1)
+    fits = FITS(f.filename)
+    out = _load(fits, ext)
+    close(fits)
+    return out
+end
 
 function FileIO.load(f::File{format"FITS"}, ext::NTuple{N,Int}) where {N}
     fits = FITS(f.filename)
-    return ntuple(i -> read(fits[ext[i]]), N)
+    out = ntuple(i -> read(fits[ext[i]]), N)
+    close(fits)
+    return out
 end
 
 # Images.jl expects data to be either a float or a fixed-point number.  Here we define some
@@ -58,9 +66,30 @@ AstroImage(data::Matrix{T}) where {T<:Real} = AstroImage{T,Gray}(data)
 Create an `AstroImage` object by reading the `n`-th extension from FITS file `filename`.
 Use `color` as color map, this is `Gray` by default.
 """
-AstroImage(color::Type{<:Color}, file::String, ext::Int=1) =
+AstroImage(color::Type{<:Color}, file::String, ext::Int) =
     AstroImage(color, load(file, ext))
-AstroImage(file::String, ext::Int=1) = AstroImage(Gray, file, ext)
+AstroImage(file::String, ext::Int) = AstroImage(Gray, file, ext)
+
+AstroImage(color::Type{<:Color}, fits::FITS, ext::Int) =
+    AstroImage(color, _load(fits, ext))
+function AstroImage(file::String)
+    fits = FITS(file)
+    ext = 0
+    for (i, hdu) in enumerate(fits)
+        if hdu isa ImageHDU && length(size(hdu)) >= 2	# check if Image is atleast 2D
+            ext = i
+            break
+        end
+    end
+    if ext > 1
+       	@info "Image was loaded from HDU $ext"
+    elseif ext == 0
+        error("There are no ImageHDU extensions in \"$file\"")
+    end
+    out = AstroImage(Gray, fits, ext)
+    close(fits)
+    return out
+end
 
 # Lazily render the image as a Matrix{Color}, upon request.
 function render(img::AstroImage{T,C}) where {T,C}
@@ -68,10 +97,10 @@ function render(img::AstroImage{T,C}) where {T,C}
     # Add one to maximum to work around this issue:
     # https://github.com/JuliaMath/FixedPointNumbers.jl/issues/102
     f = scaleminmax(_float(imgmin), _float(max(imgmax, imgmax + one(T))))
-    return C.(f.(_float.(img.data)))
+    return colorview(C, f.(_float.(img.data)))
 end
 
-Base.convert(::Type{Matrix{C}}, img::AstroImage{T,C}) where {T,C<:Color} = render(img)
+Images.colorview(img::AstroImage) = render(img)
 
 include("showmime.jl")
 include("plot-recipes.jl")
