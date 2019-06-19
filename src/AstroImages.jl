@@ -2,9 +2,9 @@ __precompile__()
 
 module AstroImages
 
-using FITSIO, FileIO, Images
+using FITSIO, FileIO, Images, Reproject
 
-export load, AstroImage
+export load, AstroImage, ccd2rgb
 
 _load(fits::FITS, ext) = read(fits[ext])
 
@@ -104,5 +104,6 @@ Images.colorview(img::AstroImage) = render(img)
 
 include("showmime.jl")
 include("plot-recipes.jl")
+include("ccd2rgb.jl")
 
 end # module
