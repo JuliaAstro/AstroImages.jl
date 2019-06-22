@@ -1,4 +1,4 @@
-using AstroImages, FITSIO, Images, Random
+using AstroImages, FITSIO, Images, Random, JLD
 using Test
 
 import AstroImages: _float, render
@@ -108,3 +108,4 @@ end
     rm(fname, force = true)
 end
 include("plots.jl")
+include("ccd2rgb.jl")
