@@ -13,13 +13,14 @@ end
     seriestype   := :heatmap
     aspect_ratio := :equal
     color        := :grays
-    formatter    := x -> pix2world_formatter(x, wcs)
+    xformatter   := x -> pix2world_xformatter(x, wcs)
+    yformatter   := y -> pix2world_yformatter(y, wcs)
     xlabel       := labler_x(wcs)
     ylabel       := labler_y(wcs)
     img.data
 end
 
-function pix2world_formatter(x, wcs)
+function pix2world_xformatter(x, wcs::WCSTransform)
     res = round(pix_to_world(wcs, [float(x), float(x)])[1], digits = 2)
     if wcs.cunit[1] == "deg"       # TODO: add symbols for more units
         return string(res)*"°"
@@ -28,7 +29,16 @@ function pix2world_formatter(x, wcs)
     end
 end
 
-function labler_x(wcs)
+function pix2world_yformatter(x, wcs::WCSTransform)
+    res = round(pix_to_world(wcs, [float(x), float(x)])[2], digits = 2)
+    if wcs.cunit[2] == "deg"       # TODO: add symbols for more units
+        return string(res)*"°"
+    else
+        return res[1]
+    end
+end
+
+function labler_x(wcs::WCSTransform)
     if wcs.ctype[1][1:2] == "RA"
         return "Right Ascension"
     elseif wcs.ctype[1][1:4] == "GLON"
@@ -40,7 +50,7 @@ function labler_x(wcs)
     end
 end
 
-function labler_y(wcs)
+function labler_y(wcs::WCSTransform)
     if wcs.ctype[2][1:3] == "DEC"
         return "Declination"
     elseif wcs.ctype[2][1:4] == "GLAT"
