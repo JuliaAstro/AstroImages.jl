@@ -2,7 +2,7 @@ __precompile__()
 
 module AstroImages
 
-using FITSIO, FileIO, Images
+using FITSIO, FileIO, Images, Interact
 
 export load, AstroImage
 
