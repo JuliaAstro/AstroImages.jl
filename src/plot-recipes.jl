@@ -39,25 +39,29 @@ function pix2world_yformatter(x, wcs::WCSTransform)
 end
 
 function labler_x(wcs::WCSTransform)
-    if wcs.ctype[1][1:2] == "RA"
-        return "Right Ascension"
+    if length(wcs.ctype[1]) == 0
+        return wcs.radesys
+    elseif wcs.ctype[1][1:2] == "RA"
+        return "Right Ascension (ICRS)"
     elseif wcs.ctype[1][1:4] == "GLON"
         return "Galactic Coordinate"
     elseif wcs.ctype[1][1:4] == "TLON"
         return "ITRS"
     else
-        return wcs.radesys
+        return wcs.ctype[1]
     end
 end
 
 function labler_y(wcs::WCSTransform)
-    if wcs.ctype[2][1:3] == "DEC"
-        return "Declination"
+    if length(wcs.ctype[2]) == 0
+        return wcs.radesys
+    elseif wcs.ctype[2][1:3] == "DEC"
+        return "Declination (ICRS)"
     elseif wcs.ctype[2][1:4] == "GLAT"
         return "Galactic Coordinate"
     elseif wcs.ctype[2][1:4] == "TLAT"
         return "ITRS"
     else
-        return wcs.radesys
+        return wcs.ctype[2]
     end
 end
