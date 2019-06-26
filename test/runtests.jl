@@ -1,4 +1,4 @@
-using AstroImages, FITSIO, Images, Random, Widgets
+using AstroImages, FITSIO, Images, Random, Widgets, WCS
 
 using Test
 

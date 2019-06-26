@@ -1,4 +1,5 @@
 using RecipesBase
+using AstroImages: pix2world_xformatter, pix2world_yformatter
 
 @testset "Plot recipes" begin
     data = randn(10, 10)
