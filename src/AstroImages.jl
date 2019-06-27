@@ -2,7 +2,7 @@ __precompile__()
 
 module AstroImages
 
-using FITSIO, FileIO, Images, Reproject
+using FITSIO, FileIO, Images, Reproject, Interact
 
 export load, AstroImage, ccd2rgb
 

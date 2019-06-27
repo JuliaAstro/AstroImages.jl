@@ -1,7 +1,8 @@
-using AstroImages, FITSIO, Images, Random, JLD
+using AstroImages, FITSIO, Images, Random, JLD, Widgets
+
 using Test
 
-import AstroImages: _float, render
+import AstroImages: _float, render, _brightness_contrast, brightness_contrast
 
 @testset "Conversion to float and fixed-point" begin
     @testset "Float" begin
@@ -44,6 +45,19 @@ end
     rm(fname, force = true)
 end
 
+@testset "Control contrast" begin
+    @test @inferred(_brightness_contrast(Gray, ones(Float32, 2, 2), 100, 100)) isa
+          Array{Gray{Float32},2}
+    Random.seed!(1)
+    M = rand(2, 2)
+    @test @inferred(_brightness_contrast(Gray, M, 100, 100)) ≈
+        Gray.([0.48471895908315565  0.514787046406301;
+               0.5280458879184159   0.39525854250610226]) rtol = 1e-12
+    @test @inferred(_brightness_contrast(Gray, M, 0,   255)) == Gray.(M)
+    @test @inferred(_brightness_contrast(Gray, M, 255,   0)) == Gray.(ones(size(M)))
+    @test @inferred(_brightness_contrast(Gray, M,   0,   0)) == Gray.(zeros(size(M)))
+    @test brightness_contrast(AstroImage(M)) isa Widgets.Widget{:manipulate,Any}
+end
 
 @testset "default handler" begin
     fname = tempname() * ".fits"
@@ -107,5 +121,6 @@ end
     end
     rm(fname, force = true)
 end
+
 include("plots.jl")
 include("ccd2rgb.jl")
