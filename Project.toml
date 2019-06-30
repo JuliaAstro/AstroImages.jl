@@ -1,0 +1,24 @@
+name = "AstroImages"
+uuid = "fe3fc30c-9b16-11e9-1c73-17dabf39f4ad"
+authors = ["Mosè Giordano", "Rohit Kumar"]
+version = "0.1.0"
+
+[deps]
+FITSIO = "525bcba6-941b-5504-bd06-fd0dc1a4d2eb"
+FileIO = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
+ImageMagick = "6218d12a-5da1-5696-b52f-db25d2ecc6d1"
+Images = "916415d5-f1e6-5110-898d-aaa5f9f070e0"
+Interact = "c601a237-2ae4-5e1e-952c-7a85b0c7eef1"
+RecipesBase = "3cdcf5f2-1ef4-517c-9805-6587b60abb01"
+WCS = "15f3aee2-9e10-537f-b834-a6fb8bdb944d"
+
+[compat]
+julia = "^1.0.0"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+Widgets = "cc8bc4a8-27d6-5769-a93b-9d913e69aa62"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+
+[targets]
+test = ["Test", "Random", "Widgets"]
