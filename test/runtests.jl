@@ -122,4 +122,8 @@ end
     rm(fname, force = true)
 end
 
+@testset "Utility functions" begin
+   @test size(AstroImage(rand(10,10))) == (10,10) 
+end
+
 include("plots.jl")

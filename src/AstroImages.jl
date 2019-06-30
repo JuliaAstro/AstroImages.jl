@@ -102,6 +102,8 @@ end
 
 Images.colorview(img::AstroImage) = render(img)
 
+Base.size(img::AstroImage) = Base.size(img.data)
+
 include("showmime.jl")
 include("plot-recipes.jl")
 
