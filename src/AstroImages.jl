@@ -6,7 +6,8 @@ using FITSIO, FileIO, Images, Interact
 
 export load, AstroImage
 
-_load(fits::FITS, ext) = read(fits[ext])
+_load(fits::FITS, ext::Int) = read(fits[ext])
+_load(fits::FITS, ext::NTuple{N, Int}) where {N} = ntuple(i-> read(fits[ext[i]]), N)
 
 """
     load(fitsfile::String, n=1)
@@ -47,8 +48,8 @@ for n in (8, 16, 32, 64)
     end
 end
 
-struct AstroImage{T<:Real,C<:Color}
-    data::Matrix{T}
+struct AstroImage{T<:Real,C<:Color, N}
+    data::NTuple{N, Matrix{T}}
 end
 
 """
@@ -57,8 +58,11 @@ end
 Construct an `AstroImage` object of `data`, using `color` as color map, `Gray` by default.
 """
 AstroImage(color::Type{<:Color}, data::Matrix{T}) where {T<:Real} =
-    AstroImage{T,color}(data)
-AstroImage(data::Matrix{T}) where {T<:Real} = AstroImage{T,Gray}(data)
+    AstroImage{T,color, 1}(ntuple(i-> data, 1))
+AstroImage(color::Type{<:Color}, data::NTuple{N, Matrix{T}}) where {T<:Real, N} =
+    AstroImage{T,color, N}(data)
+AstroImage(data::Matrix{T}) where {T<:Real} = AstroImage{T,Gray,1}(ntuple(i-> data, 1))
+AstroImage(data::NTuple{N, Matrix{T}}) where {T<:Real, N} = AstroImage{T,Gray,N}(data)
 
 """
     AstroImage([color=Gray,] filename::String, n::Int=1)
@@ -68,9 +72,15 @@ Use `color` as color map, this is `Gray` by default.
 """
 AstroImage(color::Type{<:Color}, file::String, ext::Int) =
     AstroImage(color, load(file, ext))
+AstroImage(color::Type{<:Color}, file::String, ext::NTuple{N, Int}) where {N} =
+    AstroImage(color, load(file, ext))
+
 AstroImage(file::String, ext::Int) = AstroImage(Gray, file, ext)
+AstroImage(file::String, ext::NTuple{N, Int}) where {N} = AstroImage(Gray, file, ext)
 
 AstroImage(color::Type{<:Color}, fits::FITS, ext::Int) =
+    AstroImage(color, _load(fits, ext))
+AstroImage(color::Type{<:Color}, fits::FITS, ext::NTuple{N, Int}) where {N} =
     AstroImage(color, _load(fits, ext))
 function AstroImage(file::String)
     fits = FITS(file)
@@ -92,12 +102,12 @@ function AstroImage(file::String)
 end
 
 # Lazily render the image as a Matrix{Color}, upon request.
-function render(img::AstroImage{T,C}) where {T,C}
-    imgmin, imgmax = extrema(img.data)
+function render(img::AstroImage{T,C,N}, header_number = 1) where {T,C,N}
+    imgmin, imgmax = extrema(img.data[header_number])
     # Add one to maximum to work around this issue:
     # https://github.com/JuliaMath/FixedPointNumbers.jl/issues/102
     f = scaleminmax(_float(imgmin), _float(max(imgmax, imgmax + one(T))))
-    return colorview(C, f.(_float.(img.data)))
+    return colorview(C, f.(_float.(img.data[header_number])))
 end
 
 Images.colorview(img::AstroImage) = render(img)
