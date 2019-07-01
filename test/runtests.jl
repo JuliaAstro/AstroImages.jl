@@ -122,6 +122,11 @@ end
     rm(fname, force = true)
 end
 
+@testset "Utility functions" begin
+   @test size(AstroImage((rand(10,10), rand(10,10)))) == ((10,10), (10,10))
+   @test length(AstroImage((rand(10,10), rand(10,10)))) == 2
+end
+
 @testset "multi image AstroImage" begin
     data1 = rand(10,10)
     data2 = rand(10,10)
