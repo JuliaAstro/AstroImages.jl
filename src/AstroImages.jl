@@ -12,9 +12,10 @@ _load(fits::FITS, ext::NTuple{N, Int}) where {N} = ntuple(i-> read(fits[ext[i]])
 """
     load(fitsfile::String, n=1)
 
-Read and return the data from `n`-th extension of the FITS file.  Second argument can also
-be a tuple of integers, in which case a tuple with the data of each corresponding extension
-is returned.
+Read and return the data from `n`-th extension of the FITS file.
+
+Second argument can also be a tuple of integers, in which case a 
+tuple with the data of each corresponding extension is returned.
 """
 function FileIO.load(f::File{format"FITS"}, ext::Int=1)
     fits = FITS(f.filename)
@@ -54,6 +55,7 @@ end
 
 """
     AstroImage([color=Gray,] data::Matrix{Real})
+    AstroImage(color::Type{<:Color}, data::NTuple{N, Matrix{T}}) where {T<:Real, N}
 
 Construct an `AstroImage` object of `data`, using `color` as color map, `Gray` by default.
 """
@@ -66,8 +68,10 @@ AstroImage(data::NTuple{N, Matrix{T}}) where {T<:Real, N} = AstroImage{T,Gray,N}
 
 """
     AstroImage([color=Gray,] filename::String, n::Int=1)
+    AstroImage(color::Type{<:Color}, file::String, n::NTuple{N, Int}) where {N}
 
 Create an `AstroImage` object by reading the `n`-th extension from FITS file `filename`.
+
 Use `color` as color map, this is `Gray` by default.
 """
 AstroImage(color::Type{<:Color}, file::String, ext::Int) =

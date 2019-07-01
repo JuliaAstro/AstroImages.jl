@@ -5,6 +5,7 @@ _brightness_contrast(color, matrix::AbstractMatrix{T}, brightness, contrast) whe
     brightness_contrast(image::AstroImage; brightness_range = 0:255, contrast_range = 1:1000, header_number = 1)
 
 Visualize the fits image by changing the brightness and contrast of image.
+
 Users can also provide their own range as keyword arguments.
 """
 function brightness_contrast(img::AstroImage{T,C,N}; brightness_range = 0:255,
