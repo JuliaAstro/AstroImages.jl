@@ -60,10 +60,10 @@ end
 Construct an `AstroImage` object of `data`, using `color` as color map, `Gray` by default.
 """
 AstroImage(color::Type{<:Color}, data::Matrix{T}) where {T<:Real} =
-    AstroImage{T,color, 1}(ntuple(i-> data, 1))
+    AstroImage{T,color, 1}((data,))
 AstroImage(color::Type{<:Color}, data::NTuple{N, Matrix{T}}) where {T<:Real, N} =
     AstroImage{T,color, N}(data)
-AstroImage(data::Matrix{T}) where {T<:Real} = AstroImage{T,Gray,1}(ntuple(i-> data, 1))
+AstroImage(data::Matrix{T}) where {T<:Real} = AstroImage{T,Gray,1}((data, ))
 AstroImage(data::NTuple{N, Matrix{T}}) where {T<:Real, N} = AstroImage{T,Gray,N}(data)
 
 """
@@ -118,7 +118,7 @@ Images.colorview(img::AstroImage) = render(img)
 
 Base.size(img::AstroImage) = Base.size.(img.data)
 
-Base.length(img::AstroImage) = Base.length(img.data)
+Base.length(img::AstroImage{T,C,N}) where{T,C,N} = N
 
 include("showmime.jl")
 include("plot-recipes.jl")
