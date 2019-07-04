@@ -123,7 +123,28 @@ end
 end
 
 @testset "Utility functions" begin
-   @test size(AstroImage(rand(10,10))) == (10,10) 
+   @test size(AstroImage((rand(10,10), rand(10,10)))) == ((10,10), (10,10))
+   @test length(AstroImage((rand(10,10), rand(10,10)))) == 2
+end
+
+@testset "multi image AstroImage" begin
+    data1 = rand(10,10)
+    data2 = rand(10,10)
+    fname = tempname() * ".fits"
+    FITS(fname, "w") do f
+        write(f, data1)
+        write(f, data2)
+    end
+
+    img = AstroImage(fname, (1,2))
+    @test length(img.data) == 2
+    @test img.data[1] == data1
+    @test img.data[2] == data2
+
+    img = AstroImage(Gray, FITS(fname), (1,2))
+    @test length(img.data) == 2
+    @test img.data[1] == data1
+    @test img.data[2] == data2
 end
 
 include("plots.jl")

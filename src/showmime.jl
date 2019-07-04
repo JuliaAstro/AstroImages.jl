@@ -2,15 +2,16 @@ _brightness_contrast(color, matrix::AbstractMatrix{T}, brightness, contrast) whe
     @. color(matrix / 255 * T(contrast) + T(brightness) / 255)
 
 """
-    brightness_contrast(image::AstroImage; brightness_range = 0:255, contrast_range = 1:1000)
+    brightness_contrast(image::AstroImage; brightness_range = 0:255, contrast_range = 1:1000, header_number = 1)
 
 Visualize the fits image by changing the brightness and contrast of image.
+
 Users can also provide their own range as keyword arguments.
 """
-function brightness_contrast(img::AstroImage{T,C}; brightness_range = 0:255,
-                             contrast_range = 1:1000) where {T,C}
+function brightness_contrast(img::AstroImage{T,C,N}; brightness_range = 0:255,
+                             contrast_range = 1:1000, header_number = 1) where {T,C,N}
     @manipulate for brightness  in brightness_range, contrast in contrast_range
-        _brightness_contrast(C, img.data, brightness, contrast)
+        _brightness_contrast(C, img.data[header_number], brightness, contrast)
     end
 end
 
