@@ -2,7 +2,7 @@ __precompile__()
 
 module AstroImages
 
-using FITSIO, FileIO, Images, Interact
+using FITSIO, FileIO, Images, Interact, WCS
 
 export load, AstroImage
 
@@ -20,15 +20,17 @@ tuple with the data of each corresponding extension is returned.
 function FileIO.load(f::File{format"FITS"}, ext::Int=1)
     fits = FITS(f.filename)
     out = _load(fits, ext)
+    header = WCS.from_header(read_header(fits[ext], String))[1]
     close(fits)
-    return out
+    return out, header
 end
 
 function FileIO.load(f::File{format"FITS"}, ext::NTuple{N,Int}) where {N}
     fits = FITS(f.filename)
     out = ntuple(i -> read(fits[ext[i]]), N)
+    header = ntuple(i -> WCS.from_header(read_header(fits[ext[i]], String))[1], N)
     close(fits)
-    return out
+    return out, header
 end
 
 # Images.jl expects data to be either a float or a fixed-point number.  Here we define some
@@ -51,6 +53,7 @@ end
 
 struct AstroImage{T<:Real,C<:Color, N}
     data::NTuple{N, Matrix{T}}
+    wcs::NTuple{N, WCSTransform}
 end
 
 """
@@ -59,12 +62,14 @@ end
 
 Construct an `AstroImage` object of `data`, using `color` as color map, `Gray` by default.
 """
-AstroImage(color::Type{<:Color}, data::Matrix{T}) where {T<:Real} =
-    AstroImage{T,color, 1}((data,))
-AstroImage(color::Type{<:Color}, data::NTuple{N, Matrix{T}}) where {T<:Real, N} =
-    AstroImage{T,color, N}(data)
-AstroImage(data::Matrix{T}) where {T<:Real} = AstroImage{T,Gray,1}((data, ))
-AstroImage(data::NTuple{N, Matrix{T}}) where {T<:Real, N} = AstroImage{T,Gray,N}(data)
+AstroImage(color::Type{<:Color}, data::Matrix{T}, wcs::WCSTransform) where {T<:Real} =
+    AstroImage{T,color, 1}((data,), (wcs,))
+AstroImage(color::Type{<:Color}, data::NTuple{N, Matrix{T}}, wcs::NTuple{N, WCSTransform}) where {T<:Real, N} =
+    AstroImage{T,color, N}(data, wcs)
+AstroImage(data::Matrix{T}) where {T<:Real} = AstroImage{T,Gray,1}((data,), (WCSTransform(2),))
+AstroImage(data::NTuple{N, Matrix{T}}) where {T<:Real, N} = AstroImage{T,Gray,N}(data, ntuple(i-> WCSTransform(2), N))
+AstroImage(data::Matrix{T}, wcs::WCSTransform) where {T<:Real} = AstroImage{T,Gray,1}((data,), (wcs,))
+AstroImage(data::NTuple{N, Matrix{T}}, wcs::NTuple{N, WCSTransform}) where {T<:Real, N} = AstroImage{T,Gray,N}(data, wcs)
 
 """
     AstroImage([color=Gray,] filename::String, n::Int=1)
@@ -75,17 +80,17 @@ Create an `AstroImage` object by reading the `n`-th extension from FITS file `fi
 Use `color` as color map, this is `Gray` by default.
 """
 AstroImage(color::Type{<:Color}, file::String, ext::Int) =
-    AstroImage(color, load(file, ext))
+    AstroImage(color, load(file, ext)...)
 AstroImage(color::Type{<:Color}, file::String, ext::NTuple{N, Int}) where {N} =
-    AstroImage(color, load(file, ext))
+    AstroImage(color, load(file, ext)...)
 
 AstroImage(file::String, ext::Int) = AstroImage(Gray, file, ext)
 AstroImage(file::String, ext::NTuple{N, Int}) where {N} = AstroImage(Gray, file, ext)
 
 AstroImage(color::Type{<:Color}, fits::FITS, ext::Int) =
-    AstroImage(color, _load(fits, ext))
+    AstroImage(color, _load(fits, ext), WCS.from_header(read_header(fits[ext],String))[1])
 AstroImage(color::Type{<:Color}, fits::FITS, ext::NTuple{N, Int}) where {N} =
-    AstroImage(color, _load(fits, ext))
+    AstroImage(color, _load(fits, ext), ntuple(i -> WCS.from_header(read_header(fits[ext[i]], String))[1], N))
 function AstroImage(file::String)
     fits = FITS(file)
     ext = 0
@@ -118,7 +123,7 @@ Images.colorview(img::AstroImage) = render(img)
 
 Base.size(img::AstroImage) = Base.size.(img.data)
 
-Base.length(img::AstroImage{T,C,N}) where{T,C,N} = N
+Base.length(img::AstroImage{T,C,N}) where {T,C,N} = N
 
 include("showmime.jl")
 include("plot-recipes.jl")
