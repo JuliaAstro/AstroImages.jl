@@ -16,13 +16,13 @@
         download("https://bintray.com/aquatiko/AstroImages.jl/download_file?file_path=ccd2_rgb.jld","data/ccd2rgb.jld")
     end
         
-    r = FITS("casa_0.5-1.5keV.fits")[1]
-    b = FITS("casa_1.5-3.0keV.fits")[1]
-    g = FITS("casa_4.0-6.0keV.fits")[1]
-    linear_res = ccd2rgb(r, b, g, shape_out = (1000,1000), stretch = "linear")
-    log_res = ccd2rgb(r, b, g, shape_out = (1000,1000), stretch = "log")
-    sqrt_res = ccd2rgb(r, b, g, shape_out = (1000,1000), stretch = "sqrt")
-    asinh_res = ccd2rgb(r, b, g, shape_out = (1000,1000), stretch = "asinh")
+    r = FITS("data/casa_0.5-1.5keV.fits")[1]
+    b = FITS("data/casa_1.5-3.0keV.fits")[1]
+    g = FITS("data/casa_4.0-6.0keV.fits")[1]
+    linear_res = ccd2rgb(r, b, g, shape_out = (1000,1000))
+    log_res = ccd2rgb(r, b, g, shape_out = (1000,1000), stretch = x -> log(x))
+    sqrt_res = ccd2rgb(r, b, g, shape_out = (1000,1000), stretch = x-> sqrt(x))
+    asinh_res = ccd2rgb(r, b, g, shape_out = (1000,1000), stretch = x -> asinh(x))
 
     @test all(linear_res .=== load("data/ccd2rgb.jld", "linear"))
     @test all(log_res .=== load("data/ccd2rgb.jld", "log"))
