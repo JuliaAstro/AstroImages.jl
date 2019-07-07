@@ -20,6 +20,7 @@ julia = "^1.0.0"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 Widgets = "cc8bc4a8-27d6-5769-a93b-9d913e69aa62"
+JLD = "4138dd39-2aa7-5051-a626-17a0bb65d9c8"
 
 [targets]
-test = ["Test", "Random", "Widgets"]
+test = ["Test", "Random", "Widgets", "JLD"]
