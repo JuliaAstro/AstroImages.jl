@@ -1,4 +1,4 @@
-using AstroImages, FITSIO, Images, Random, Widgets
+using AstroImages, FITSIO, Images, Random, JLD, Widgets
 
 using Test
 
@@ -148,3 +148,4 @@ end
 end
 
 include("plots.jl")
+include("ccd2rgb.jl")
