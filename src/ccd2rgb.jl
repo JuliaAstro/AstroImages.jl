@@ -1,5 +1,5 @@
 """
-    ccd2rgb(red::ImageHDU, green::ImageHDU, blue::ImageHDU; stretch::Function = x -> x, shape_out = size(red))
+    ccd2rgb(red::ImageHDU, green::ImageHDU, blue::ImageHDU; stretch = identity, shape_out = size(red))
 
 Converts 3 grayscale ImageHDU into RGB by reprojecting them.
 
@@ -14,14 +14,14 @@ Converts 3 grayscale ImageHDU into RGB by reprojecting them.
 ```julia-repl
 julia> ccd2rgb(r, b, g, shape_out = (1000,1000))
 
-julia> ccd2rgb(r, b, g, shape_out = (1000,1000), stretch = x -> log(x))
+julia> ccd2rgb(r, b, g, shape_out = (1000,1000), stretch = log)
 
-julia> ccd2rgb(r, b, g, shape_out = (1000,1000), stretch = x -> sqrt(x))
+julia> ccd2rgb(r, b, g, shape_out = (1000,1000), stretch = sqrt)
 
-julia> ccd2rgb(r, b, g, shape_out = (1000,1000), stretch = x -> asinh(x))
+julia> ccd2rgb(r, b, g, shape_out = (1000,1000), stretch = asinh)
 ```
 """
-function ccd2rgb(red::ImageHDU, green::ImageHDU, blue::ImageHDU; stretch::Function = x -> x, shape_out = size(red))
+function ccd2rgb(red::ImageHDU, green::ImageHDU, blue::ImageHDU; stretch = identity, shape_out = size(red))
     red_rp = reproject(red, red, shape_out = shape_out)[1]
     green_rp = reproject(green, red, shape_out = shape_out)[1]
     blue_rp = reproject(blue, red, shape_out = shape_out)[1]

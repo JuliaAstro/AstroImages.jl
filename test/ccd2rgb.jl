@@ -20,9 +20,9 @@
     b = FITS("data/casa_1.5-3.0keV.fits")[1]
     g = FITS("data/casa_4.0-6.0keV.fits")[1]
     linear_res = ccd2rgb(r, b, g, shape_out = (1000,1000))
-    log_res = ccd2rgb(r, b, g, shape_out = (1000,1000), stretch = x -> log(x))
-    sqrt_res = ccd2rgb(r, b, g, shape_out = (1000,1000), stretch = x-> sqrt(x))
-    asinh_res = ccd2rgb(r, b, g, shape_out = (1000,1000), stretch = x -> asinh(x))
+    log_res = ccd2rgb(r, b, g, shape_out = (1000,1000), stretch = log)
+    sqrt_res = ccd2rgb(r, b, g, shape_out = (1000,1000), stretch = sqrt)
+    asinh_res = ccd2rgb(r, b, g, shape_out = (1000,1000), stretch = asinh)
 
     @test all(linear_res .=== load("data/ccd2rgb.jld", "linear"))
     @test all(log_res .=== load("data/ccd2rgb.jld", "log"))
