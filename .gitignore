@@ -4,3 +4,6 @@
 
 # generated files
 Manifest.toml
+
+# test files
+/test/data
