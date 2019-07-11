@@ -14,8 +14,7 @@ using AstroImages: pix2world_xformatter, pix2world_yformatter
     @test getfield(rec[1], 1) == Dict{Symbol, Any}(:seriestype   => :heatmap,
                                                    :aspect_ratio => :equal,
                                                    :color        => :grays)
-<<<<<<< HEAD
-    @test rec[1].args == (img.data,)
+    @test rec[1].args == (img.data[1],)
     
     rec = RecipesBase.apply_recipe(Dict{Symbol, Any}(), img, wcs1)
     @test rec[1].plotattributes[:xlabel] == "Right Ascension (ICRS)" && rec[1].plotattributes[:ylabel] == "Declination (ICRS)"
@@ -43,14 +42,4 @@ end
     
     @test pix2world_yformatter(255, wcs1) == "13.98°"
     @test pix2world_yformatter(255, wcs2) == 255.0
-=======
-    @test rec[1].args == (img.data[1],)
-
-    img = AstroImage((data,data,data))    
-    rec = RecipesBase.apply_recipe(Dict{Symbol, Any}(), img, 2)
-    @test getfield(rec[1], 1) == Dict{Symbol, Any}(:seriestype   => :heatmap,
-                                                   :aspect_ratio => :equal,
-                                                   :color        => :grays)
-    @test rec[1].args == (img.data[1],)
->>>>>>> 0827e23ac9e97cabdcc067d775350d4d4cc2aeb3
 end
