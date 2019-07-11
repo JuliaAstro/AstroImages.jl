@@ -10,7 +10,12 @@ using AstroImages: pix2world_xformatter, pix2world_yformatter
     wcs4 = WCSTransform(2; ctype = ["UNK---", "UNK---"])
     wcs5 = WCSTransform(2;) 
     
-    rec = RecipesBase.apply_recipe(Dict{Symbol, Any}(), img)
+    rec = RecipesBase.apply_recipe(Dict{Symbol, Any}(), img, 1)
+    @test getfield(rec[1], 1) == Dict{Symbol, Any}(:seriestype   => :heatmap,
+                                                   :aspect_ratio => :equal,
+                                                   :color        => :grays)
+    
+                                                   rec = RecipesBase.apply_recipe(Dict{Symbol, Any}(), img)
     @test getfield(rec[1], 1) == Dict{Symbol, Any}(:seriestype   => :heatmap,
                                                    :aspect_ratio => :equal,
                                                    :color        => :grays)
@@ -30,7 +35,7 @@ using AstroImages: pix2world_xformatter, pix2world_yformatter
     
     rec = RecipesBase.apply_recipe(Dict{Symbol, Any}(), img, wcs5)
     @test rec[1].plotattributes[:xlabel] == "" && rec[1].plotattributes[:ylabel] == ""
-    
+
 end
 
 @testset "formatters" begin
