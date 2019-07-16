@@ -91,8 +91,7 @@ AstroImage(color::Type{<:Color}, fits::FITS, ext::Int) =
     AstroImage(color, _load(fits, ext), WCS.from_header(read_header(fits[ext],String))[1])
 AstroImage(color::Type{<:Color}, fits::FITS, ext::NTuple{N, Int}) where {N} =
     AstroImage(color, _load(fits, ext), ntuple(i -> WCS.from_header(read_header(fits[ext[i]], String))[1], N))
-function AstroImage(file::String)
-    fits = FITS(file)
+function indexer(fits::FITS)
     ext = 0
     for (i, hdu) in enumerate(fits)
         if hdu isa ImageHDU && length(size(hdu)) >= 2	# check if Image is atleast 2D
@@ -103,12 +102,25 @@ function AstroImage(file::String)
     if ext > 1
        	@info "Image was loaded from HDU $ext"
     elseif ext == 0
-        error("There are no ImageHDU extensions in \"$file\"")
+        error("There are no ImageHDU extensions in '$(fits.filename)'")
     end
-    out = AstroImage(Gray, fits, ext)
-    close(fits)
-    return out
+    return ext
 end
+function AstroImage(files::NTuple{N,String}) where {N}
+    data = [] #Array{Array{Real,2}}(undef,N)     # failing
+    wcs = Array{WCSTransform}(undef,N)
+    for file in files
+        fits = FITS(file)
+        ext = indexer(fits)
+        push!(data, read(fits[ext]))
+        push!(wcs, WCS.from_header(read_header(fits[ext], String))[1])  
+        close(fits)
+    end
+    data = tuple(data...)
+    wcs = tuple(wcs...)
+    return AstroImage(data, wcs)  # here we need to send T and N
+end
+AstroImage(file::String) = AstroImage{1}((file,))
 
 # Lazily render the image as a Matrix{Color}, upon request.
 function render(img::AstroImage{T,C,N}, header_number = 1) where {T,C,N}
