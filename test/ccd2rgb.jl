@@ -26,13 +26,12 @@
     asinh_ans = load(joinpath("data","ccd2rgb.jld"), "asinh")
     
     function check_diff(arr1, arr2)
-        diff = 0.1
+        diff = 1e-4
         count = 0
         for i in 1 : size(arr1)[1]
             for j in 1 : size(arr1)[2]
                 if abs(arr1[i,j] - arr2[i,j]) > diff
                     count+=1
-                    @info i,j,arr1[i,j],arr2[i,j],abs(arr1[i,j] - arr2[i,j])
                 end
             end
         end
