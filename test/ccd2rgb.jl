@@ -20,16 +20,30 @@
     b = FITS(joinpath("data","casa_1.5-3.0keV.fits"))[1]
     g = FITS(joinpath("data","casa_4.0-6.0keV.fits"))[1]
     linear_res = RGB.(ccd2rgb(r, b, g, shape_out = (1000,1000)))
-    log_res = RGB.(ccd2rgb(r, b, g, shape_out = (1000,1000), stretch = log))
+    asinh_res = RGB.(ccd2rgb(r, b, g, shape_out = (1000,1000), stretch = asinh))
     
     linear_ans = load(joinpath("data","ccd2rgb.jld"), "linear")
-    log_ans = load(joinpath("data","ccd2rgb.jld"), "log")
+    asinh_ans = load(joinpath("data","ccd2rgb.jld"), "asinh")
     
-    @test all(isapprox(red.(linear_res), red.(linear_ans), nans = true, atol = 1e-4))
-    @test all(isapprox(blue.(linear_res), blue.(linear_ans), nans = true, atol = 1e-4))
-    @test all(isapprox(green.(linear_res), green.(linear_ans), nans = true, atol = 1e-4))
+    function check_diff(arr1, arr2)
+        diff = 0.1
+        count = 0
+        for i in 1 : size(arr1)[1]
+            for j in 1 : size(arr1)[2]
+                if abs(arr1[i,j] - arr2[i,j]) > diff
+                    count+=1
+                    @info i,j,arr1[i,j],arr2[i,j],abs(arr1[i,j] - arr2[i,j])
+                end
+            end
+        end
+        return iszero(count)
+    end
 
-    @test all(isapprox(red.(log_res), red.(log_ans), nans = true, atol = 1e-4))
-    @test all(isapprox(blue.(log_res), blue.(log_ans), nans = true, atol = 1e-4))
-    @test all(isapprox(green.(log_res), green.(log_ans), nans = true, atol = 1e-4))
+    @test check_diff(red.(linear_res), red.(linear_ans))
+    @test check_diff(blue.(linear_res), blue.(linear_ans))
+    @test check_diff(green.(linear_res), green.(linear_ans))
+
+    @test check_diff(red.(asinh_res), red.(asinh_ans))
+    @test check_diff(blue.(asinh_res), blue.(asinh_ans))
+    @test check_diff(green.(asinh_res), green.(asinh_ans))
 end
