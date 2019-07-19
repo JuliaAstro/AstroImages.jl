@@ -179,4 +179,47 @@ end
     @test WCS.to_header(img.wcs[2]) === WCS.to_header(WCS.from_header(read_header(FITS(fname)[2], String))[1])
 end
 
+@testset "multi file AstroImage" begin
+    fname1 = tempname() * ".fits"
+    f = FITS(fname1, "w")
+    inhdr = FITSHeader(["CTYPE1", "CTYPE2", "RADESYS", "FLTKEY", "INTKEY", "BOOLKEY", "STRKEY", "COMMENT",
+                        "HISTORY"],
+                    ["RA---TAN", "DEC--TAN", "UNK", 1.0, 1, true, "string value", nothing, nothing],
+                    ["",
+                        "",
+                        "",
+                        "floating point keyword",
+                        "",
+                        "boolean keyword",
+                        "string value",
+                        "this is a comment",
+                        "this is a history"])
+
+    indata1 = reshape(Int64[1:100;], 5, 20)
+    write(f, indata1; header=inhdr)
+    close(f)
+
+    fname2 = tempname() * ".fits"
+    f = FITS(fname2, "w")
+    indata2 = reshape(Float32[1:100;], 5, 20)
+    write(f, indata2; header=inhdr)
+    close(f)
+
+    fname3 = tempname() * ".fits"
+    f = FITS(fname3, "w")
+    indata3 = reshape(Float64[1:100;], 5, 20)
+    write(f, indata3; header=inhdr)
+    close(f)
+
+    img = AstroImage((fname1, fname2, fname3))
+
+    @test length(img.data) == length(img.wcs) == 3
+    @test img.data[1] == indata1
+    @test img.data[2] == indata2
+    @test img.data[3] == indata3
+    @test WCS.to_header(img.wcs[1]) == WCS.to_header(img.wcs[2]) == 
+        WCS.to_header(img.wcs[3]) == WCS.to_header(WCS.from_header(read_header(FITS(fname1)[1], String))[1])
+    @test eltype(eltype(img.data)) == Float64
+end
+
 include("plots.jl")

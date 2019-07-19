@@ -107,20 +107,20 @@ function indexer(fits::FITS)
     return ext
 end
 function AstroImage(files::NTuple{N,String}) where {N}
-    data = [] #Array{Array{Real,2}}(undef,N)     # failing
+    data = Array{Array{Float64,2}}(undef,N)
     wcs = Array{WCSTransform}(undef,N)
-    for file in files
+    for (idx,file) in enumerate(files)
         fits = FITS(file)
         ext = indexer(fits)
-        push!(data, read(fits[ext]))
-        push!(wcs, WCS.from_header(read_header(fits[ext], String))[1])  
+        data[idx] = float.(read(fits[ext]))
+        wcs[idx] = WCS.from_header(read_header(fits[ext], String))[1]
         close(fits)
     end
     data = tuple(data...)
     wcs = tuple(wcs...)
-    return AstroImage(data, wcs)  # here we need to send T and N
+    return AstroImage(data, wcs)
 end
-AstroImage(file::String) = AstroImage{1}((file,))
+AstroImage(file::String) = AstroImage((file,))
 
 # Lazily render the image as a Matrix{Color}, upon request.
 function render(img::AstroImage{T,C,N}, header_number = 1) where {T,C,N}
