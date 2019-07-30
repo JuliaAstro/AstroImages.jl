@@ -201,13 +201,13 @@ end
 
     fname2 = tempname() * ".fits"
     f = FITS(fname2, "w")
-    indata2 = reshape(Float32[1:100;], 5, 20)
+    indata2 = reshape(Int[1:100;], 5, 20)
     write(f, indata2; header=inhdr)
     close(f)
 
     fname3 = tempname() * ".fits"
     f = FITS(fname3, "w")
-    indata3 = reshape(Float64[1:100;], 5, 20)
+    indata3 = reshape(Int[1:100;], 5, 20)
     write(f, indata3; header=inhdr)
     close(f)
 
@@ -219,7 +219,16 @@ end
     @test img.data[3] == indata3
     @test WCS.to_header(img.wcs[1]) == WCS.to_header(img.wcs[2]) == 
         WCS.to_header(img.wcs[3]) == WCS.to_header(WCS.from_header(read_header(FITS(fname1)[1], String))[1])
-    @test eltype(eltype(img.data)) == Float64
+    @test eltype(eltype(img.data)) == Int
+
+    img = AstroImage(Gray, (FITS(fname1), FITS(fname2), FITS(fname3)), (1,1,1))
+    @test length(img.data) == length(img.wcs) == 3
+    @test img.data[1] == indata1
+    @test img.data[2] == indata2
+    @test img.data[3] == indata3
+    @test WCS.to_header(img.wcs[1]) == WCS.to_header(img.wcs[2]) == 
+        WCS.to_header(img.wcs[3]) == WCS.to_header(WCS.from_header(read_header(FITS(fname1)[1], String))[1])
+    @test eltype(eltype(img.data)) == Int
 end
 
 include("plots.jl")
