@@ -59,7 +59,6 @@ function indexer(fits::FITS)
     return ext
 end
 indexer(fits::NTuple{N, FITS}) where {N} = ntuple(i -> indexer(fits[i]), N)
-indexer(fits::NTuple{N, String}) where {N} = indexer(_load(fits))
 
 # Images.jl expects data to be either a float or a fixed-point number.  Here we define some
 # utilities to convert all data types supported by FITS format to float or fixed-point:

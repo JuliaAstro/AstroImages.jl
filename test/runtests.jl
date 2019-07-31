@@ -91,11 +91,16 @@ end
 
     @testset "Opening AstroImage in different ways" begin
         data = rand(2,2)
+        wcs = WCSTransform(2;)
         FITS(fname, "w") do f
             write(f, data)
         end
         @test AstroImage(fname, 1) isa AstroImage
         @test AstroImage(Gray ,fname, 1) isa AstroImage
+        @test AstroImage(Gray, FITS(fname), 1) isa AstroImage
+        @test AstroImage(data, wcs) isa AstroImage
+        @test AstroImage((data,data), (wcs,wcs)) isa AstroImage
+        @test AstroImage(Gray, data, wcs) isa AstroImage
     end
 
     @testset "Image HDU is not at 1st position" begin
