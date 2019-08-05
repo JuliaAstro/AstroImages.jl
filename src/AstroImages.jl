@@ -8,11 +8,13 @@ export load, AstroImage
 
 _load(fits::FITS, ext::Int) = read(fits[ext])
 _load(fits::FITS, ext::NTuple{N, Int}) where {N} = ntuple(i-> read(fits[ext[i]]), N)
-_load(fits::NTuple{N, String}) where {N} = ntuple(i-> FITS(fits[i]), N)
+_load(fits::NTuple{N, FITS}, ext::NTuple{N, Int}) where {N} = ntuple(i -> _load(fits[i], ext[i]), N)
 
 _header(fits::FITS, ext::Int) = WCS.from_header(read_header(fits[ext], String))[1]
-_header(fits::FITS, ext::NTuple{N, Int}) where {N}= 
+_header(fits::FITS, ext::NTuple{N, Int}) where {N} = 
     ntuple(i -> WCS.from_header(read_header(fits[ext[i]], String))[1], N)
+_header(fits::NTuple{N, FITS}, ext::NTuple{N, Int}) where {N} = 
+    ntuple(i -> _header(fits[i], ext[i]), N)
 """
     load(fitsfile::String, n=1)
 
@@ -38,9 +40,14 @@ function FileIO.load(f::File{format"FITS"}, ext::NTuple{N,Int}) where {N}
 end
 
 function FileIO.load(f::NTuple{N, String}) where {N}
-    fits = _load(f)
+    fits = ntuple(i-> FITS(f[i]), N)
     ext = indexer(fits)
-    return fits, ext
+    out = _load(fits, ext)
+    header = _header(fits, ext)
+    for i in 1:N
+        close(fits[i])
+    end
+    return out, header
 end
 
 function indexer(fits::FITS)
@@ -109,7 +116,7 @@ Use `color` as color map, this is `Gray` by default.
 AstroImage(color::Type{<:Color}, file::String, ext::Int) =
     AstroImage(color, file, (ext,))
 AstroImage(color::Type{<:Color}, file::String, ext::NTuple{N, Int}) where {N} =
-    AstroImage(color, FITS(file), ext)
+    AstroImage(color, load(file, ext)...)
 
 AstroImage(file::String, ext::Int) = AstroImage(Gray, file, ext)
 AstroImage(file::String, ext::NTuple{N, Int}) where {N} = AstroImage(Gray, file, ext)
