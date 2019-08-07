@@ -37,11 +37,11 @@ end
     linear_ans = f.(load(joinpath("data","ccd2rgb_rounded.jld"), "linear"))
     asinh_ans = f.(load(joinpath("data","ccd2rgb_rounded.jld"), "asinh"))
 
-    @test isapprox(red.(linear_res), red.(linear_ans), nans = true, atol = 3e-5)
-    @test isapprox(blue.(linear_res), blue.(linear_ans), nans = true, atol = 3e-5)
-    @test isapprox(green.(linear_res), green.(linear_ans), nans = true, atol = 3e-5)
+    @test isapprox(red.(linear_res), red.(linear_ans), nans = true, rtol = 3e-5)
+    @test isapprox(blue.(linear_res), blue.(linear_ans), nans = true, rtol = 3e-5)
+    @test isapprox(green.(linear_res), green.(linear_ans), nans = true, rtol = 3e-5)
 
-    @test isapprox(red.(asinh_res), red.(asinh_ans), nans = true, atol = 3e-5)
-    @test isapprox(blue.(asinh_res), blue.(asinh_ans), nans = true, atol = 3e-5)
-    @test isapprox(green.(asinh_res), green.(asinh_ans), nans = true, atol = 3e-5)
+    @test isapprox(red.(asinh_res), red.(asinh_ans), nans = true, rtol = 3e-5)
+    @test isapprox(blue.(asinh_res), blue.(asinh_ans), nans = true, rtol = 3e-5)
+    @test isapprox(green.(asinh_res), green.(asinh_ans), nans = true, rtol = 3e-5)
 end
