@@ -8,7 +8,13 @@ export load, AstroImage
 
 _load(fits::FITS, ext::Int) = read(fits[ext])
 _load(fits::FITS, ext::NTuple{N, Int}) where {N} = ntuple(i-> read(fits[ext[i]]), N)
+_load(fits::NTuple{N, FITS}, ext::NTuple{N, Int}) where {N} = ntuple(i -> _load(fits[i], ext[i]), N)
 
+_header(fits::FITS, ext::Int) = WCS.from_header(read_header(fits[ext], String))[1]
+_header(fits::FITS, ext::NTuple{N, Int}) where {N} = 
+    ntuple(i -> WCS.from_header(read_header(fits[ext[i]], String))[1], N)
+_header(fits::NTuple{N, FITS}, ext::NTuple{N, Int}) where {N} = 
+    ntuple(i -> _header(fits[i], ext[i]), N)
 """
     load(fitsfile::String, n=1)
 
@@ -20,18 +26,46 @@ tuple with the data of each corresponding extension is returned.
 function FileIO.load(f::File{format"FITS"}, ext::Int=1)
     fits = FITS(f.filename)
     out = _load(fits, ext)
-    header = WCS.from_header(read_header(fits[ext], String))[1]
+    header = _header(fits,ext)
     close(fits)
     return out, header
 end
 
 function FileIO.load(f::File{format"FITS"}, ext::NTuple{N,Int}) where {N}
     fits = FITS(f.filename)
-    out = ntuple(i -> read(fits[ext[i]]), N)
-    header = ntuple(i -> WCS.from_header(read_header(fits[ext[i]], String))[1], N)
+    out = _load(fits, ext)
+    header = _header(fits, ext)
     close(fits)
     return out, header
 end
+
+function FileIO.load(f::NTuple{N, String}) where {N}
+    fits = ntuple(i-> FITS(f[i]), N)
+    ext = indexer(fits)
+    out = _load(fits, ext)
+    header = _header(fits, ext)
+    for i in 1:N
+        close(fits[i])
+    end
+    return out, header
+end
+
+function indexer(fits::FITS)
+    ext = 0
+    for (i, hdu) in enumerate(fits)
+        if hdu isa ImageHDU && length(size(hdu)) >= 2	# check if Image is atleast 2D
+            ext = i
+            break
+        end
+    end
+    if ext > 1
+       	@info "Image was loaded from HDU $ext"
+    elseif ext == 0
+        error("There are no ImageHDU extensions in '$(fits.filename)'")
+    end
+    return ext
+end
+indexer(fits::NTuple{N, FITS}) where {N} = ntuple(i -> indexer(fits[i]), N)
 
 # Images.jl expects data to be either a float or a fixed-point number.  Here we define some
 # utilities to convert all data types supported by FITS format to float or fixed-point:
@@ -80,7 +114,7 @@ Create an `AstroImage` object by reading the `n`-th extension from FITS file `fi
 Use `color` as color map, this is `Gray` by default.
 """
 AstroImage(color::Type{<:Color}, file::String, ext::Int) =
-    AstroImage(color, load(file, ext)...)
+    AstroImage(color, file, (ext,))
 AstroImage(color::Type{<:Color}, file::String, ext::NTuple{N, Int}) where {N} =
     AstroImage(color, load(file, ext)...)
 
@@ -91,24 +125,12 @@ AstroImage(color::Type{<:Color}, fits::FITS, ext::Int) =
     AstroImage(color, _load(fits, ext), WCS.from_header(read_header(fits[ext],String))[1])
 AstroImage(color::Type{<:Color}, fits::FITS, ext::NTuple{N, Int}) where {N} =
     AstroImage(color, _load(fits, ext), ntuple(i -> WCS.from_header(read_header(fits[ext[i]], String))[1], N))
-function AstroImage(file::String)
-    fits = FITS(file)
-    ext = 0
-    for (i, hdu) in enumerate(fits)
-        if hdu isa ImageHDU && length(size(hdu)) >= 2	# check if Image is atleast 2D
-            ext = i
-            break
-        end
-    end
-    if ext > 1
-       	@info "Image was loaded from HDU $ext"
-    elseif ext == 0
-        error("There are no ImageHDU extensions in \"$file\"")
-    end
-    out = AstroImage(Gray, fits, ext)
-    close(fits)
-    return out
-end
+AstroImage(color::Type{<:Color}, fits::NTuple{N, FITS}, ext::NTuple{N, Int}) where {N} =
+    AstroImage(color, ntuple(i -> _load(fits[i], ext[i]), N), ntuple(i -> WCS.from_header(read_header(fits[i][ext[i]], String))[1], N))
+
+AstroImage(files::NTuple{N,String}) where {N} = 
+    AstroImage(Gray, load(files)...)
+AstroImage(file::String) = AstroImage((file,))
 
 # Lazily render the image as a Matrix{Color}, upon request.
 function render(img::AstroImage{T,C,N}, header_number = 1) where {T,C,N}
