@@ -44,4 +44,11 @@ end
     @test isapprox(red.(asinh_res), red.(asinh_ans), nans = true, rtol = 3e-5)
     @test isapprox(blue.(asinh_res), blue.(asinh_ans), nans = true, rtol = 3e-5)
     @test isapprox(green.(asinh_res), green.(asinh_ans), nans = true, rtol = 3e-5)
+
+    @testset "AstroImage using ccd2rgb" begin
+        img = AstroImage(RGB, (joinpath("data","casa_0.5-1.5keV.fits"), joinpath("data","casa_1.5-3.0keV.fits"),
+                                joinpath("data","casa_4.0-6.0keV.fits")))
+        
+        @test RGB.(img.property.rgb_image) isa Array{RGB{Float64},2}
+    end
 end
