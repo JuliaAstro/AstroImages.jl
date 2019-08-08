@@ -1,6 +1,7 @@
-using AstroImages, FITSIO, Images, Random, Widgets, WCS
+using AstroImages, FITSIO, Images, Random, Widgets, WCS, JLD
 
 using Test, WCS
+using SHA: sha256
 
 import AstroImages: _float, render, _brightness_contrast, brightness_contrast
 
@@ -252,3 +253,4 @@ end
 end
 
 include("plots.jl")
+include("ccd2rgb.jl")

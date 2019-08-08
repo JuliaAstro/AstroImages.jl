@@ -2,9 +2,9 @@ __precompile__()
 
 module AstroImages
 
-using FITSIO, FileIO, Images, Interact, WCS
+using FITSIO, FileIO, Images, Interact, Reproject, WCS
 
-export load, AstroImage
+export load, AstroImage, ccd2rgb
 
 _load(fits::FITS, ext::Int) = read(fits[ext])
 _load(fits::FITS, ext::NTuple{N, Int}) where {N} = ntuple(i-> read(fits[ext[i]]), N)
@@ -149,5 +149,6 @@ Base.length(img::AstroImage{T,C,N}) where {T,C,N} = N
 
 include("showmime.jl")
 include("plot-recipes.jl")
+include("ccd2rgb.jl")
 
 end # module
