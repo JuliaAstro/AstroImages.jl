@@ -2,7 +2,7 @@ __precompile__()
 
 module AstroImages
 
-using FITSIO, FileIO, Images, Interact, Reproject, WCS
+using FITSIO, FileIO, Images, Interact, Reproject, WCS, MappedArrays
 
 export load, AstroImage, ccd2rgb
 
@@ -85,9 +85,21 @@ for n in (8, 16, 32, 64)
     end
 end
 
-struct AstroImage{T<:Real,C<:Color, N}
+mutable struct Properties{P <: Union{AbstractFloat, FixedPoint}}
+    rgb_image::MappedArrays.MultiMappedArray{RGB{P},2,Tuple{Array{P,2},Array{P,2},Array{P,2}},Type{RGB{P}},typeof(ImageCore.extractchannels)}
+    function Properties{P}(;kvs...) where P
+        obj = new{P}()
+        for (k,v) in kvs
+            setproperty!(obj, k, v)
+        end
+        return obj
+    end
+end
+
+struct AstroImage{T<:Real,C<:Color, N, P}
     data::NTuple{N, Matrix{T}}
     wcs::NTuple{N, WCSTransform}
+    property::Properties{P}
 end
 
 """
@@ -97,13 +109,26 @@ end
 Construct an `AstroImage` object of `data`, using `color` as color map, `Gray` by default.
 """
 AstroImage(color::Type{<:Color}, data::Matrix{T}, wcs::WCSTransform) where {T<:Real} =
-    AstroImage{T,color, 1}((data,), (wcs,))
-AstroImage(color::Type{<:Color}, data::NTuple{N, Matrix{T}}, wcs::NTuple{N, WCSTransform}) where {T<:Real, N} =
-    AstroImage{T,color, N}(data, wcs)
-AstroImage(data::Matrix{T}) where {T<:Real} = AstroImage{T,Gray,1}((data,), (WCSTransform(2),))
-AstroImage(data::NTuple{N, Matrix{T}}) where {T<:Real, N} = AstroImage{T,Gray,N}(data, ntuple(i-> WCSTransform(2), N))
-AstroImage(data::Matrix{T}, wcs::WCSTransform) where {T<:Real} = AstroImage{T,Gray,1}((data,), (wcs,))
-AstroImage(data::NTuple{N, Matrix{T}}, wcs::NTuple{N, WCSTransform}) where {T<:Real, N} = AstroImage{T,Gray,N}(data, wcs)
+    AstroImage{T,color, 1, Float64}((data,), (wcs,), Properties{Float64}())
+function AstroImage(color::Type{<:AbstractRGB}, data::NTuple{N, Matrix{T}}, wcs::NTuple{N, WCSTransform}) where {T <: Union{AbstractFloat, FixedPoint}, N}
+    if N == 3
+        img = ccd2rgb((data[1], wcs[1]),(data[2], wcs[2]),(data[3], wcs[3]))
+        return AstroImage{T,color,N, widen(T)}(data, wcs, Properties{widen(T)}(rgb_image = img))
+    end
+end
+function AstroImage(color::Type{<:AbstractRGB}, data::NTuple{N, Matrix{T}}, wcs::NTuple{N, WCSTransform}) where {T<:Real, N}
+    if N == 3
+        img = ccd2rgb((data[1], wcs[1]),(data[2], wcs[2]),(data[3], wcs[3]))
+        return AstroImage{T,color,N, Float64}(data, wcs, Properties{Float64}(rgb_image = img))
+    end
+end
+function AstroImage(color::Type{<:Color}, data::NTuple{N, Matrix{T}}, wcs::NTuple{N, WCSTransform}) where {T<:Real, N}
+    return AstroImage{T,color, N, Float64}(data, wcs, Properties{Float64}())
+end
+AstroImage(data::Matrix{T}) where {T<:Real} = AstroImage{T,Gray,1, Float64}((data,), (WCSTransform(2),), Properties{Float64}())
+AstroImage(data::NTuple{N, Matrix{T}}) where {T<:Real, N} = AstroImage{T,Gray,N, Float64}(data, ntuple(i-> WCSTransform(2), N), Properties{Float64}())
+AstroImage(data::Matrix{T}, wcs::WCSTransform) where {T<:Real} = AstroImage{T,Gray,1, Float64}((data,), (wcs,), Properties{Float64}())
+AstroImage(data::NTuple{N, Matrix{T}}, wcs::NTuple{N, WCSTransform}) where {T<:Real, N} = AstroImage{T,Gray,N, Float64}(data, wcs, Properties{Float64}())
 
 """
     AstroImage([color=Gray,] filename::String, n::Int=1)
@@ -130,6 +155,8 @@ AstroImage(color::Type{<:Color}, fits::NTuple{N, FITS}, ext::NTuple{N, Int}) whe
 
 AstroImage(files::NTuple{N,String}) where {N} = 
     AstroImage(Gray, load(files)...)
+AstroImage(color::Type{<:Color}, files::NTuple{N,String}) where {N} = 
+    AstroImage(color, load(files)...)
 AstroImage(file::String) = AstroImage((file,))
 
 # Lazily render the image as a Matrix{Color}, upon request.
