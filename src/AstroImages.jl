@@ -92,9 +92,9 @@ mutable struct Properties{P <: Union{AbstractFloat, FixedPoint}}
     label::Array{Tuple{Tuple{Float64,Float64},String},1}
     function Properties{P}(;kvs...) where P
         obj = new{P}()
-        setproperty!(obj, :contrast, 1.0)
-        setproperty!(obj, :brightness, 0.0)
-        setproperty!(obj, :label, [])
+        obj.contrast = 1.0
+        obj.brightness = 0.0
+        obj.label = Array{Tuple{Tuple{Float64,Float64},String}}(undef,0)
         for (k,v) in kvs
             setproperty!(obj, k, v)
         end
