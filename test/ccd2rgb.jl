@@ -45,10 +45,47 @@ end
     @test isapprox(blue.(asinh_res), blue.(asinh_ans), nans = true, rtol = 3e-5)
     @test isapprox(green.(asinh_res), green.(asinh_ans), nans = true, rtol = 3e-5)
 
-    @testset "AstroImage using ccd2rgb" begin
+    @testset "AstroImage using ccd2rgb and properties" begin
         img = AstroImage(RGB, (joinpath("data","casa_0.5-1.5keV.fits"), joinpath("data","casa_1.5-3.0keV.fits"),
                                 joinpath("data","casa_4.0-6.0keV.fits")))
         
         @test RGB.(img.property.rgb_image) isa Array{RGB{Float64},2}
+        @test img.property.brightness == 0.0
+        @test img.property.contrast == 1.0
+        @test img.property.label == []
+        
+        test_img = deepcopy(img)
+        set_brightness!(img, 1.5)
+        @test img.property.brightness == 1.5
+        @test isapprox(red.(img.property.rgb_image), red.(test_img.property.rgb_image) .+ 1.5, nans = true)
+        @test isapprox(green.(img.property.rgb_image), green.(test_img.property.rgb_image) .+ 1.5, nans = true)
+        @test isapprox(blue.(img.property.rgb_image), blue.(test_img.property.rgb_image) .+ 1.5, nans = true)
+        set_brightness!(test_img, 1.5)
+
+        set_contrast!(img, 2.5)
+        @test img.property.contrast == 2.5
+        @test isapprox(red.(img.property.rgb_image), red.(test_img.property.rgb_image) .* 2.5, nans = true)
+        @test isapprox(green.(img.property.rgb_image), green.(test_img.property.rgb_image) .* 2.5, nans = true)
+        @test isapprox(blue.(img.property.rgb_image), blue.(test_img.property.rgb_image) .* 2.5, nans = true)
+        set_contrast!(test_img, 2.5)
+
+        add_label!(img, 12, 13, "This is an important coordinate")
+        add_label!(img, 13, 11, "This a random coordinate")
+        @test img.property.label[1] == ((12,13), "This is an important coordinate")
+        @test img.property.label[2] == ((13,11), "This a random coordinate")
+
+        reset!(img)
+        @test img.property.contrast == 1.0
+        @test img.property.brightness == 0.0
+        @test img.property.label == []
+        ans = ccd2rgb(r, b, g)
+        @test isapprox(red.(img.property.rgb_image), red.(ans), nans = true)
+        @test isapprox(green.(img.property.rgb_image), green.(ans), nans = true)
+        @test isapprox(blue.(img.property.rgb_image), blue.(ans), nans = true)
+        
+
+        img = AstroImage(joinpath("data","casa_0.5-1.5keV.fits"))
+        @test_throws DomainError set_brightness!(img, 1.2)
+        @test_throws DomainError set_contrast!(img, 1.2)
     end
 end

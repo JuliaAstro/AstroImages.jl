@@ -4,7 +4,7 @@ module AstroImages
 
 using FITSIO, FileIO, Images, Interact, Reproject, WCS, MappedArrays
 
-export load, AstroImage, ccd2rgb
+export load, AstroImage, ccd2rgb, set_brightness!, set_contrast!, add_label!, reset!
 
 _load(fits::FITS, ext::Int) = read(fits[ext])
 _load(fits::FITS, ext::NTuple{N, Int}) where {N} = ntuple(i-> read(fits[ext[i]]), N)
@@ -87,8 +87,14 @@ end
 
 mutable struct Properties{P <: Union{AbstractFloat, FixedPoint}}
     rgb_image::MappedArrays.MultiMappedArray{RGB{P},2,Tuple{Array{P,2},Array{P,2},Array{P,2}},Type{RGB{P}},typeof(ImageCore.extractchannels)}
+    contrast::Float64
+    brightness::Float64
+    label::Array{Tuple{Tuple{Float64,Float64},String},1}
     function Properties{P}(;kvs...) where P
         obj = new{P}()
+        obj.contrast = 1.0
+        obj.brightness = 0.0
+        obj.label = Array{Tuple{Tuple{Float64,Float64},String}}(undef,0)
         for (k,v) in kvs
             setproperty!(obj, k, v)
         end
@@ -166,6 +172,39 @@ function render(img::AstroImage{T,C,N}, header_number = 1) where {T,C,N}
     # https://github.com/JuliaMath/FixedPointNumbers.jl/issues/102
     f = scaleminmax(_float(imgmin), _float(max(imgmax, imgmax + one(T))))
     return colorview(C, f.(_float.(img.data[header_number])))
+end
+
+function set_brightness!(img::AstroImage, value::AbstractFloat)
+    if isdefined(img.property, :rgb_image)
+        diff = value - img.property.brightness
+        img.property.brightness = value
+        img.property.rgb_image .+= RGB{typeof(value)}(diff, diff, diff)
+    else
+        throw(DomainError(value, "Can't apply operation. AstroImage dosen't contain :rgb_image"))
+    end
+end
+function set_contrast!(img::AstroImage, value::AbstractFloat)
+    if isdefined(img.property, :rgb_image)
+        diff = (value / img.property.contrast)
+        img.property.contrast = value
+        img.property.rgb_image = colorview(RGB, red.(img.property.rgb_image) .* diff, green.(img.property.rgb_image) .* diff,
+                                                blue.(img.property.rgb_image) .* diff)
+    else
+        throw(DomainError(value, "Can't apply operation. AstroImage dosen't contain :rgb_image"))
+    end
+end
+function add_label!(img::AstroImage, x::Real, y::Real, label::String)
+    push!(img.property.label, ((x,y), label))
+end
+function reset!(img::AstroImage{T,C,N}) where {T,C,N}
+    img.property.contrast = 1.0
+    img.property.brightness = 0.0
+    img.property.label = []
+    if N == 3 && C == RGB
+        shape_out = size(img.property.rgb_image)
+        img.property.rgb_image = ccd2rgb((img.data[1], img.wcs[1]),(img.data[2], img.wcs[2]),(img.data[3], img.wcs[3]),
+                                            shape_out = shape_out)
+    end
 end
 
 Images.colorview(img::AstroImage) = render(img)
