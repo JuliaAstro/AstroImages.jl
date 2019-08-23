@@ -174,6 +174,11 @@ function render(img::AstroImage{T,C,N}, header_number = 1) where {T,C,N}
     return colorview(C, f.(_float.(img.data[header_number])))
 end
 
+"""
+    set_brightness!(img::AstroImage, value::AbstractFloat)
+
+Sets brightness of `rgb_image` to value.
+"""
 function set_brightness!(img::AstroImage, value::AbstractFloat)
     if isdefined(img.property, :rgb_image)
         diff = value - img.property.brightness
@@ -183,6 +188,12 @@ function set_brightness!(img::AstroImage, value::AbstractFloat)
         throw(DomainError(value, "Can't apply operation. AstroImage dosen't contain :rgb_image"))
     end
 end
+
+"""
+    set_contrast!(img::AstroImage, value::AbstractFloat)
+
+Sets contrast of rgb_image to value.
+"""
 function set_contrast!(img::AstroImage, value::AbstractFloat)
     if isdefined(img.property, :rgb_image)
         diff = (value / img.property.contrast)
@@ -193,9 +204,24 @@ function set_contrast!(img::AstroImage, value::AbstractFloat)
         throw(DomainError(value, "Can't apply operation. AstroImage dosen't contain :rgb_image"))
     end
 end
+
+"""
+    add_label!(img::AstroImage, x::Real, y::Real, label::String)
+
+Stores label to coordinates (x,y) in AstroImage's property label.
+"""
 function add_label!(img::AstroImage, x::Real, y::Real, label::String)
     push!(img.property.label, ((x,y), label))
 end
+
+"""
+    reset!(img::AstroImage)
+
+Resets AstroImage property fields.
+
+Sets brightness to 0.0, contrast to 1.0, empties label
+and form a fresh rgb_image without any brightness, contrast operations on it.
+"""
 function reset!(img::AstroImage{T,C,N}) where {T,C,N}
     img.property.contrast = 1.0
     img.property.brightness = 0.0

@@ -18,14 +18,12 @@ read FITS files.
 Installation
 ------------
 
-`AstroImage.jl` is available for Julia 0.7 and later versions, and can be
+`AstroImage.jl` is available for Julia 1.0 and later versions, and can be
 installed with [Julia built-in package
-manager](https://docs.julialang.org/en/v1/stdlib/Pkg/).  This packages is not
-yet registered, after entering into the package manager by pressing `]` run the
-command
+manager](https://docs.julialang.org/en/v1/stdlib/Pkg/).
 
 ```julia
-pkg> add https://github.com/JuliaAstro/AstroImages.jl
+pkg> add AstroImages
 ```
 
 Usage
@@ -65,14 +63,32 @@ the same syntax as `load`.  This command:
 
 ```julia
 julia> img = AstroImage("file.fits")
-AstroImages.AstroImage{UInt16,ColorTypes.Gray}[...]
+AstroImages.AstroImage{UInt16,ColorTypes.Gray,1,Float64}[...]
 ```
 
-will read the first extension from the `file.fits` file and wrap its content in
-a `Matrix{Gray}`, that can be easily used with `Images.jl` and related packages.
+will read the first valid extension from the `file.fits` file and wrap its content in
+a `NTuple{N, Matrix{Gray}}`, that can be easily used with `Images.jl` and related packages.
 
 If you are working in a Jupyter notebook, an `AstroImage` object is
 automatically rendered as a PNG image.
+
+`AstroImage` automatically extracts and store `wcs` information of images in a `NTuple{N, WCSTransform}`.
+
+## Forming RGB image
+`AstroImage` can automatically construct a RGB image if 3 different colour band data is given.
+
+```julia
+julia> img = AstroImage(RGB, ("file1.fits","file2.fits", "file3.fits"))
+```
+Where 1st index of `file1.fits`, `file2.fits`, `file3.fits` contains band data of red, blue and  green channels respectively.
+
+Optionally, `ccd2rgb` method can be used to form a coloured image from 3 bands without creating an `AstroImage`.
+
+The formed image can be accessed using `img.property.rgb_image`. 
+`set_brightness!` and `set_contrast!` methods can be used to change brightness and contrast of formed `rgb_image`.
+`add_label!` method can be used to add/store Astronomical labels in an `AstroImage`.
+`reset!` method resets `brightness`, `contrast` and `label` fields to defaults and construct a fresh `rgb_image` without any brightness, contrast operations.
+
 
 ## Plotting an AstroImage
 
