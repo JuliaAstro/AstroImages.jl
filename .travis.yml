@@ -17,6 +17,9 @@ git:
 matrix:
  allow_failures:
  - julia: nightly
+cache:
+  directories:
+  - $TRAVIS_BUILD_DIR/test/data
 
 ## uncomment and modify the following lines to manually install system packages
 #addons:
