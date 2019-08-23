@@ -72,10 +72,10 @@ a `NTuple{N, Matrix{Gray}}`, that can be easily used with `Images.jl` and relate
 If you are working in a Jupyter notebook, an `AstroImage` object is
 automatically rendered as a PNG image.
 
-`AstroImage` automatically extracts and store `wcs` info. of images in a `NTuple{N, WCSTransform}`.
+`AstroImage` automatically extracts and store `wcs` information of images in a `NTuple{N, WCSTransform}`.
 
 ## Forming RGB image
-Using `Reproject.jl`, `AstroImage` can automatically construct a RGB image if 3 different colour band data is given.
+`AstroImage` can automatically construct a RGB image if 3 different colour band data is given.
 
 ```julia
 julia> img = AstroImage(RGB, ("file1.fits","file2.fits", "file3.fits"))
