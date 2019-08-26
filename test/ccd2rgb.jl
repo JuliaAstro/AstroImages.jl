@@ -74,6 +74,7 @@ end
         @test img.property.label[1] == ((12,13), "This is an important coordinate")
         @test img.property.label[2] == ((13,11), "This a random coordinate")
 
+        @info "Running..."
         reset!(img)
         @test img.property.contrast == 1.0
         @test img.property.brightness == 0.0
