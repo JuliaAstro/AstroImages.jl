@@ -104,6 +104,7 @@ end
 
 struct AstroImage{T<:Real,C<:Color, N, P}
     data::NTuple{N, Matrix{T}}
+    minmax::NTuple{N, Tuple{T,T}}
     wcs::NTuple{N, WCSTransform}
     property::Properties{P}
 end
@@ -115,26 +116,26 @@ end
 Construct an `AstroImage` object of `data`, using `color` as color map, `Gray` by default.
 """
 AstroImage(color::Type{<:Color}, data::Matrix{T}, wcs::WCSTransform) where {T<:Real} =
-    AstroImage{T,color, 1, Float64}((data,), (wcs,), Properties{Float64}())
+    AstroImage{T,color, 1, Float64}((data,), (extrema(data),), (wcs,), Properties{Float64}())
 function AstroImage(color::Type{<:AbstractRGB}, data::NTuple{N, Matrix{T}}, wcs::NTuple{N, WCSTransform}) where {T <: Union{AbstractFloat, FixedPoint}, N}
     if N == 3
         img = ccd2rgb((data[1], wcs[1]),(data[2], wcs[2]),(data[3], wcs[3]))
-        return AstroImage{T,color,N, widen(T)}(data, wcs, Properties{widen(T)}(rgb_image = img))
+        return AstroImage{T,color,N, widen(T)}(data, ntuple(i -> extrema(data[i]), N), wcs, Properties{widen(T)}(rgb_image = img))
     end
 end
 function AstroImage(color::Type{<:AbstractRGB}, data::NTuple{N, Matrix{T}}, wcs::NTuple{N, WCSTransform}) where {T<:Real, N}
     if N == 3
         img = ccd2rgb((data[1], wcs[1]),(data[2], wcs[2]),(data[3], wcs[3]))
-        return AstroImage{T,color,N, Float64}(data, wcs, Properties{Float64}(rgb_image = img))
+        return AstroImage{T,color,N, Float64}(data, ntuple(i -> extrema(data[i]), N), wcs, Properties{Float64}(rgb_image = img))
     end
 end
 function AstroImage(color::Type{<:Color}, data::NTuple{N, Matrix{T}}, wcs::NTuple{N, WCSTransform}) where {T<:Real, N}
-    return AstroImage{T,color, N, Float64}(data, wcs, Properties{Float64}())
+    return AstroImage{T,color, N, Float64}(data, ntuple(i -> extrema(data[i]), N), wcs, Properties{Float64}())
 end
-AstroImage(data::Matrix{T}) where {T<:Real} = AstroImage{T,Gray,1, Float64}((data,), (WCSTransform(2),), Properties{Float64}())
-AstroImage(data::NTuple{N, Matrix{T}}) where {T<:Real, N} = AstroImage{T,Gray,N, Float64}(data, ntuple(i-> WCSTransform(2), N), Properties{Float64}())
-AstroImage(data::Matrix{T}, wcs::WCSTransform) where {T<:Real} = AstroImage{T,Gray,1, Float64}((data,), (wcs,), Properties{Float64}())
-AstroImage(data::NTuple{N, Matrix{T}}, wcs::NTuple{N, WCSTransform}) where {T<:Real, N} = AstroImage{T,Gray,N, Float64}(data, wcs, Properties{Float64}())
+AstroImage(data::Matrix{T}) where {T<:Real} = AstroImage{T,Gray,1, Float64}((data,), (extrema(data),), (WCSTransform(2),), Properties{Float64}())
+AstroImage(data::NTuple{N, Matrix{T}}) where {T<:Real, N} = AstroImage{T,Gray,N, Float64}(data, ntuple(i -> extrema(data[i]), N), ntuple(i-> WCSTransform(2), N), Properties{Float64}())
+AstroImage(data::Matrix{T}, wcs::WCSTransform) where {T<:Real} = AstroImage{T,Gray,1, Float64}((data,), (extrema(data),), (wcs,), Properties{Float64}())
+AstroImage(data::NTuple{N, Matrix{T}}, wcs::NTuple{N, WCSTransform}) where {T<:Real, N} = AstroImage{T,Gray,N, Float64}(data, ntuple(i -> extrema(data[i]), N), wcs, Properties{Float64}())
 
 """
     AstroImage([color=Gray,] filename::String, n::Int=1)
@@ -165,9 +166,9 @@ AstroImage(color::Type{<:Color}, files::NTuple{N,String}) where {N} =
     AstroImage(color, load(files)...)
 AstroImage(file::String) = AstroImage((file,))
 
-# Lazily render the image as a Matrix{Color}, upon request.
+# Lazily reinterpret the image as a Matrix{Color}, upon request.
 function render(img::AstroImage{T,C,N}, header_number = 1) where {T,C,N}
-    imgmin, imgmax = extrema(img.data[header_number])
+    imgmin, imgmax = extrema(img.minmax[header_number])
     # Add one to maximum to work around this issue:
     # https://github.com/JuliaMath/FixedPointNumbers.jl/issues/102
     f = scaleminmax(_float(imgmin), _float(max(imgmax, imgmax + one(T))))
