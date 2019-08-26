@@ -1,7 +1,7 @@
 name = "AstroImages"
 uuid = "fe3fc30c-9b16-11e9-1c73-17dabf39f4ad"
 authors = ["Mosè Giordano", "Rohit Kumar"]
-version = "0.1.0"
+version = "0.2.0"
 
 [deps]
 FITSIO = "525bcba6-941b-5504-bd06-fd0dc1a4d2eb"
