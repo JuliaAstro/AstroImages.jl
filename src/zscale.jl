@@ -1,6 +1,3 @@
-using Statistics
-
-
 MAX_REJECT = 0.5
 MIN_NPIXELS = 5
 GOOD_PIXEL = 0
