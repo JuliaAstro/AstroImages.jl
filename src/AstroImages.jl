@@ -102,18 +102,24 @@ mutable struct Properties{P <: Union{AbstractFloat, FixedPoint}}
     end
 end
 
-struct AstroImage{T, N, TDat} <: AbstractArray{T,N}
+mutable struct AstroImage{T, N, TDat} <: AbstractArray{T,N}
     data::TDat
     # minmax::Tuple{T,T}
     # minmaxdirty::Bool
     # property::Properties{P}
     headers::FITSHeader
     wcs::WCSTransform
+    wcs_stale::Bool
 end
 
 Images.arraydata(img::AstroImage) = img.data
 headers(img::AstroImage) = img.headers
-wcs(img::AstroImage) = img.wcs
+function wcs(img::AstroImage)
+    if img.wcs_stale
+        img.wcs = only(WCS.from_header(string(headers(img)), ignore_rejected=true))
+    end
+    return img.wcs
+end
 
 export arraydata, headers, wcs
 
@@ -130,10 +136,16 @@ Base.length(img::AstroImage) = length(arraydata(img))
 Base.getindex(img::AstroImage, inds...) = getindex(arraydata(img), inds...) # default fallback for operations on Array
 Base.setindex!(img::AstroImage, v, inds...) = setindex!(arraydata(img), v, inds...) # default fallback for operations on Array
 Base.getindex(img::AstroImage, inds::AbstractString...) = getindex(headers(img), inds...) # accesing header using strings
-Base.setindex!(img::AstroImage, v, inds::AbstractString...) = setindex!(headers(img), v, inds...) # modifying header using strings
+function Base.setindex!(img::AstroImage, v, ind::AbstractString)  # modifying header using a string
+    setindex!(headers(img), v, ind)
+    # Mark the WCS object as beign out of date if this was a WCS header keyword
+    if ind ∈ WCS_HEADERS_2
+        img.wcs_stale = true
+    end
+    @show ind
+end
 Base.getindex(img::AstroImage, inds::Symbol...) = getindex(img, string.(inds)...) # accessing header using symbol
-Base.setindex!(img::AstroImage, v, ind::Symbol) = setindex!(img, v, string(ind)) # modifying header using Symbol
-
+Base.setindex!(img::AstroImage, v, ind::Symbol) = setindex!(img, v, string(ind))
 # Getting and setting comments
 Base.getindex(img::AstroImage, ind::AbstractString, ::Type{Comment}) = get_comment(headers(img), ind) # accesing header comment using strings
 Base.setindex!(img::AstroImage, v,  ind::AbstractString, ::Type{Comment}) = set_comment!(headers(img), ind, v) # modifying header comment using strings
@@ -197,6 +209,7 @@ function Base.similar(bc::Broadcast.Broadcasted{Broadcast.ArrayStyle{AstroImage}
         headers(img),
         img.wcs,
         # img.property,
+        false,
     )
 end
 "`A = find_img(As)` returns the first AstroImage among the arguments."
@@ -239,7 +252,7 @@ function AstroImage(
     header::FITSHeader=FITSHeader(String[],[],String[]),
     wcs::WCSTransform=only(WCS.from_header(string(header), ignore_rejected=true))
 ) where {T<:Real, N}
-    return AstroImage{T,N,typeof(data)}(data, header, wcs)
+    return AstroImage{T,N,typeof(data)}(data, header, wcs, false)
 end
 # AstroImage(data::Matrix{T}) where {T<:Real} = AstroImage{T,Gray,1, Float64}(data, (extrema(data),), (WCSTransform(2),), Properties{Float64}())
 # AstroImage(data::NTuple{N, Matrix{T}}) where {T<:Real, N} = AstroImage{T,Gray,N, Float64}(data, ntuple(i -> extrema(data[i]), N), ntuple(i-> WCSTransform(2), N), Properties{Float64}())
@@ -335,7 +348,7 @@ function reset!(img::AstroImage{T,N}) where {T,N}
     end
 end
 
-
+include("wcs_headers.jl")
 include("showmime.jl")
 include("plot-recipes.jl")
 include("ccd2rgb.jl")
