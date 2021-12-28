@@ -1,12 +1,12 @@
 using RecipesBase
 
-@recipe function f(img::AstroImage, header_number::Int)
+@recipe function f(img::AstroImage)
     seriestype   := :heatmap
     aspect_ratio := :equal
     # Right now we only support single frame images,
     # gray scale is a good choice.
     color        := :grays
-    img.data[header_number]
+    arraydata(img)
 end
 
 @recipe function f(img::AstroImage)
@@ -15,7 +15,7 @@ end
     # Right now we only support single frame images,
     # gray scale is a good choice.
     color        := :grays
-    img.data[1]
+    arraydata(img)
 end
 
 @recipe function f(img::AstroImage, wcs::WCSTransform)
@@ -26,7 +26,7 @@ end
     yformatter   := y -> pix2world_yformatter(y, wcs)
     xlabel       := labler_x(wcs)
     ylabel       := labler_y(wcs)
-    img.data
+    arraydata(img)
 end
 
 function pix2world_xformatter(x, wcs::WCSTransform)
