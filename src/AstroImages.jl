@@ -7,8 +7,8 @@ using FITSIO, FileIO, Images, Interact, Reproject, WCS, MappedArrays
 export load, AstroImage, ccd2rgb, set_brightness!, set_contrast!, add_label!, reset!
 
 _load(fits::FITS, ext::Int) = read(fits[ext])
-_load(fits::FITS, ext::NTuple{N, Int}) where {N} = ntuple(i-> read(fits[ext[i]]), N)
-_load(fits::NTuple{N, FITS}, ext::NTuple{N, Int}) where {N} = ntuple(i -> _load(fits[i], ext[i]), N)
+# _load(fits::FITS, ext::NTuple{N, Int}) where {N} = ntuple(i-> read(fits[ext[i]]), N)
+# _load(fits::NTuple{N, FITS}, ext::NTuple{N, Int}) where {N} = ntuple(i -> _load(fits[i], ext[i]), N)
 
 _header(fits::FITS, ext::Int) = WCS.from_header(read_header(fits[ext], String))[1]
 _header(fits::FITS, ext::NTuple{N, Int}) where {N} = 
@@ -102,12 +102,111 @@ mutable struct Properties{P <: Union{AbstractFloat, FixedPoint}}
     end
 end
 
-struct AstroImage{T<:Real,C<:Color, N, P}
-    data::NTuple{N, Matrix{T}}
-    minmax::NTuple{N, Tuple{T,T}}
-    wcs::NTuple{N, WCSTransform}
-    property::Properties{P}
+struct AstroImage{T, N, TDat} <: AbstractArray{T,N}
+    data::TDat
+    # minmax::Tuple{T,T}
+    # minmaxdirty::Bool
+    # property::Properties{P}
+    headers::FITSHeader
+    wcs::WCSTransform
 end
+
+Images.arraydata(img::AstroImage) = img.data
+headers(img::AstroImage) = img.headers
+wcs(img::AstroImage) = img.wcs
+
+export arraydata, headers, wcs
+
+struct Comment end
+export Comment
+
+struct History end
+export History
+
+
+# extending the AbstractArray interface
+Base.size(img::AstroImage) = size(arraydata(img))
+Base.length(img::AstroImage) = length(arraydata(img))
+Base.getindex(img::AstroImage, inds...) = getindex(arraydata(img), inds...) # default fallback for operations on Array
+Base.setindex!(img::AstroImage, v, inds...) = setindex!(arraydata(img), v, inds...) # default fallback for operations on Array
+Base.getindex(img::AstroImage, inds::AbstractString...) = getindex(headers(img), inds...) # accesing header using strings
+Base.setindex!(img::AstroImage, v, inds::AbstractString...) = setindex!(headers(img), v, inds...) # modifying header using strings
+Base.getindex(img::AstroImage, inds::Symbol...) = getindex(img, string.(inds)...) # accessing header using symbol
+Base.setindex!(img::AstroImage, v, ind::Symbol) = setindex!(img, v, string(ind)) # modifying header using Symbol
+
+# Getting and setting comments
+Base.getindex(img::AstroImage, ind::AbstractString, ::Type{Comment}) = get_comment(headers(img), ind) # accesing header comment using strings
+Base.setindex!(img::AstroImage, v,  ind::AbstractString, ::Type{Comment}) = set_comment!(headers(img), ind, v) # modifying header comment using strings
+Base.getindex(img::AstroImage, ind::Symbol, ::Type{Comment}) = get_comment(headers(img), string(ind)) # accessing header comment using symbol
+Base.setindex!(img::AstroImage,  v, ind::Symbol, ::Type{Comment}) = set_comment!(headers(img), string(ind), v) # modifying header comment using Symbol
+
+# Support for special HISTORY and COMMENT entries
+function Base.getindex(img::AstroImage, ::Type{History})
+    hdr = headers(img)
+    ii = findall(==("HISTORY"), hdr.keys)
+    return view(hdr.comments, ii)
+end
+function Base.getindex(img::AstroImage, ::Type{Comment})
+    hdr = headers(img)
+    ii = findall(==("COMMENT"), hdr.keys)
+    return view(hdr.comments, ii)
+end
+# Adding new history entries
+function Base.push!(img::AstroImage, ::Type{History}, history::AbstractString)
+    hdr = headers(img)
+    push!(hdr.keys, "HISTORY")
+    push!(hdr.values, nothing)
+    push!(hdr.comments, history)
+end
+
+Base.promote_rule(::Type{AstroImage{T}}, ::Type{AstroImage{V}}) where {T,V} = AstroImage{promote_type{T,V}}
+# function Base.similar(img::AstroImage) where T
+#     dat = similar(arraydata(img))
+#     _,_,C,P = TNCP(img)
+#     T2 = eltype(dat)
+#     N = length(size(dat))
+#     return AstroImage{T2,N,C,P}(
+#         dat,
+#         (zero(dat),one(dat)),
+#         true,
+#         # TODO:
+#         # similar(img.wcs),
+#         img.wcs,
+#         Properties{Float64}(),
+#         FITSHeader(String[],[],String[]),
+#     )
+# end
+
+
+# Broadcasting
+# Base.copy(img::AstroImage) = AstroImage(copy(arraydata(img)), deepcopy(headers(img)))
+# Base.convert(::Type{AstroImage{T}}, img::AstroImage{V}) where {T,V} = AstroImage{T}(arraydata(img), headers(img))
+# Base.view(img::AstroImage, inds...) = AstroImage(view(arraydata(img), inds...), headers(img))
+# Base.selectdim(img::AstroImage, d::Integer, idxs) = AstroImage(selectdim(arraydata(img), d, idxs), headers(img))
+# broadcast mechanics
+Base.BroadcastStyle(::Type{<:AstroImage}) = Broadcast.ArrayStyle{AstroImage}()
+function Base.similar(bc::Broadcast.Broadcasted{Broadcast.ArrayStyle{AstroImage}}, ::Type{T}) where T
+    img = find_img(bc)
+    dat = similar(arraydata(img), T, axes(bc))
+    T2 = eltype(dat)
+    N = ndims(dat)
+    return AstroImage{T2,N,typeof(dat)}(
+        dat,
+        # img.minmax,
+        # true,
+        headers(img),
+        img.wcs,
+        # img.property,
+    )
+end
+"`A = find_img(As)` returns the first AstroImage among the arguments."
+find_img(bc::Base.Broadcast.Broadcasted) = find_img(bc.args)
+find_img(args::Tuple) = find_img(find_img(args[1]), Base.tail(args))
+find_img(x) = x
+find_img(::Tuple{}) = nothing
+find_img(a::AstroImage, rest) = a
+find_img(::Any, rest) = find_img(rest)
+
 
 """
     AstroImage([color=Gray,] data::Matrix{Real})
@@ -115,27 +214,37 @@ end
 
 Construct an `AstroImage` object of `data`, using `color` as color map, `Gray` by default.
 """
-AstroImage(color::Type{<:Color}, data::Matrix{T}, wcs::WCSTransform) where {T<:Real} =
-    AstroImage{T,color, 1, Float64}((data,), (extrema(data),), (wcs,), Properties{Float64}())
-function AstroImage(color::Type{<:AbstractRGB}, data::NTuple{N, Matrix{T}}, wcs::NTuple{N, WCSTransform}) where {T <: Union{AbstractFloat, FixedPoint}, N}
-    if N == 3
-        img = ccd2rgb((data[1], wcs[1]),(data[2], wcs[2]),(data[3], wcs[3]))
-        return AstroImage{T,color,N, widen(T)}(data, ntuple(i -> extrema(data[i]), N), wcs, Properties{widen(T)}(rgb_image = img))
-    end
+AstroImage(img::AstroImage) = img
+AstroImage(data::AbstractArray{T,N}, headers::FITSHeader, wcs::WCSTransform) where {T,N} = 
+    AstroImage{T,N,typeof(data)}(data, headers, wcs)
+
+# AstroImage(color::Type{<:Color}, data::AbstractArray{T,N}, wcs::WCSTransform) where {T<:Real,N<:Int} =
+#     AstroImage{T, N, color, Float64}(data, extrema(data), false, wcs, Properties{Float64}())
+# function AstroImage(color::Type{<:AbstractRGB}, data::NTuple{N, Matrix{T}}, wcs::NTuple{N, WCSTransform}) where {T <: Union{AbstractFloat, FixedPoint}, N}
+#     if N == 3
+#         img = ccd2rgb((data[1], wcs[1]),(data[2], wcs[2]),(data[3], wcs[3]))
+#         return AstroImage{T,color,N, widen(T)}(data, ntuple(i -> extrema(data[i]), N), wcs, Properties{widen(T)}(rgb_image = img))
+#     end
+# end
+# function AstroImage(color::Type{<:AbstractRGB}, data::NTuple{N, Matrix{T}}, wcs::NTuple{N, WCSTransform}) where {T<:Real, N}
+#     if N == 3
+#         img = ccd2rgb((data[1], wcs[1]),(data[2], wcs[2]),(data[3], wcs[3]))
+#         return AstroImage{T,color,N, Float64}(data, ntuple(i -> extrema(data[i]), N), wcs, Properties{Float64}(rgb_image = img))
+#     end
+# end
+function AstroImage(
+    # color::Type{<:Color},
+    data::AbstractArray{T,N},
+    # properties::Properties=Properties{Float64}(),
+    header::FITSHeader=FITSHeader(String[],[],String[]),
+    wcs::WCSTransform=only(WCS.from_header(string(header), ignore_rejected=true))
+) where {T<:Real, N}
+    return AstroImage{T,N,typeof(data)}(data, header, wcs)
 end
-function AstroImage(color::Type{<:AbstractRGB}, data::NTuple{N, Matrix{T}}, wcs::NTuple{N, WCSTransform}) where {T<:Real, N}
-    if N == 3
-        img = ccd2rgb((data[1], wcs[1]),(data[2], wcs[2]),(data[3], wcs[3]))
-        return AstroImage{T,color,N, Float64}(data, ntuple(i -> extrema(data[i]), N), wcs, Properties{Float64}(rgb_image = img))
-    end
-end
-function AstroImage(color::Type{<:Color}, data::NTuple{N, Matrix{T}}, wcs::NTuple{N, WCSTransform}) where {T<:Real, N}
-    return AstroImage{T,color, N, Float64}(data, ntuple(i -> extrema(data[i]), N), wcs, Properties{Float64}())
-end
-AstroImage(data::Matrix{T}) where {T<:Real} = AstroImage{T,Gray,1, Float64}((data,), (extrema(data),), (WCSTransform(2),), Properties{Float64}())
-AstroImage(data::NTuple{N, Matrix{T}}) where {T<:Real, N} = AstroImage{T,Gray,N, Float64}(data, ntuple(i -> extrema(data[i]), N), ntuple(i-> WCSTransform(2), N), Properties{Float64}())
-AstroImage(data::Matrix{T}, wcs::WCSTransform) where {T<:Real} = AstroImage{T,Gray,1, Float64}((data,), (extrema(data),), (wcs,), Properties{Float64}())
-AstroImage(data::NTuple{N, Matrix{T}}, wcs::NTuple{N, WCSTransform}) where {T<:Real, N} = AstroImage{T,Gray,N, Float64}(data, ntuple(i -> extrema(data[i]), N), wcs, Properties{Float64}())
+# AstroImage(data::Matrix{T}) where {T<:Real} = AstroImage{T,Gray,1, Float64}(data, (extrema(data),), (WCSTransform(2),), Properties{Float64}())
+# AstroImage(data::NTuple{N, Matrix{T}}) where {T<:Real, N} = AstroImage{T,Gray,N, Float64}(data, ntuple(i -> extrema(data[i]), N), ntuple(i-> WCSTransform(2), N), Properties{Float64}())
+# AstroImage(data::Matrix{T}, wcs::WCSTransform) where {T<:Real} = AstroImage{T,Gray,1, Float64}((data,), (extrema(data),), (wcs,), Properties{Float64}())
+# AstroImage(data::NTuple{N, Matrix{T}}, wcs::NTuple{N, WCSTransform}) where {T<:Real, N} = AstroImage{T,Gray,N, Float64}(data, ntuple(i -> extrema(data[i]), N), wcs, Properties{Float64}())
 
 """
     AstroImage([color=Gray,] filename::String, n::Int=1)
@@ -145,35 +254,27 @@ Create an `AstroImage` object by reading the `n`-th extension from FITS file `fi
 
 Use `color` as color map, this is `Gray` by default.
 """
-AstroImage(color::Type{<:Color}, file::String, ext::Int) =
-    AstroImage(color, file, (ext,))
-AstroImage(color::Type{<:Color}, file::String, ext::NTuple{N, Int}) where {N} =
-    AstroImage(color, load(file, ext)...)
+# AstroImage(color::Type{<:Color}, file::String, ext::Int) =
+#     AstroImage(color, file, (ext,))
+# AstroImage(color::Type{<:Color}, file::String, ext::NTuple{N, Int}) where {N} =
+#     AstroImage(color, load(file, ext)...)
 
-AstroImage(file::String, ext::Int) = AstroImage(Gray, file, ext)
-AstroImage(file::String, ext::NTuple{N, Int}) where {N} = AstroImage(Gray, file, ext)
+# AstroImage(file::String, ext::Int) = AstroImage(Gray, file, ext)
+# AstroImage(file::String, ext::NTuple{N, Int}) where {N} = AstroImage(Gray, file, ext)
 
-AstroImage(color::Type{<:Color}, fits::FITS, ext::Int) =
-    AstroImage(color, _load(fits, ext), WCS.from_header(read_header(fits[ext],String))[1])
-AstroImage(color::Type{<:Color}, fits::FITS, ext::NTuple{N, Int}) where {N} =
-    AstroImage(color, _load(fits, ext), ntuple(i -> WCS.from_header(read_header(fits[ext[i]], String))[1], N))
-AstroImage(color::Type{<:Color}, fits::NTuple{N, FITS}, ext::NTuple{N, Int}) where {N} =
-    AstroImage(color, ntuple(i -> _load(fits[i], ext[i]), N), ntuple(i -> WCS.from_header(read_header(fits[i][ext[i]], String))[1], N))
+AstroImage(fits::FITS, ext::Int=1) = AstroImage(_load(fits, ext), read_header(fits[ext]))
+# AstroImage(color::Type{<:Color}, fits::FITS, ext::NTuple{N, Int}) where {N} =
+#     AstroImage(color, _load(fits, ext), ntuple(i -> WCS.from_header(read_header(fits[ext[i]], String))[1], N))
+# AstroImage(color::Type{<:Color}, fits::NTuple{N, FITS}, ext::NTuple{N, Int}) where {N} =
+#     AstroImage(color, ntuple(i -> _load(fits[i], ext[i]), N), ntuple(i -> WCS.from_header(read_header(fits[i][ext[i]], String))[1], N))
 
-AstroImage(files::NTuple{N,String}) where {N} = 
-    AstroImage(Gray, load(files)...)
-AstroImage(color::Type{<:Color}, files::NTuple{N,String}) where {N} = 
-    AstroImage(color, load(files)...)
-AstroImage(file::String) = AstroImage((file,))
+# AstroImage(files::NTuple{N,String}) where {N} = 
+#     AstroImage(Gray, load(files)...)
+# AstroImage(color::Type{<:Color}, files::NTuple{N,String}) where {N} = 
+#     AstroImage(color, load(files)...)
+AstroImage(file::String) = AstroImage(FITS(file,"r"))
 
-# Lazily reinterpret the image as a Matrix{Color}, upon request.
-function render(img::AstroImage{T,C,N}, header_number = 1) where {T,C,N}
-    imgmin, imgmax = extrema(img.minmax[header_number])
-    # Add one to maximum to work around this issue:
-    # https://github.com/JuliaMath/FixedPointNumbers.jl/issues/102
-    f = scaleminmax(_float(imgmin), _float(max(imgmax, imgmax + one(T))))
-    return colorview(C, f.(_float.(img.data[header_number])))
-end
+
 
 """
     set_brightness!(img::AstroImage, value::AbstractFloat)
@@ -223,7 +324,7 @@ Resets AstroImage property fields.
 Sets brightness to 0.0, contrast to 1.0, empties label
 and form a fresh rgb_image without any brightness, contrast operations on it.
 """
-function reset!(img::AstroImage{T,C,N}) where {T,C,N}
+function reset!(img::AstroImage{T,N}) where {T,N}
     img.property.contrast = 1.0
     img.property.brightness = 0.0
     img.property.label = []
@@ -234,11 +335,6 @@ function reset!(img::AstroImage{T,C,N}) where {T,C,N}
     end
 end
 
-Images.colorview(img::AstroImage) = render(img)
-
-Base.size(img::AstroImage) = Base.size.(img.data)
-
-Base.length(img::AstroImage{T,C,N}) where {T,C,N} = N
 
 include("showmime.jl")
 include("plot-recipes.jl")
