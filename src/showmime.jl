@@ -23,6 +23,7 @@ Base.show(io::IO, mime::MIME"text/html", img::AstroImage; kwargs...) =
 Base.show(io::IO, mime::MIME"image/png", img::AstroImage; kwargs...) =
     show(io, mime, imshow(img), kwargs...)
 
+using Statistics
 using MappedArrays
 using ColorSchemes
 using PlotUtils: zscale
@@ -38,6 +39,24 @@ end
 function set_clims!(clims)
     _default_clims[] = clims
 end
+
+"""
+    percent(99.5)
+
+Returns a function that calculates display limits that include the given 
+percent of the image data.
+
+Example:
+```julia
+julia> imshow(img, clims=percent(90))
+```
+This will set the limits to be the 5th percentile to the 95th percentile.
+"""
+function percent(perc::Number)
+    trim = (1  - perc/100)/2
+    return (data) -> quantile(data, (trim, 1-trim))
+end
+export percent
 
 function imshow(
     img::AbstractMatrix{T};
