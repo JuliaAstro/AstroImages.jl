@@ -15,21 +15,20 @@ _load(fits::FITS, ext::Int) = read(fits[ext])
 #     ntuple(i -> WCS.from_header(read_header(fits[ext[i]], String))[1], N)
 # _header(fits::NTuple{N, FITS}, ext::NTuple{N, Int}) where {N} = 
 #     ntuple(i -> _header(fits[i], ext[i]), N)
-# """
-#     load(fitsfile::String, n=1)
+"""
+    load(fitsfile::String, n=1)
 
-# Read and return the data from `n`-th extension of the FITS file.
+Read and return the data from `n`-th extension of the FITS file.
 
-# Second argument can also be a tuple of integers, in which case a 
-# tuple with the data of each corresponding extension is returned.
-# """
-# function FileIO.load(f::File{format"FITS"}, ext::Int=1)
-#     fits = FITS(f.filename)
-#     out = _load(fits, ext)
-#     header = _header(fits,ext)
-#     close(fits)
-#     return out, header
-# end
+Second argument can also be a tuple of integers, in which case a 
+tuple with the data of each corresponding extension is returned.
+"""
+function FileIO.load(f::File{format"FITS"}, ext::Int=1)
+    return FITS(f.filename) do fits
+        AstroImage(fits, ext) 
+    end
+end
+
 
 # function FileIO.load(f::File{format"FITS"}, ext::NTuple{N,Int}) where {N}
 #     fits = FITS(f.filename)
@@ -105,9 +104,6 @@ end
 
 mutable struct AstroImage{T, N, TDat} <: AbstractArray{T,N}
     data::TDat
-    # minmax::Tuple{T,T}
-    # minmaxdirty::Bool
-    # property::Properties{P}
     headers::FITSHeader
     wcs::WCSTransform
     wcs_stale::Bool
@@ -193,7 +189,7 @@ See also: [`copyheaders`](@ref).
 """ 
 shareheaders(img::AstroImage, data::AbstractArray) = AstroImage(data, headers(img), img.wcs)
 maybe_shareheaders(img::AstroImage, data) = shareheaders(img, data)
-maybe_shareheaders(img::AbstractArray, data) = data
+maybe_shareheaders(::AbstractArray, data) = data
 
 # Iteration
 # Defer to the array object in case it has special iteration defined
@@ -223,7 +219,6 @@ Base.promote_rule(::Type{AstroImage{T}}, ::Type{AstroImage{V}}) where {T,V} = As
 #         FITSHeader(String[],[],String[]),
 #     )
 # end
-
 
 # Broadcasting
 Base.copy(img::AstroImage) = AstroImage(
@@ -255,11 +250,8 @@ function Base.similar(bc::Broadcast.Broadcasted{Broadcast.ArrayStyle{AstroImage}
     # a new wcs will be generated when needed.
     return AstroImage{T2,N,typeof(dat)}(
         dat,
-        # img.minmax,
-        # true,
         deepcopy(headers(img)),
         img.wcs,
-        # img.property,
         false
     )
 end
@@ -270,7 +262,6 @@ find_img(x) = x
 find_img(::Tuple{}) = nothing
 find_img(a::AstroImage, rest) = a
 find_img(::Any, rest) = find_img(rest)
-
 
 """
     AstroImage([color=Gray,] data::Matrix{Real})
@@ -296,10 +287,9 @@ AstroImage(img::AstroImage) = img
 #         return AstroImage{T,color,N, Float64}(data, ntuple(i -> extrema(data[i]), N), wcs, Properties{Float64}(rgb_image = img))
 #     end
 # end
+emptyheaders() = FITSHeader(String[],FITSIO.HeaderTypes[],String[])
 function AstroImage(
-    # color::Type{<:Color},
     data::AbstractArray{T,N},
-    # properties::Properties=Properties{Float64}(),
     header::FITSHeader=emptyheaders(),
     wcs::WCSTransform=wcsfromheaders(data,header)
 ) where {T, N}
@@ -310,7 +300,6 @@ end
 # AstroImage(data::Matrix{T}, wcs::WCSTransform) where {T<:Real} = AstroImage{T,Gray,1, Float64}((data,), (extrema(data),), (wcs,), Properties{Float64}())
 # AstroImage(data::NTuple{N, Matrix{T}}, wcs::NTuple{N, WCSTransform}) where {T<:Real, N} = AstroImage{T,Gray,N, Float64}(data, ntuple(i -> extrema(data[i]), N), wcs, Properties{Float64}())
 
-emptyheaders() = FITSHeader(String[],[],String[])
 function wcsfromheaders(data, head::FITSHeader)
     wcsout = WCS.from_header(string(head), ignore_rejected=true)
     if length(wcsout) == 1
@@ -339,6 +328,7 @@ Use `color` as color map, this is `Gray` by default.
 # AstroImage(file::String, ext::NTuple{N, Int}) where {N} = AstroImage(Gray, file, ext)
 
 AstroImage(fits::FITS, ext::Int=1) = AstroImage(_load(fits, ext), read_header(fits[ext]))
+AstroImage(hdu::HDU) = AstroImage(read(hdu), read_header(hdu))
 # AstroImage(color::Type{<:Color}, fits::FITS, ext::NTuple{N, Int}) where {N} =
 #     AstroImage(color, _load(fits, ext), ntuple(i -> WCS.from_header(read_header(fits[ext[i]], String))[1], N))
 # AstroImage(color::Type{<:Color}, fits::NTuple{N, FITS}, ext::NTuple{N, Int}) where {N} =
