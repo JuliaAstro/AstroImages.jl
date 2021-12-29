@@ -31,6 +31,7 @@ export zscale
 
 const _default_clims = Ref{Any}(extrema)
 const _default_cmap  = Ref{Union{Symbol,Nothing}}(nothing)
+const _default_stretch  = Ref{Any}(identity)
 
 function set_cmap!(cmap)
     _default_cmap[] = cmap
@@ -38,6 +39,10 @@ end
 
 function set_clims!(clims)
     _default_clims[] = clims
+end
+
+function set_stretch!(stretch)
+    _default_stretch[] = stretch
 end
 
 skipmissingnan(itr) = Iterators.filter(el->!ismissing(el) && isfinite(el), itr)
@@ -56,7 +61,7 @@ export logstretch, powstretch, sqrtstretch, squarestretch, asinhstretch, sinhstr
 function imshow(
     img::AbstractMatrix{T};
     clims=_default_clims[],
-    stretch=identity,
+    stretch=_default_stretch[],
     cmap=_default_cmap[],
 ) where {T}
     isempt = isempty(img)
