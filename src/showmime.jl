@@ -21,7 +21,7 @@
 
 # This is used in VSCode and others
 Base.show(io::IO, mime::MIME"image/png", img::AstroImage; kwargs...) =
-    show(io, mime, imshow(img), kwargs...)
+    show(io, mime, imview(img), kwargs...)
 
 using Statistics
 using MappedArrays
@@ -58,7 +58,7 @@ sinhstretch(x) = sinh(3x)/10
 powerdiststretch(x, a=1000) = (a^x - 1) / (a - 1)
 export logstretch, powstretch, sqrtstretch, squarestretch, asinhstretch, sinhstretch, powerdiststretch
 
-function imshow(
+function imview(
     img::AbstractMatrix{T};
     clims=_default_clims[],
     stretch=_default_stretch[],
@@ -93,9 +93,9 @@ function imshow(
         imgmax = convert(T, imgmax_0)
     end
     normed = normedclampedview(img, (imgmin, imgmax))
-    return _imshow(normed,stretch,cmap)
+    return _imview(normed,stretch,cmap)
 end
-function _imshow(normed::AbstractArray{T}, stretch, cmap) where T
+function _imview(normed::AbstractArray{T}, stretch, cmap) where T
     if T <: Union{Missing,<:Number}
         TT = typeof(first(skipmissing(normed)))
     else
@@ -147,7 +147,7 @@ function _imshow(normed::AbstractArray{T}, stretch, cmap) where T
     end
 
 end
-export imshow
+export imview
 
 """
     percent(99.5)
@@ -157,7 +157,7 @@ percent of the image data.
 
 Example:
 ```julia
-julia> imshow(img, clims=percent(90))
+julia> imview(img, clims=percent(90))
 ```
 This will set the limits to be the 5th percentile to the 95th percentile.
 """
