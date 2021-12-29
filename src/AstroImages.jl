@@ -8,64 +8,64 @@ export load, AstroImage, ccd2rgb, set_brightness!, set_contrast!, add_label!, re
 
 _load(fits::FITS, ext::Int) = read(fits[ext])
 # _load(fits::FITS, ext::NTuple{N, Int}) where {N} = ntuple(i-> read(fits[ext[i]]), N)
-# _load(fits::NTuple{N, FITS}, ext::NTuple{N, Int}) where {N} = ntuple(i -> _load(fits[i], ext[i]), N)
+# # _load(fits::NTuple{N, FITS}, ext::NTuple{N, Int}) where {N} = ntuple(i -> _load(fits[i], ext[i]), N)
 
-_header(fits::FITS, ext::Int) = WCS.from_header(read_header(fits[ext], String))[1]
-_header(fits::FITS, ext::NTuple{N, Int}) where {N} = 
-    ntuple(i -> WCS.from_header(read_header(fits[ext[i]], String))[1], N)
-_header(fits::NTuple{N, FITS}, ext::NTuple{N, Int}) where {N} = 
-    ntuple(i -> _header(fits[i], ext[i]), N)
-"""
-    load(fitsfile::String, n=1)
+# _header(fits::FITS, ext::Int) = WCS.from_header(read_header(fits[ext], String))[1]
+# _header(fits::FITS, ext::NTuple{N, Int}) where {N} = 
+#     ntuple(i -> WCS.from_header(read_header(fits[ext[i]], String))[1], N)
+# _header(fits::NTuple{N, FITS}, ext::NTuple{N, Int}) where {N} = 
+#     ntuple(i -> _header(fits[i], ext[i]), N)
+# """
+#     load(fitsfile::String, n=1)
 
-Read and return the data from `n`-th extension of the FITS file.
+# Read and return the data from `n`-th extension of the FITS file.
 
-Second argument can also be a tuple of integers, in which case a 
-tuple with the data of each corresponding extension is returned.
-"""
-function FileIO.load(f::File{format"FITS"}, ext::Int=1)
-    fits = FITS(f.filename)
-    out = _load(fits, ext)
-    header = _header(fits,ext)
-    close(fits)
-    return out, header
-end
+# Second argument can also be a tuple of integers, in which case a 
+# tuple with the data of each corresponding extension is returned.
+# """
+# function FileIO.load(f::File{format"FITS"}, ext::Int=1)
+#     fits = FITS(f.filename)
+#     out = _load(fits, ext)
+#     header = _header(fits,ext)
+#     close(fits)
+#     return out, header
+# end
 
-function FileIO.load(f::File{format"FITS"}, ext::NTuple{N,Int}) where {N}
-    fits = FITS(f.filename)
-    out = _load(fits, ext)
-    header = _header(fits, ext)
-    close(fits)
-    return out, header
-end
+# function FileIO.load(f::File{format"FITS"}, ext::NTuple{N,Int}) where {N}
+#     fits = FITS(f.filename)
+#     out = _load(fits, ext)
+#     header = _header(fits, ext)
+#     close(fits)
+#     return out, header
+# end
 
-function FileIO.load(f::NTuple{N, String}) where {N}
-    fits = ntuple(i-> FITS(f[i]), N)
-    ext = indexer(fits)
-    out = _load(fits, ext)
-    header = _header(fits, ext)
-    for i in 1:N
-        close(fits[i])
-    end
-    return out, header
-end
+# function FileIO.load(f::NTuple{N, String}) where {N}
+#     fits = ntuple(i-> FITS(f[i]), N)
+#     ext = indexer(fits)
+#     out = _load(fits, ext)
+#     header = _header(fits, ext)
+#     for i in 1:N
+#         close(fits[i])
+#     end
+#     return out, header
+# end
 
-function indexer(fits::FITS)
-    ext = 0
-    for (i, hdu) in enumerate(fits)
-        if hdu isa ImageHDU && length(size(hdu)) >= 2	# check if Image is atleast 2D
-            ext = i
-            break
-        end
-    end
-    if ext > 1
-       	@info "Image was loaded from HDU $ext"
-    elseif ext == 0
-        error("There are no ImageHDU extensions in '$(fits.filename)'")
-    end
-    return ext
-end
-indexer(fits::NTuple{N, FITS}) where {N} = ntuple(i -> indexer(fits[i]), N)
+# function indexer(fits::FITS)
+#     ext = 0
+#     for (i, hdu) in enumerate(fits)
+#         if hdu isa ImageHDU && length(size(hdu)) >= 2	# check if Image is atleast 2D
+#             ext = i
+#             break
+#         end
+#     end
+#     if ext > 1
+#        	@info "Image was loaded from HDU $ext"
+#     elseif ext == 0
+#         error("There are no ImageHDU extensions in '$(fits.filename)'")
+#     end
+#     return ext
+# end
+# indexer(fits::NTuple{N, FITS}) where {N} = ntuple(i -> indexer(fits[i]), N)
 
 # Images.jl expects data to be either a float or a fixed-point number.  Here we define some
 # utilities to convert all data types supported by FITS format to float or fixed-point:
@@ -84,6 +84,7 @@ for n in (8, 16, 32, 64)
         _float(x::$SIT) = _float(xor(reinterpret($UIT, x), $maxint))
     end
 end
+
 
 mutable struct Properties{P <: Union{AbstractFloat, FixedPoint}}
     rgb_image::MappedArrays.MultiMappedArray{RGB{P},2,Tuple{Array{P,2},Array{P,2},Array{P,2}},Type{RGB{P}},typeof(ImageCore.extractchannels)}
@@ -116,7 +117,9 @@ Images.arraydata(img::AstroImage) = img.data
 headers(img::AstroImage) = img.headers
 function wcs(img::AstroImage)
     if img.wcs_stale
+        @info "Regenerating WCS"
         img.wcs = only(WCS.from_header(string(headers(img)), ignore_rejected=true))
+        img.wcs_stale = false
     end
     return img.wcs
 end
@@ -171,6 +174,38 @@ function Base.push!(img::AstroImage, ::Type{History}, history::AbstractString)
     push!(hdr.comments, history)
 end
 
+"""
+    copyheaders(img::AstroImage, data) -> imgnew
+Create a new image copying the headers of `img` but
+using the data of the AbstractArray `data`. Note that changing the
+headers of `imgnew` does not affect the headers of `img`.
+See also: [`shareheaders`](@ref).
+"""
+copyheaders(img::AstroImage, data::AbstractArray) =
+    AstroImage(data, deepcopy(headers(img)), img.wcs)
+
+"""
+    shareheaders(img::AstroImage, data) -> imgnew
+Create a new image reusing the headers dictionary of `img` but
+using the data of the AbstractArray `data`. The two images have
+synchronized headers; modifying one also affects the other.
+See also: [`copyheaders`](@ref).
+""" 
+shareheaders(img::AstroImage, data::AbstractArray) = AstroImage(data, headers(img), img.wcs)
+maybe_shareheaders(img::AstroImage, data) = shareheaders(img, data)
+maybe_shareheaders(img::AbstractArray, data) = data
+
+# Iteration
+# Defer to the array object in case it has special iteration defined
+Base.iterate(img::AstroImage) = Base.iterate(arraydata(img))
+Base.iterate(img::AstroImage, s) = Base.iterate(arraydata(img), s)
+
+Images.restrict(img::AstroImage, ::Tuple{}) = img
+Images.restrict(img::AstroImage, region::Dims) = shareheaders(img, restrict(arraydata(img), region))
+
+# TODO: use WCS
+# ImageCore.pixelspacing(img::ImageMeta) = pixelspacing(arraydata(img))
+
 Base.promote_rule(::Type{AstroImage{T}}, ::Type{AstroImage{V}}) where {T,V} = AstroImage{promote_type{T,V}}
 # function Base.similar(img::AstroImage) where T
 #     dat = similar(arraydata(img))
@@ -191,9 +226,22 @@ Base.promote_rule(::Type{AstroImage{T}}, ::Type{AstroImage{V}}) where {T,V} = As
 
 
 # Broadcasting
-# Base.copy(img::AstroImage) = AstroImage(copy(arraydata(img)), deepcopy(headers(img)))
-# Base.convert(::Type{AstroImage{T}}, img::AstroImage{V}) where {T,V} = AstroImage{T}(arraydata(img), headers(img))
-# Base.view(img::AstroImage, inds...) = AstroImage(view(arraydata(img), inds...), headers(img))
+Base.copy(img::AstroImage) = AstroImage(
+    copy(arraydata(img)),
+    deepcopy(headers(img)),
+    # We copy the headers but share the WCS object.
+    # If the headers change such that wcs is now out of date,
+    # a new wcs will be generated when needed.
+    img.wcs
+)
+Base.convert(::Type{AstroImage}, A::AstroImage) = A
+Base.convert(::Type{AstroImage}, A::AbstractArray) = AstroImage(A)
+Base.convert(::Type{AstroImage{T}}, A::AstroImage{T}) where {T} = A
+Base.convert(::Type{AstroImage{T}}, A::AstroImage) where {T} = shareheaders(A, convert(AbstractArray{T}, arraydata(A)))
+Base.convert(::Type{AstroImage{T}}, A::AbstractArray{T}) where {T} = AstroImage(A)
+Base.convert(::Type{AstroImage{T}}, A::AbstractArray) where {T} = AstroImage(convert(AbstractArray{T}, A))
+
+Base.view(img::AstroImage, inds...) = shareheaders(img, view(arraydata(img), inds...))
 # Base.selectdim(img::AstroImage, d::Integer, idxs) = AstroImage(selectdim(arraydata(img), d, idxs), headers(img))
 # broadcast mechanics
 Base.BroadcastStyle(::Type{<:AstroImage}) = Broadcast.ArrayStyle{AstroImage}()
@@ -202,14 +250,17 @@ function Base.similar(bc::Broadcast.Broadcasted{Broadcast.ArrayStyle{AstroImage}
     dat = similar(arraydata(img), T, axes(bc))
     T2 = eltype(dat)
     N = ndims(dat)
+    # We copy the headers but share the WCS object.
+    # If the headers change such that wcs is now out of date,
+    # a new wcs will be generated when needed.
     return AstroImage{T2,N,typeof(dat)}(
         dat,
         # img.minmax,
         # true,
-        headers(img),
+        deepcopy(headers(img)),
         img.wcs,
         # img.property,
-        false,
+        false
     )
 end
 "`A = find_img(As)` returns the first AstroImage among the arguments."
@@ -228,8 +279,8 @@ find_img(::Any, rest) = find_img(rest)
 Construct an `AstroImage` object of `data`, using `color` as color map, `Gray` by default.
 """
 AstroImage(img::AstroImage) = img
-AstroImage(data::AbstractArray{T,N}, headers::FITSHeader, wcs::WCSTransform) where {T,N} = 
-    AstroImage{T,N,typeof(data)}(data, headers, wcs)
+# AstroImage(data::AbstractArray{T,N}, headers::FITSHeader, wcs::WCSTransform) where {T,N} = 
+#     AstroImage{T,N,typeof(data)}(data, headers, wcs)
 
 # AstroImage(color::Type{<:Color}, data::AbstractArray{T,N}, wcs::WCSTransform) where {T<:Real,N<:Int} =
 #     AstroImage{T, N, color, Float64}(data, extrema(data), false, wcs, Properties{Float64}())
@@ -249,15 +300,27 @@ function AstroImage(
     # color::Type{<:Color},
     data::AbstractArray{T,N},
     # properties::Properties=Properties{Float64}(),
-    header::FITSHeader=FITSHeader(String[],[],String[]),
-    wcs::WCSTransform=only(WCS.from_header(string(header), ignore_rejected=true))
-) where {T<:Real, N}
+    header::FITSHeader=emptyheaders(),
+    wcs::WCSTransform=wcsfromheaders(data,header)
+) where {T, N}
     return AstroImage{T,N,typeof(data)}(data, header, wcs, false)
 end
 # AstroImage(data::Matrix{T}) where {T<:Real} = AstroImage{T,Gray,1, Float64}(data, (extrema(data),), (WCSTransform(2),), Properties{Float64}())
 # AstroImage(data::NTuple{N, Matrix{T}}) where {T<:Real, N} = AstroImage{T,Gray,N, Float64}(data, ntuple(i -> extrema(data[i]), N), ntuple(i-> WCSTransform(2), N), Properties{Float64}())
 # AstroImage(data::Matrix{T}, wcs::WCSTransform) where {T<:Real} = AstroImage{T,Gray,1, Float64}((data,), (extrema(data),), (wcs,), Properties{Float64}())
 # AstroImage(data::NTuple{N, Matrix{T}}, wcs::NTuple{N, WCSTransform}) where {T<:Real, N} = AstroImage{T,Gray,N, Float64}(data, ntuple(i -> extrema(data[i]), N), wcs, Properties{Float64}())
+
+emptyheaders() = FITSHeader(String[],[],String[])
+function wcsfromheaders(data, head::FITSHeader)
+    wcsout = WCS.from_header(string(head), ignore_rejected=true)
+    if length(wcsout) == 1
+        return only(wcsout)
+    elseif length(wcsout) == 0
+        return WCSTransform(ndims(data))
+    else
+        error("Mutiple WCSTransform returned from headers")
+    end
+end
 
 """
     AstroImage([color=Gray,] filename::String, n::Int=1)
@@ -286,6 +349,8 @@ AstroImage(fits::FITS, ext::Int=1) = AstroImage(_load(fits, ext), read_header(fi
 # AstroImage(color::Type{<:Color}, files::NTuple{N,String}) where {N} = 
 #     AstroImage(color, load(files)...)
 AstroImage(file::String) = AstroImage(FITS(file,"r"))
+
+
 
 
 
