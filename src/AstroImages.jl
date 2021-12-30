@@ -28,7 +28,7 @@ function FileIO.load(f::File{format"FITS"}, ext::Int=1)
         AstroImage(fits, ext) 
     end
 end
-
+export load, save
 
 # function FileIO.load(f::File{format"FITS"}, ext::NTuple{N,Int}) where {N}
 #     fits = FITS(f.filename)
