@@ -169,17 +169,21 @@ AstroImageOrView = Union{AstroImage,AstroImageView}
 Base.size(img::AstroImageOrView) = size(arraydata(img))
 Base.length(img::AstroImageOrView) = length(arraydata(img))
 
+# Getting and setting data is forwarded to the underlying array
+# Accessing a single value or a vector returns just the data.
+# Accering a 2+D slice copies the headers and re-wraps the data.
 function Base.getindex(img::AstroImage, inds...)
     dat = getindex(arraydata(img), inds...)
-    if ndims(dat) == 0
+    if ndims(dat) <= 1
         return dat
     else
         return copyheaders(img, dat)
     end
 end
-
 Base.getindex(img::AstroImageView, inds...) = getindex(img.mapper, inds...) # default fallback for operations on Array
 Base.setindex!(img::AstroImage, v, inds...) = setindex!(arraydata(img), v, inds...) # default fallback for operations on Array
+
+# Getting and setting comments
 Base.getindex(img::AstroImage, inds::AbstractString...) = getindex(headers(img), inds...) # accesing header using strings
 Base.getindex(img::AstroImageView, inds::AbstractString...) = getindex(headers(img), inds...) # accesing header using strings
 function Base.setindex!(img::AstroImage, v, ind::AbstractString)  # modifying header using a string
@@ -194,7 +198,6 @@ function Base.setindex!(aview::AstroImageView, v, ind::AbstractString)  # modify
 end
 Base.getindex(img::AstroImage, inds::Symbol...) = getindex(img, string.(inds)...) # accessing header using symbol
 Base.setindex!(img::AstroImage, v, ind::Symbol) = setindex!(img, v, string(ind))
-# Getting and setting comments
 Base.getindex(img::AstroImage, ind::AbstractString, ::Type{Comment}) = get_comment(headers(img), ind) # accesing header comment using strings
 Base.setindex!(img::AstroImage, v,  ind::AbstractString, ::Type{Comment}) = set_comment!(headers(img), ind, v) # modifying header comment using strings
 Base.getindex(img::AstroImage, ind::Symbol, ::Type{Comment}) = get_comment(headers(img), string(ind)) # accessing header comment using symbol
