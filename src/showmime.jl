@@ -146,7 +146,8 @@ function _imview(img, normed::AbstractArray{T}, stretch, cmap) where T
         end
     end
 
-    return AstroImageView(img, mapper)
+    # return AstroImageView(img, mapper)
+    return mapper
 
 end
 export imview
