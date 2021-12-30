@@ -9,15 +9,6 @@ using RecipesBase
     arraydata(img)
 end
 
-@recipe function f(img::AstroImage)
-    seriestype   := :heatmap
-    aspect_ratio := :equal
-    # Right now we only support single frame images,
-    # gray scale is a good choice.
-    color        := :grays
-    arraydata(img)
-end
-
 @recipe function f(img::AstroImage, wcs::WCSTransform)
     seriestype   := :heatmap
     aspect_ratio := :equal
