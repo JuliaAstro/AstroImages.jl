@@ -174,7 +174,9 @@ Base.length(img::AstroImageOrView) = length(arraydata(img))
 # Accering a 2+D slice copies the headers and re-wraps the data.
 function Base.getindex(img::AstroImage, inds...)
     dat = getindex(arraydata(img), inds...)
-    if ndims(dat) <= 1
+    # ndims is defined for Numbers but not Missing.
+    # This check is therefore necessary for img[1,1]->missing to work.
+    if ismissing(dat) || ndims(dat) <= 1
         return dat
     else
         return copyheaders(img, dat)
@@ -443,12 +445,14 @@ end
     img1, img2 = AstroImage(filename::AbstractString, exts)
 
 Load multiple image HDUs `exts` from an FITS file at `filename` as an AstroImage.
-`exts` must be a tuple, range, or array of Integers.
+`exts` must be a tuple, range, :, or array of Integers.
+All listed HDUs in `exts` must be image HDUs or an error will occur.
 
 Example:
 ```julia
 img1, img2 = AstroImage("abc.fits", (1,3)) # loads the first and third HDU as images.
 imgs = AstroImage("abc.fits", 1:3) # loads the first three HDUs as images.
+imgs = AstroImage("abc.fits", :) # loads all HDUs as images.
 ```
 """
 function AstroImage(filename::AbstractString, exts::Union{NTuple{N, <:Integer},AbstractArray{<:Integer}}) where {N}
@@ -458,7 +462,13 @@ function AstroImage(filename::AbstractString, exts::Union{NTuple{N, <:Integer},A
         end
     end
 end
-
+function AstroImage(filename::AbstractString, ::Colon) where {N}
+    return FITS(filename,"r") do fits
+        return map(fits) do hdu
+            return AstroImage(hdu)
+        end
+    end
+end
 
 """
     set_brightness!(img::AstroImage, value::AbstractFloat)
