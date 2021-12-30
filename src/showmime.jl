@@ -20,7 +20,7 @@
 #     show(io, mime, brightness_contrast(img), kwargs...)
 
 # This is used in VSCode and others
-Base.show(io::IO, mime::MIME"image/png", img::AstroImage; kwargs...) =
+Base.show(io::IO, mime::MIME"image/png", img::AstroImage{T,2}; kwargs...) where {T} =
     show(io, mime, imview(img), kwargs...)
 
 using Statistics
@@ -93,9 +93,9 @@ function imview(
         imgmax = convert(T, imgmax_0)
     end
     normed = normedclampedview(img, (imgmin, imgmax))
-    return _imview(normed,stretch,cmap)
+    return _imview(img, normed,stretch,cmap)
 end
-function _imview(normed::AbstractArray{T}, stretch, cmap) where T
+function _imview(img, normed::AbstractArray{T}, stretch, cmap) where T
     if T <: Union{Missing,<:Number}
         TT = typeof(first(skipmissing(normed)))
     else
@@ -117,7 +117,7 @@ function _imview(normed::AbstractArray{T}, stretch, cmap) where T
     # No color map
     if isnothing(cmap)
         f = scaleminmax(stretchmin, stretchmax)
-        return mappedarray(normed) do pix
+        mapper = mappedarray(normed) do pix
             if ismissing(pix)
                 return Gray{TT}(0)
             else
@@ -128,7 +128,7 @@ function _imview(normed::AbstractArray{T}, stretch, cmap) where T
     # Monochromatic image using a colormap
     else
         cscheme = ColorSchemes.colorschemes[cmap]
-        return mappedarray(normed) do pix
+        mapper = mappedarray(normed) do pix
             stretched = !ismissing(pix) && isfinite(pix) ? stretch(pix) : pix
             # We treat NaN/missing values as transparent
             return if ismissing(stretched) || !isfinite(stretched)
@@ -145,6 +145,8 @@ function _imview(normed::AbstractArray{T}, stretch, cmap) where T
             end
         end
     end
+
+    return AstroImageView(img, mapper)
 
 end
 export imview
