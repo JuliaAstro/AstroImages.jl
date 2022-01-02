@@ -99,7 +99,7 @@ For a list of convenient stretch functions, see:
 
 Finally the data is mapped to RGB values according to `cmap`. If cmap is `nothing`,
 grayscale is used. ColorSchemes.jl defines hundreds of colormaps. A few nice ones for
-images innclude: `:viridis`, `:magma`, `:plasma`, `:thermal`, and `:turbo`.
+images include: `:viridis`, `:magma`, `:plasma`, `:thermal`, and `:turbo`.
 
 Crucially, this function returns a view over the underlying data. If `img` is updated
 then those changes will be reflected by this view with the exception of `clims` which
