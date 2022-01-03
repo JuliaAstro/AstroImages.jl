@@ -1,4 +1,8 @@
 const WCS_HEADERS_TEMPLATES = [
+    "DATE",
+    "MJD",
+
+
     "WCSAXESa",
     "WCAXna",
     "WCSTna",
@@ -204,7 +208,7 @@ const WCS_HEADERS_TEMPLATES = [
 # Expand the headers containing lower case specifers into N copies
 Is = [""; string.(1:4)]
 # Find all lower case templates
-const WCS_HEADERS_2 = Set(mapreduce(vcat, WCS_HEADERS_TEMPLATES) do template
+const WCS_HEADERS = Set(mapreduce(vcat, WCS_HEADERS_TEMPLATES) do template
     if any(islowercase, template)
         template_chars = Vector{Char}(template)
         chars = template_chars[islowercase.(template_chars)]
