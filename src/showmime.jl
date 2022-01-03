@@ -41,6 +41,9 @@ Alter the default color map used to display images when using
 `imview` or displaying an AstroImage.
 """
 function set_cmap!(cmap)
+    if cmap ∉ keys(ColorSchemes.colorschemes)
+        throw(KeyError("$cmap not found in ColorSchemes.colorschemes"))
+    end
     _default_cmap[] = cmap
 end
 """
