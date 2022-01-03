@@ -230,9 +230,8 @@ function _imview(img, normed::AbstractArray{T}, stretch, cmap) where T
         end
     end
 
-    return shareheaders(img, mapper)
+    return maybe_shareheaders(img, mapper)
     # return mapper
-
 end
 export imview
 
