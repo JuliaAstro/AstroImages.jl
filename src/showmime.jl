@@ -20,6 +20,13 @@
 #     show(io, mime, brightness_contrast(img), kwargs...)
 
 # This is used in VSCode and others
+
+# If the user displays a AstroImage of colors (e.g. one created with imview)
+# fal through and display the data as an image
+Base.show(io::IO, mime::MIME"image/png", img::AstroImage{T,2}; kwargs...) where {T<:Colorant} =
+    show(io, mime, arraydata(img), kwargs...)
+
+# Otherwise, call imview with the default settings.
 Base.show(io::IO, mime::MIME"image/png", img::AstroImage{T,2}; kwargs...) where {T} =
     show(io, mime, imview(img), kwargs...)
 
@@ -152,6 +159,11 @@ function imview(
     if !nonempty
         return
     end
+
+    # TODO: Images.jl has logic to downsize huge images before displaying them.
+    # We should use that here before applying all this processing instead of
+    # letting Images.jl handle it after.
+
     # Users can pass clims as an array or tuple containing the minimum and maximum values
     if typeof(clims) <: AbstractArray || typeof(clims) <: Tuple
         if length(clims) != 2
@@ -167,6 +179,7 @@ function imview(
     return _imview(img, normed, stretch, cmap)
 end
 function _imview(img, normed::AbstractArray{T}, stretch, cmap) where T
+    
     if T <: Union{Missing,<:Number}
         TT = typeof(first(skipmissing(normed)))
     else
@@ -217,8 +230,8 @@ function _imview(img, normed::AbstractArray{T}, stretch, cmap) where T
         end
     end
 
-    # return AstroImageView(img, mapper)
-    return mapper
+    return shareheaders(img, mapper)
+    # return mapper
 
 end
 export imview

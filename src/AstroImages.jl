@@ -122,8 +122,8 @@ Images.arraydata(img::AstroImage) = getfield(img, :data)
 headers(img::AstroImage) = getfield(img, :headers)
 function wcs(img::AstroImage)
     if getfield(img, :wcs_stale)
-        setfield(img, :wcs, wcsfromheaders(img))
-        setfield(img, :wcs_stale, false)
+        setfield!(img, :wcs, wcsfromheaders(img))
+        setfield!(img, :wcs_stale, false)
     end
     return getfield(img, :wcs)
 end
@@ -162,7 +162,7 @@ function Base.setindex!(img::AstroImage, v, ind::AbstractString)  # modifying he
     setindex!(headers(img), v, ind)
     # Mark the WCS object as beign out of date if this was a WCS header keyword
     if ind ∈ WCS_HEADERS
-        setfield(img, :wcs_stale, true)
+        setfield!(img, :wcs_stale, true)
     end
 end
 Base.getindex(img::AstroImage, inds::Symbol...) = getindex(img, string.(inds)...) # accessing header using symbol
