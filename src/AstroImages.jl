@@ -148,7 +148,7 @@ function Base.getindex(img::AstroImage, inds...)
     dat = getindex(arraydata(img), inds...)
     # ndims is defined for Numbers but not Missing.
     # This check is therefore necessary for img[1,1]->missing to work.
-    if ismissing(dat) || ndims(dat) <= 1
+    if !(typeof(dat) <: Number) || ndims(dat) <= 1
         return dat
     else
         return copyheaders(img, dat)
