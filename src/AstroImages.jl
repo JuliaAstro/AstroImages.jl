@@ -115,44 +115,17 @@ mutable struct AstroImage{T, N, TDat} <: AbstractArray{T,N}
 end
 
 
-# Think about re-creating an image wrapper type.
-# This can have properties about the stretch that can
-# be modified
-# struct AstroImageColorView1 <: Ast
-# end
-# What do we want? Indexable just like it is currently
-# Not settable though
-# Same headers
-# Would need to store:
-# * clims
-# * stretch
-# * mappedarray
-# * properties of stretches?
-struct AstroImageView{T,N,TImg,TMap,#=P<:Properties=#} <: AbstractArray{T,N} 
-    image::TImg
-    mapper::TMap
-    # properties::P
-end
-AstroImageView(
-    img::AbstractArray{T1,N},
-    mapper::AbstractArray{T2,N},
-) where {T1,T2,N} = AstroImageView{T2,N,typeof(img),typeof(mapper)}(img,mapper)
-
-
 """
     Images.arraydata(img::AstroImage)
 """
-Images.arraydata(img::AstroImage) = img.data
-Images.arraydata(img::AstroImageView) = img.image
-Images.arraydata(img::AstroImageView{T,N,AstroImage}) where {T,N} = arraydata(img.image)
-headers(img::AstroImage) = img.headers
-headers(img::AstroImageView) = headers(img.image)
+Images.arraydata(img::AstroImage) = getfield(img, :data)
+headers(img::AstroImage) = getfield(img, :headers)
 function wcs(img::AstroImage)
-    if img.wcs_stale
-        img.wcs = only(WCS.from_header(string(headers(img)), ignore_rejected=true))
-        img.wcs_stale = false
+    if getfield(img, :wcs_stale)
+        setfield(img, :wcs, wcsfromheaders(img))
+        setfield(img, :wcs_stale, false)
     end
-    return img.wcs
+    return getfield(img, :wcs)
 end
 
 export arraydata, headers, wcs
@@ -163,11 +136,10 @@ export Comment
 struct History end
 export History
 
-AstroImageOrView = Union{AstroImage,AstroImageView}
 
 # extending the AbstractArray interface
-Base.size(img::AstroImageOrView) = size(arraydata(img))
-Base.length(img::AstroImageOrView) = length(arraydata(img))
+Base.size(img::AstroImage) = size(arraydata(img))
+Base.length(img::AstroImage) = length(arraydata(img))
 
 # Getting and setting data is forwarded to the underlying array
 # Accessing a single value or a vector returns just the data.
@@ -182,21 +154,16 @@ function Base.getindex(img::AstroImage, inds...)
         return copyheaders(img, dat)
     end
 end
-Base.getindex(img::AstroImageView, inds...) = getindex(img.mapper, inds...) # default fallback for operations on Array
 Base.setindex!(img::AstroImage, v, inds...) = setindex!(arraydata(img), v, inds...) # default fallback for operations on Array
 
 # Getting and setting comments
 Base.getindex(img::AstroImage, inds::AbstractString...) = getindex(headers(img), inds...) # accesing header using strings
-Base.getindex(img::AstroImageView, inds::AbstractString...) = getindex(headers(img), inds...) # accesing header using strings
 function Base.setindex!(img::AstroImage, v, ind::AbstractString)  # modifying header using a string
     setindex!(headers(img), v, ind)
     # Mark the WCS object as beign out of date if this was a WCS header keyword
-    if ind ∈ WCS_HEADERS_2
-        img.wcs_stale = true
+    if ind ∈ WCS_HEADERS
+        setfield(img, :wcs_stale, true)
     end
-end
-function Base.setindex!(aview::AstroImageView, v, ind::AbstractString)  # modifying header using a string
-    setindex!(aview.image, v, ind)
 end
 Base.getindex(img::AstroImage, inds::Symbol...) = getindex(img, string.(inds)...) # accessing header using symbol
 Base.setindex!(img::AstroImage, v, ind::Symbol) = setindex!(img, v, string(ind))
@@ -217,7 +184,7 @@ function Base.getindex(img::AstroImage, ::Type{Comment})
     return view(hdr.comments, ii)
 end
 # Adding new history entries
-function Base.push!(img::AstroImageOrView, ::Type{History}, history::AbstractString)
+function Base.push!(img::AstroImage, ::Type{History}, history::AbstractString)
     hdr = headers(img)
     push!(hdr.keys, "HISTORY")
     push!(hdr.values, nothing)
@@ -233,7 +200,8 @@ headers of `imgnew` does not affect the headers of `img`.
 See also: [`shareheaders`](@ref).
 """
 copyheaders(img::AstroImage, data::AbstractArray) =
-    AstroImage(data, deepcopy(headers(img)), img.wcs)
+    AstroImage(data, deepcopy(headers(img)), getfield(img, :wcs))
+export copyheaders
 
 """
     shareheaders(img::AstroImage, data) -> imgnew
@@ -242,51 +210,64 @@ using the data of the AbstractArray `data`. The two images have
 synchronized headers; modifying one also affects the other.
 See also: [`copyheaders`](@ref).
 """ 
-shareheaders(img::AstroImage, data::AbstractArray) = AstroImage(data, headers(img), img.wcs)
+shareheaders(img::AstroImage, data::AbstractArray) = AstroImage(data, headers(img), getfield(img, :wcs))
+export shareheaders
+# Share headers if an AstroImage, do nothing if AbstractArray
 maybe_shareheaders(img::AstroImage, data) = shareheaders(img, data)
 maybe_shareheaders(::AbstractArray, data) = data
 
 # Iteration
 # Defer to the array object in case it has special iteration defined
-Base.iterate(img::AstroImageOrView) = Base.iterate(arraydata(img))
-Base.iterate(img::AstroImageOrView, s) = Base.iterate(arraydata(img), s)
+Base.iterate(img::AstroImage) = Base.iterate(arraydata(img))
+Base.iterate(img::AstroImage, s) = Base.iterate(arraydata(img), s)
+
+# Delegate axes to the backing array
+Base.axes(img::AstroImage) = Base.axes(arraydata(img))
 
 # Restrict downsizes images by roughly a factor of two.
 # We want to keep the wrapper but downsize the underlying array
-Images.restrict(img::AstroImageOrView, ::Tuple{}) = img
+Images.restrict(img::AstroImage, ::Tuple{}) = img
 Images.restrict(img::AstroImage, region::Dims) = shareheaders(img, restrict(arraydata(img), region))
-Images.restrict(imgview::AstroImageView, region::Dims) = restrict(imgview.mapper, region)
+Images.restrict(imgview::AstroImage, region::Dims) = restrict(imgview.mapper, region)
 
 # TODO: use WCS info
 # ImageCore.pixelspacing(img::ImageMeta) = pixelspacing(arraydata(img))
 
 Base.promote_rule(::Type{AstroImage{T}}, ::Type{AstroImage{V}}) where {T,V} = AstroImage{promote_type{T,V}}
 
-# function Base.similar(img::AstroImage) where T
-#     dat = similar(arraydata(img))
-#     _,_,C,P = TNCP(img)
-#     T2 = eltype(dat)
-#     N = length(size(dat))
-#     return AstroImage{T2,N,C,P}(
-#         dat,
-#         (zero(dat),one(dat)),
-#         true,
-#         # TODO:
-#         # similar(img.wcs),
-#         img.wcs,
-#         Properties{Float64}(),
-#         FITSHeader(String[],[],String[]),
-#     )
-# end
 
-# Broadcasting
+function Base.similar(img::AstroImage) where T
+    dat = similar(arraydata(img))
+    return AstroImage(
+        dat,
+        deepcopy(headers(img)),
+        getfield(img, :wcs),
+    )
+end
+# Getting a similar AstroImage with specific indices will typyically
+# return an OffsetArray
+function Base.similar(img::AstroImage, dims::Tuple) where T
+    dat = similar(arraydata(img), dims)
+    # Similar creates a new AstroImage with a similar array.
+    # We start with empty headers, except we copy any 
+    # WCS headers from the original image.
+    # The idea being we get an array that represents the same patch
+    # of the sky in the same coordinate system.
+    return AstroImage(
+        dat,
+        deepcopy(headers(img)),
+        getfield(img, :wcs)
+    )
+end
+
+
 Base.copy(img::AstroImage) = AstroImage(
     copy(arraydata(img)),
     deepcopy(headers(img)),
     # We copy the headers but share the WCS object.
     # If the headers change such that wcs is now out of date,
     # a new wcs will be generated when needed.
-    img.wcs
+    getfield(img, :wcs)
 )
 Base.convert(::Type{AstroImage}, A::AstroImage) = A
 Base.convert(::Type{AstroImage}, A::AbstractArray) = AstroImage(A)
@@ -295,7 +276,10 @@ Base.convert(::Type{AstroImage{T}}, A::AstroImage) where {T} = shareheaders(A, c
 Base.convert(::Type{AstroImage{T}}, A::AbstractArray{T}) where {T} = AstroImage(A)
 Base.convert(::Type{AstroImage{T}}, A::AbstractArray) where {T} = AstroImage(convert(AbstractArray{T}, A))
 
+# TODO: offset arrays
 Base.view(img::AstroImage, inds...) = shareheaders(img, view(arraydata(img), inds...))
+
+# Broadcasting
 # Base.selectdim(img::AstroImage, d::Integer, idxs) = AstroImage(selectdim(arraydata(img), d, idxs), headers(img))
 # broadcast mechanics
 Base.BroadcastStyle(::Type{<:AstroImage}) = Broadcast.ArrayStyle{AstroImage}()
@@ -310,8 +294,8 @@ function Base.similar(bc::Broadcast.Broadcasted{Broadcast.ArrayStyle{AstroImage}
     return AstroImage{T2,N,typeof(dat)}(
         dat,
         deepcopy(headers(img)),
-        img.wcs,
-        false
+        getfield(img, :wcs),
+        getfield(img, :wcs_stale)
     )
 end
 "`A = find_img(As)` returns the first AstroImage among the arguments."
@@ -353,6 +337,7 @@ AstroImage(img::AstroImage) = img
 Convenience function to create a FITSHeader with no keywords set.
 """
 emptyheaders() = FITSHeader(String[],[],String[])
+
 """
     emptywcs()
 
@@ -360,6 +345,23 @@ Given an AbstractArray, return a blank WCSTransform of the appropriate
 dimensionality.
 """
 emptywcs(data::AbstractArray) = WCSTransform(ndims(data))
+
+
+"""
+    filterwcsheaders(hdrs::FITSHeader)
+
+Return a new FITSHeader containing WCS headers from `hdrs`.
+This is useful for creating a new image with the same coordinates
+as another.
+"""
+function filterwcsheaders(hdrs::FITSHeader)
+    include_keys = intersect(keys(hdrs), WCS_HEADERS)
+    return FITSHeader(
+        include_keys,
+        map(key -> hdrs[key], include_keys),
+        map(key -> get_comment(hdrs, key), include_keys),
+    )
+end
 
 """
     AstroImage(data::AbstractArray, [headers::FITSHeader,] [wcs::WCSTransform,])
@@ -395,8 +397,11 @@ AstroImage(data::AbstractArray, wcs::WCSTransform) = AstroImage(data, emptyheade
 Helper function to create a WCSTransform from an array and
 FITSHeaders.
 """
-function wcsfromheaders(data::AbstractArray, head::FITSHeader)
-    wcsout = WCS.from_header(string(head), ignore_rejected=true)
+function wcsfromheaders(img::AstroImage)
+    # We only need to stringify WCS headers. This might just be 4-10 header keywords
+    # out of thousands.
+    # wcsout = WCS.from_header(string(filterwcsheaders(headers(img))), ignore_rejected=true)
+    wcsout = WCS.from_header(string(headers(img)), ignore_rejected=true)
     if length(wcsout) == 1
         return only(wcsout)
     elseif length(wcsout) == 0
@@ -533,6 +538,29 @@ include("wcs_headers.jl")
 include("showmime.jl")
 include("plot-recipes.jl")
 include("ccd2rgb.jl")
-include("reproject.jl")
+
+include("patches.jl")
 
 end # module
+
+
+#=
+TODO:
+* properties?
+* contrast/bias?
+* interactive (Jupyter)
+* Plots & Makie recipes
+* indexing
+* cubes
+* RGB and other composites
+* tests
+
+* histogram equaization
+
+* fileio
+
+* FITSIO PR/issue (performance)
+* PlotUtils PR/issue (zscale with iteratble)
+* WCS PR/issue (locking)
+
+=#
