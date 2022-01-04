@@ -54,93 +54,186 @@ v = imview(data, cmap=:magma, stretch=asinhstretch, clims=percent(95))
 save("output.png", v)
 ```
 """
+# @recipe function f(
+#         img::AstroImage{T};
+#         clims=_default_clims[],
+#         stretch=_default_stretch[],
+#         cmap=_default_cmap[],
+#         wcs=true
+#     ) where {T<:Number}
+#     seriestype   := :heatmap
+#     aspect_ratio := :equal
+
+#     if isnothing(cmap)
+#         cmap = :grays
+#     end
+#     color        := cmap
+
+
+#     # TODO: apply same `restrict` logic as in Images.jl to downsize
+#     # very large images.
+
+#     # We use the same pipeline as imview: normalize the image data according to clims
+#     # then stretch, then plot in the new stretched range
+
+#     # Users can pass clims as an array or tuple containing the minimum and maximum values
+#     if typeof(clims) <: AbstractArray || typeof(clims) <: Tuple
+#         if length(clims) != 2
+#             error("clims must have exactly two values if provided.")
+#         end
+#         imgmin = first(clims)
+#         imgmax = last(clims)
+#     # Or as a callable that computes them given an iterator
+#     else
+#         imgmin, imgmax = clims(skipmissingnan(img))
+#     end
+
+#     img_flipped = img[end:-1:begin,:]
+
+#     normed = clampednormedview(img_flipped, (imgmin, imgmax))
+
+#     if T <: Union{Missing,<:Number}
+#         TT = typeof(first(skipmissing(normed)))
+#     else
+#         TT = T
+#     end
+#     if TT == Bool
+#         TT = N0f8
+#     end
+
+#     stretchmin = stretch(zero(TT))
+#     stretchmax = stretch(one(TT))
+#     mapper = mappedarray(img_flipped, normed) do pixr, pixn
+#         if ismissing(pixr) || !isfinite(pixr) || ismissing(pixn) || !isfinite(pixn)
+#             # We check pixr in addition to pixn because we want to preserve if the pixels
+#             # are +-Inf
+#             stretched = pixr
+#         else
+#             stretched = stretch(pixn)
+#         end
+#     end
+
+#     # The output range may not be [0,1] depending on the stretch function
+#     clims := (stretchmin,stretchmax)
+
+#     # Calculate tick labels for the colorbar.
+#     # These may not have linear spacing depending on stretch function.
+#     # We can't know the inverse of the user's stretch function in general, so we have to
+#     # map in the forwards direction.
+#     # cbticklabels = range(
+#     #     imgmin,
+#     #     imgmax,
+#     #     length=9
+#     # )
+#     # cbtickpos = stretch.(cbticklabels)
+
+#     # By default, disable the colorbar.
+#     # Plots.jl does no give us sufficient control to make sure the range and ticks
+#     # are correct after applying a non-linear stretch
+#     colorbar := false
+
+#     # we have a wcs flag (true by default) so that users can skip over 
+#     # plotting in physical coordinates. This is especially important
+#     # if the WCS headers are mallformed in some way.
+#     if wcs
+
+#         # We want to avoid having the same coordinate repeated many times 
+#         # in narrow fields of view (e.g. 150.1, 150.1, 150.1).
+#         # We attempt to decect this and switch to a coordinate + Δ format
+#         w = AstroImages.wcs(img)
+
+#         # TODO: Is this really the x min and max? What if the image is rotated?
+#         x1, y1 = pix_to_world(w, [float(minimum(axes(img,1))), float(minimum(axes(img,2)))])
+#         x2, y2 = pix_to_world(w, [float(maximum(axes(img,1))), float(maximum(axes(img,2)))])
+#         # Image indices will often be reversed vs. the physical coordinates
+#         xmin, xmax = minmax(x1,x2)
+#         ymin, ymax = minmax(y1,y2)
+
+#         # X
+#         if xmax - xmin < 1
+#             start_x = xmin
+#             start_x_d, start_x_m, start_x_s = deg2dms(xmin)
+#             diff_x_d, diff_x_m, diff_x_s = deg2dms(xmax) .- deg2dms(xmin)
+#             xunit = w.cunit[1]
+#             tickdiv, tickunit = 1.0, xunit
+#             # Determine which coordinates to use along the axis.
+#             @show start_x
+#             start_x = floor(start_x_d)
+#             @show start_x
+#             if diff_x_d <= 1 
+#                 start_x = dms2deg(start_x_d, start_x_m, 0)
+#             @show start_x
+#             tickdiv, tickunit = nextunit(tickdiv, tickunit)
+#             end
+#             if diff_x_m <= 1
+#                 start_x = dms2deg(start_x_d, start_x_m, ceil(diff_x_m))
+#             @show start_x
+#             tickdiv, tickunit = nextunit(tickdiv, tickunit)
+#             end
+
+#             # TODO: adaptive unit switching
+#             xlabel       := labler_x(w, (start_x_d, start_x_m, start_x_s))
+
+#             # tickdiv, tickunit = nextunit(w.cunit[1])
+#             xformatter   := x -> pix2world_xformatter(x, w, start_x)
+#         else
+#             xformatter   := x -> pix2world_xformatter(x, w)
+#             xlabel       := labler_x(w)
+#         end
+
+#         # # Y
+#         # if ymax - ymin < 1
+#         #     # Switch to Δ labeling
+
+#         #     # TODO: adaptive unit switching
+#         #     starty = round(ymin, RoundToZero, digits=0)
+#         #     ylabel       := labler_y(w, starty)
+
+#         #     tickdiv, tickunit = nextunit(w.cunit[2])
+#         #     yformatter   := y -> pix2world_yformatter(y, w, starty, tickdiv, tickunit)
+#         # else
+#             yformatter   := y -> pix2world_yformatter(y, w)
+#             ylabel       := labler_y(w)
+#         # end
+        
+#         # TODO: also disable equal aspect ratio if the scales are totally different
+#     end
+
+#     return mapper
+# end
+
 @recipe function f(
-        img::AstroImage{T};
-        clims=_default_clims[],
-        stretch=_default_stretch[],
-        cmap=_default_cmap[],
-        wcs=true
-    ) where T
-    seriestype   := :heatmap
-    aspect_ratio := :equal
+    img::AstroImage{T};
+    clims=_default_clims[],
+    stretch=_default_stretch[],
+    cmap=_default_cmap[],
+    wcs=true
+) where {T<:Number}
+    iv = imview(img; clims, stretch, cmap)
+    return iv
+end
 
-    if isnothing(cmap)
-        cmap = :grays
-    end
-    color        := cmap
-
-
-    # TODO: apply same `restrict` logic as in Images.jl to downsize
-    # very large images.
-
-    # We use the same pipeline as imview: normalize the image data according to clims
-    # then stretch, then plot in the new stretched range
-
-    # Users can pass clims as an array or tuple containing the minimum and maximum values
-    if typeof(clims) <: AbstractArray || typeof(clims) <: Tuple
-        if length(clims) != 2
-            error("clims must have exactly two values if provided.")
-        end
-        imgmin = first(clims)
-        imgmax = last(clims)
-    # Or as a callable that computes them given an iterator
-    else
-        imgmin, imgmax = clims(skipmissingnan(img))
-    end
-
-    img_flipped = img[end:-1:begin,:]
-
-    normed = clampednormedview(img_flipped, (imgmin, imgmax))
-
-    if T <: Union{Missing,<:Number}
-        TT = typeof(first(skipmissing(normed)))
-    else
-        TT = T
-    end
-    if TT == Bool
-        TT = N0f8
-    end
-
-    stretchmin = stretch(zero(TT))
-    stretchmax = stretch(one(TT))
-    mapper = mappedarray(img_flipped, normed) do pixr, pixn
-        if ismissing(pixr) || !isfinite(pixr) || ismissing(pixn) || !isfinite(pixn)
-            # We check pixr in addition to pixn because we want to preserve if the pixels
-            # are +-Inf
-            stretched = pixr
-        else
-            stretched = stretch(pixn)
-        end
-    end
-
-    # The output range may not be [0,1] depending on the stretch function
-    clims := (stretchmin,stretchmax)
-
-    # Calculate tick labels for the colorbar.
-    # These may not have linear spacing depending on stretch function.
-    # We can't know the inverse of the user's stretch function in general, so we have to
-    # map in the forwards direction.
-    # cbticklabels = range(
-    #     imgmin,
-    #     imgmax,
-    #     length=9
-    # )
-    # cbtickpos = stretch.(cbticklabels)
+@recipe function f(
+    img::AstroImage{T};
+    wcs=true
+) where {T<:Colorant}
 
     # By default, disable the colorbar.
     # Plots.jl does no give us sufficient control to make sure the range and ticks
     # are correct after applying a non-linear stretch
-    colorbar := false
+    # colorbar := false
 
     # we have a wcs flag (true by default) so that users can skip over 
     # plotting in physical coordinates. This is especially important
     # if the WCS headers are mallformed in some way.
+    @show wcs
     if wcs
 
         # We want to avoid having the same coordinate repeated many times 
         # in narrow fields of view (e.g. 150.1, 150.1, 150.1).
         # We attempt to decect this and switch to a coordinate + Δ format
         w = AstroImages.wcs(img)
+
 
         # TODO: Is this really the x min and max? What if the image is rotated?
         x1, y1 = pix_to_world(w, [float(minimum(axes(img,1))), float(minimum(axes(img,2)))])
@@ -199,7 +292,7 @@ save("output.png", v)
         # TODO: also disable equal aspect ratio if the scales are totally different
     end
 
-    return mapper
+    return LinRange(xmin,xmax,size(img,1)), LinRange(xmin,xmax,size(img,2)), arraydata(img)
 end
 
 function pix2world_xformatter(x, wcs::WCSTransform)

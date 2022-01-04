@@ -113,6 +113,7 @@ mutable struct AstroImage{T, N, TDat} <: AbstractArray{T,N}
     wcs::WCSTransform
     wcs_stale::Bool
 end
+AstroImage(data::AbstractArray{T,N}, headers, wcs, wcs_stale) where {T,N} = AstroImage{T,N,typeof(data)}(data,headers,wcs,wcs_stale)
 
 
 """
@@ -210,7 +211,7 @@ using the data of the AbstractArray `data`. The two images have
 synchronized headers; modifying one also affects the other.
 See also: [`copyheaders`](@ref).
 """ 
-shareheaders(img::AstroImage, data::AbstractArray) = AstroImage(data, headers(img), getfield(img, :wcs))
+shareheaders(img::AstroImage, data::AbstractArray) = AstroImage(data, headers(img), getfield(img, :wcs), getfield(img, :wcs_stale))
 export shareheaders
 # Share headers if an AstroImage, do nothing if AbstractArray
 maybe_shareheaders(img::AstroImage, data) = shareheaders(img, data)
@@ -242,6 +243,7 @@ function Base.similar(img::AstroImage) where T
         dat,
         deepcopy(headers(img)),
         getfield(img, :wcs),
+        getfield(img, :wcs_stale),
     )
 end
 # Getting a similar AstroImage with specific indices will typyically
@@ -256,7 +258,8 @@ function Base.similar(img::AstroImage, dims::Tuple) where T
     return AstroImage(
         dat,
         deepcopy(headers(img)),
-        getfield(img, :wcs)
+        getfield(img, :wcs),
+        getfield(img, :wcs_stale)
     )
 end
 
