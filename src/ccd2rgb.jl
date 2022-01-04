@@ -66,6 +66,9 @@ function composechannels(
     if reproject == false
         reprojected = images
     else
+        if reproject == true
+            reproject = first(images)
+        end
         reprojected = map(images) do image
             Reproject.reproject(image, reproject; shape_out)[1]
         end
@@ -87,20 +90,22 @@ function composechannels(
 
     # return colorview(RGB, (reprojected .* multipliers)...)
 
+    ## TODO: this all needs to be lazy
+
     colorized = map(eachindex(reprojected)) do i
         arraydata(reprojected[i]) .* multipliers[i] .* colors[i]
     end
     mapped = (+).(colorized...) ./ length(reprojected)
+    T = coloralpha(eltype(mapped))
+    mapped = T.(mapped)
+    mapped[isnan.(mapped)] .= RGBA(0,0,0,0)
 
-    return maybe_shareheaders(first(images), mapped)
-
+    return maybe_copyheaders(first(images), mapped')
     # return (reprojected .* multipliers .* colors)
 
-    # cube = cat(reprojected .* multipliers..., dims=3)
-    # out = Matrix{eltype(first(reprojected))}(shape_out)
-    # map(CartesianIndices(first(reprojected))) do I
-    #     i,j = Tuple(I)
-    #     out[i,j] = cube[i,j,:]
-    # end
+
+    # TODO: more flexible blending
+    # ColorBlnding
+    # missing/NaN handling
 end
 export composechannels

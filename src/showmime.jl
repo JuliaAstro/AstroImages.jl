@@ -194,44 +194,36 @@ function _imview(img, normed::AbstractArray{T}, stretch, cmap) where T
 
     # No color map: use Gray
     if isnothing(cmap)
-        f = scaleminmax(stretchmin, stretchmax)
-        mapper = mappedarray(normed) do pix
-            if ismissing(pix)
-                return Gray{TT}(0)
-            else
-                stretched = isfinite(pix) ? stretch(pix) : pix
-                return Gray{TT}(f(stretched))
-            end
+        cmap = :grays
+    end
+    cscheme = ColorSchemes.colorschemes[cmap]
+    mapper = mappedarray(img, normed) do pixr, pixn
+        if ismissing(pixr) || !isfinite(pixr) || ismissing(pixn) || !isfinite(pixn)
+            # We check pixr in addition to pixn because we want to preserve if the pixels
+            # are +-Inf
+            stretched = pixr
+        else
+            stretched = stretch(pixn)
         end
-    # Monochromatic image using a colormap via ColorSchemes
-    else
-        cscheme = ColorSchemes.colorschemes[cmap]
-        mapper = mappedarray(img, normed) do pixr, pixn
-            if ismissing(pixr) || !isfinite(pixr) || ismissing(pixn) || !isfinite(pixn)
-                # We check pixr in addition to pixn because we want to preserve if the pixels
-                # are +-Inf
-                stretched = pixr
+        # We treat NaN/missing values as transparent
+        return if ismissing(stretched) || isnan(stretched)
+            RGBA{TT}(0,0,0,0)
+        # We treat Inf values as white / -Inf as black
+        elseif isinf(stretched)
+            if stretched > 0
+                RGBA{TT}(1,1,1,1)
             else
-                stretched = stretch(pixn)
+                RGBA{TT}(0,0,0,1)
             end
-            # We treat NaN/missing values as transparent
-            return if ismissing(stretched) || isnan(stretched)
-                RGBA{TT}(0,0,0,0)
-            # We treat Inf values as white / -Inf as black
-            elseif isinf(stretched)
-                if stretched > 0
-                    RGBA{TT}(1,1,1,1)
-                else
-                    RGBA{TT}(0,0,0,1)
-                end
-            else
-                RGBA{TT}(get(cscheme::ColorScheme, stretched, (stretchmin, stretchmax)))
-            end
+        else
+            RGBA{TT}(get(cscheme::ColorScheme, stretched, (stretchmin, stretchmax)))
         end
     end
 
-    return maybe_shareheaders(img, mapper)
-    # return mapper
+    # Flip image to match conventions of other programs
+    flipped_view = view(mapper', reverse(axes(mapper,1)),:)
+
+    return maybe_copyheaders(img, flipped_view)
 end
 export imview
 

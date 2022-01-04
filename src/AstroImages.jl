@@ -139,8 +139,22 @@ export History
 
 
 # extending the AbstractArray interface
-Base.size(img::AstroImage) = size(arraydata(img))
-Base.length(img::AstroImage) = length(arraydata(img))
+# and delegating calls to the wrapped array
+
+# Simple delegation
+for f in [
+    :(Base.size),
+    :(Base.length),
+]
+    @eval ($f)(img::AstroImage) = $f(arraydata(img))
+end
+# Return result wrapped in array
+for f in [
+    :(Base.adjoint),
+    :(Base.transpose)
+]
+    @eval ($f)(img::AstroImage) = shareheaders(img, $f(arraydata(img)))
+end
 
 # Getting and setting data is forwarded to the underlying array
 # Accessing a single value or a vector returns just the data.
@@ -201,7 +215,7 @@ headers of `imgnew` does not affect the headers of `img`.
 See also: [`shareheaders`](@ref).
 """
 copyheaders(img::AstroImage, data::AbstractArray) =
-    AstroImage(data, deepcopy(headers(img)), getfield(img, :wcs))
+    AstroImage(data, deepcopy(headers(img)), getfield(img, :wcs), getfield(img, :wcs_stale))
 export copyheaders
 
 """
@@ -216,6 +230,8 @@ export shareheaders
 # Share headers if an AstroImage, do nothing if AbstractArray
 maybe_shareheaders(img::AstroImage, data) = shareheaders(img, data)
 maybe_shareheaders(::AbstractArray, data) = data
+maybe_copyheaders(img::AstroImage, data) = copyheaders(img, data)
+maybe_copyheaders(::AbstractArray, data) = data
 
 # Iteration
 # Defer to the array object in case it has special iteration defined
@@ -229,7 +245,6 @@ Base.axes(img::AstroImage) = Base.axes(arraydata(img))
 # We want to keep the wrapper but downsize the underlying array
 Images.restrict(img::AstroImage, ::Tuple{}) = img
 Images.restrict(img::AstroImage, region::Dims) = shareheaders(img, restrict(arraydata(img), region))
-Images.restrict(imgview::AstroImage, region::Dims) = restrict(imgview.mapper, region)
 
 # TODO: use WCS info
 # ImageCore.pixelspacing(img::ImageMeta) = pixelspacing(arraydata(img))
@@ -270,7 +285,8 @@ Base.copy(img::AstroImage) = AstroImage(
     # We copy the headers but share the WCS object.
     # If the headers change such that wcs is now out of date,
     # a new wcs will be generated when needed.
-    getfield(img, :wcs)
+    getfield(img, :wcs),
+    getfield(img, :wcs_stale)
 )
 Base.convert(::Type{AstroImage}, A::AstroImage) = A
 Base.convert(::Type{AstroImage}, A::AbstractArray) = AstroImage(A)
@@ -395,20 +411,24 @@ AstroImage(data::AbstractArray, wcs::WCSTransform) = AstroImage(data, emptyheade
 
 
 """
-    wcsfromheaders(data::AbstractArray, headers::FITSHeader)
+    wcsfromheaders(img::AstroImage; relax=WCS.HDR_ALL, ignore_rejected=true)
 
 Helper function to create a WCSTransform from an array and
 FITSHeaders.
 """
-function wcsfromheaders(img::AstroImage)
+function wcsfromheaders(img::AstroImage; relax=WCS.HDR_ALL, ignore_rejected=true)
     # We only need to stringify WCS headers. This might just be 4-10 header keywords
     # out of thousands.
     # wcsout = WCS.from_header(string(filterwcsheaders(headers(img))), ignore_rejected=true)
-    wcsout = WCS.from_header(string(headers(img)), ignore_rejected=true)
+    wcsout = WCS.from_header(
+        string(headers(img));
+        ignore_rejected,
+        relax
+    )
     if length(wcsout) == 1
         return only(wcsout)
     elseif length(wcsout) == 0
-        return emptywcs(data)
+        return emptywcs(arraydata(img))
     else
         error("Mutiple WCSTransform returned from headers")
     end
