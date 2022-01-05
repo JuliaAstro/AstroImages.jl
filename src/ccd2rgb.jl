@@ -93,7 +93,7 @@ function composechannels(
     ## TODO: this all needs to be lazy
 
     colorized = map(eachindex(reprojected)) do i
-        arraydata(reprojected[i]) .* multipliers[i] .* colors[i]
+        reprojected[i] .* multipliers[i] .* colors[i]
     end
     mapped = (+).(colorized...) ./ length(reprojected)
     T = coloralpha(eltype(mapped))
