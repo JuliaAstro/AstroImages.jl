@@ -62,7 +62,7 @@ save("output.png", v)
     clims=_default_clims[],
     stretch=_default_stretch[],
     cmap=_default_cmap[],
-    wcs=true
+    wcs=AstroImages.wcs(img)
 ) where {T<:Number}
     # We currently use the AstroImages defaults. If unset, we could
     # instead follow the plot theme.
@@ -89,41 +89,61 @@ end
     # if the WCS headers are mallformed in some way.
     if !isnothing(wcs)
 
-        yguide, yticks = prepare_label_ticks(img, 2)
-        yguide := yguide
-        yticks := yticks
-
-        xguide, xticks = prepare_label_ticks(img, 1)
+        # TODO: fill out coordinates array considering offset indices and slices
+        # out of cubes (tricky!)
+        
+        xguide, xticks = prepare_label_ticks(img, 1, ones(wcs.naxis))
         xguide := xguide
         xticks := xticks
 
+        yguide, yticks = prepare_label_ticks(img, 2, ones(wcs.naxis))
+        yguide := yguide
+        yticks := yticks
     end
 
     # TODO: also disable equal aspect ratio if the scales are totally different
-    aspect_ratio := :equal
+    # aspect_ratio := :equal
 
     # We have to do a lot of flipping to keep the orientation corect 
     yflip := false
+    # return axes(img,2), axes(img,1), view(arraydata(img), reverse(axes(img,1)),:)
+    xflip := false
     return axes(img,2), axes(img,1), view(arraydata(img), reverse(axes(img,1)),:)
 end
 
 
-function prepare_label_ticks(img, axnum)
+"""
+Calculate good tick positions and nice labels for them
 
-    if axnum == 1
-        label = ctype_x(wcs(img))
-    elseif axnum == 2
-        label = ctype_y(wcs(img))
-    else
-        label = wcs(img).ctype[axnum]
-    end
+INPUT
+img:    an AstroImage
+axnum:  the index of the axis we want ticks for
+axnumᵀ: the index of the axis we are plotting against
+coords: the position in all coordinates for this plot. The value a axnum and axnumᵀ is igored.
+
+`coords` is important for showing 2D coords of a 3+D cube as we need to know
+our position along the other axes for accurate tick positions.
+
+OUTPUT
+tickpos: tick positions in pixels for this axis
+ticklabels: tick labels for each position
+"""
+function prepare_label_ticks(img, axnum, coords)
+
+    naxis = wcs(img).naxis
+    coordsx = convert(Vector{Float64}, coords)
+
+    # coordsw = zeros(eltype(coordsx), size(coordsx))
+    coordsw = pix_to_world(wcs(img), coordsx)
+
+
+    label = ctype_label(wcs(img).ctype[axnum], wcs(img).radesys)
+
     if wcs(img).cunit[axnum] == "deg"
         if startswith(uppercase(wcs(img).ctype[axnum]), "RA")
-            @info "using deg2hms"
             converter = deg2hms
             units = hms_units
         else
-            @info "using deg2dms"
             converter = deg2dmsmμ
             units = dmsmμ_units
         end
@@ -134,78 +154,49 @@ function prepare_label_ticks(img, axnum)
 
     # w denotes world coordinates along this axis; x denotes pixel coordinates.
     # wᵀ denotes world coordinates along the opposite axis.
-    axnumᵀ = axnum == 1 ? 2 : 1
 
-    # TODO: Is this really the x min and max? What if the image is rotated?
-    # TODO: what about viewing a slice?
     # TODO: wrapped around axes...
     # Mabye we can detect this by comparing with the minpoint. If they're not monatonic,
     # there is a wrap around somewhere. But then what do we do...
 
-    @info "axes" axnum axnumᵀ
     minx = first(axes(img,axnum))
     maxx = last(axes(img,axnum))
-    minxᵀ = first(axes(img,axnumᵀ))
-    maxxᵀ = last(axes(img,axnumᵀ))
-    @info "pixel extrema" minx maxx minxᵀ maxxᵀ
-    @show [axnum, axnumᵀ]
 
-    w1, wᵀ1 = pix_to_world(wcs(img), Float64[minx, minxᵀ][[axnum, axnumᵀ]])[[axnum, axnumᵀ]]
-    w2, wᵀ2 = pix_to_world(wcs(img), Float64[minx, maxxᵀ][[axnum, axnumᵀ]])[[axnum, axnumᵀ]]
-    w3, wᵀ3 = pix_to_world(wcs(img), Float64[maxx, minxᵀ][[axnum, axnumᵀ]])[[axnum, axnumᵀ]]
-    w4, wᵀ4 = pix_to_world(wcs(img), Float64[maxx, maxxᵀ][[axnum, axnumᵀ]])[[axnum, axnumᵀ]]
-    # minw, maxw = extrema((w1,w2,w3,w4))
-    # minwᵀ, maxwᵀ = extrema((wᵀ1,wᵀ2,wᵀ3,wᵀ4))
-    # @show w1 w2 w3 w4
+    posx = copy(coordsx)
+    posx[axnum] = minx
+    w1 = pix_to_world(wcs(img), posx)[axnum]
+    posx[axnum] = maxx
+    w3 = pix_to_world(wcs(img), posx)[axnum]
     minw, maxw = extrema((w1,w3))
-    minwᵀ, maxwᵀ = extrema((wᵀ1,wᵀ3))
-    @info "world extrema" w1 w2 w3 w4 wᵀ1 wᵀ2 wᵀ3 wᵀ4 minw maxw
-    # @show w1 w3 wᵀ3 wᵀ3
 
     # TODO: May need to rethink this approach in light of coordinates that can wrap around
     # Perhaps we can instead choose a phyically relevant step size
 
     # Use PlotUtils.optimize_ticks to find good tick positions in world coordinates
-    Q=[(1.0,1.0), (2.0, 0.7), (5.0, 0.5), (3.0, 0.2)]
+    Q=[(1.0,1.0), (3.0, 0.8), (2.0, 0.7), (5.0, 0.5)]
     tickpos_w = optimize_ticks(minw*6, maxw*6; Q, k_min=3, k_ideal=6)[1]
     if w1 > w3
         tickpos_w = reverse(tickpos_w)
     end
+
     # Then convert back to pixel coordinates along the axis
     tickpos = map(tickpos_w) do w
-        # TODO: naxis, slices
-        x = world_to_pix(wcs(img), Float64[w/6, minwᵀ, 0][[axnum,axnumᵀ,3]])[axnum]
+        posw = copy(coordsw)
+        posw[axnum] = w/6
+        # pos[axnumᵀ] = minwᵀ # TODO: should this instead be wᵀ1?
+        x = world_to_pix(wcs(img), posw)[axnum]
         return x
     end
-
-
-    # tickpos_w = optimize_ticks(minw*60*60, maxw*60*60; k_min=6, k_ideal=6)[1]
-    # @show tickpos_w
-    # phys_tick_spacing = mean(diff(tickpos_w))/60/60
-    # @show phys_tick_spacing
-    # pix_spacing = abs(
-    #     world_to_pix(wcs(img), Float64[minw+phys_tick_spacing, minwᵀ, 0][[axnum,axnumᵀ,3]])[axnum] - 
-    #     world_to_pix(wcs(img), Float64[minw, minwᵀ, 0][[axnum,axnumᵀ,3]])[axnum]
-
-    # )
-    # @show pix_spacing
-
-    # Q = [
-    #     (1.0, 1.0),
-    #     (pix_spacing,   0.9),
-    #     (pix_spacing/2, 0.8),
-    #     (pix_spacing/3, 0.7),
-    #     (pix_spacing/5, 0.6),
-    # ]
-    # tickpos = optimize_ticks(minx, maxx; Q, k_min=6, k_ideal=6)[1]
 
     # Format inital ticklabel 
     ticklabels = fill("", length(tickpos))
     # We only include the part of the label that has changed since the last time.
     # Split up coordinates into e.g. sexagesimal
     parts = map(tickpos) do x
-        # TODO: naxis
-        w = pix_to_world(wcs(img), Float64[x, minxᵀ, 0][[axnum,axnumᵀ,3]])[axnum]
+        posx = copy(coordsx)
+        posx[axnum] = x
+        # pos[axnumᵀ] = minxᵀ
+        w = pix_to_world(wcs(img), posx)[axnum]
         vals = converter(w)
         return vals
     end
@@ -217,9 +208,6 @@ function prepare_label_ticks(img, axnum)
         last_coord = vals
         return changing_coord_i
     end)
-
-    # deubg override:
-    # zero_coords_i = length(last_coord)
 
     # Loop through using only the relevant part of the label
     # Start with something impossible of the same size:
@@ -239,88 +227,22 @@ function prepare_label_ticks(img, axnum)
             else
                 str = @sprintf("%d", val)
             end
-            return str * unit
+            if length(str) > 0
+                return str * unit
+            else
+                return str
+            end
         end
 
         last_coord = vals
     end
-    @show ticklabels
 
     return label, (tickpos, ticklabels)
 
 end
 
 
-# # We need  a function that takes a WCSTransform, axis number, and physical coordinate start annd stop
-# # And returns (if units are degrees):
-# # * Starting position in sexagesimal (truncated to show static parts)
-# # * formatter in sexagesimal (truncated to show changing parts)
-# function prepare_formatter(w::WCSTransform, axnum, xmin, xmax, len)
-
-#     if axnum == 1
-#         label = ctype_x(w)
-#         converter = deg2hms
-#         units = hms_units
-#     elseif axnum == 2
-#         label = ctype_y(w)
-#         converter = deg2dmsmμ
-#         units = dmsmμ_units
-#     else
-#         label = w.ctype[axnum]
-#         converter = deg2dmsmμ
-#         units = dmsmμ_units
-#     end
-
-#     if w.cunit[axnum] != "deg"
-#         formatter = string
-#     else
-#         diff = converter(xmax) .- converter(xmin)
-#         changing_coord_i = findfirst(d->abs(d)>0, diff)
-
-#         start = vcat(
-#             converter(xmin)[1:changing_coord_i-1]...,
-#             zeros(length(units)-changing_coord_i+1)...
-#         )
-
-#         # Add the starting coordinate to the label.
-#         # These are the components that are the same for every tick
-#         label *= "  " * mapreduce(*, zip(start,units[1:changing_coord_i-1])) do (val,unit)
-#             @sprintf("%d%s", val, unit)
-#         end * "+"
-
-#         # TODO: also need a tick positioner??? Ottherwise the ticks aren'tt properly posjtions
-
-#         formatter = function (x)
-#             # TODO: pixels are already in physical coordinates...
-#             # This seems like not a good assumption
-#             # res = x
-#             # Todo, both x? Doesn't seem right
-#             # res = pix_to_world(w, [float(x), float(x)])[axnum]
-#             if axnum ==1
-#                 res = pix_to_world(w, [float(x), float(zero(x))])[axnum]
-#             else
-#                 res = pix_to_world(w, [float(zero(x)), float(x)])[axnum]
-#             end
-
-#             vals = converter(res) .- start
-#             if changing_coord_i < length(units)
-#                 ticklabel = "  " * mapreduce(*, zip(vals[changing_coord_i:min(changing_coord_i+1,end)],units[changing_coord_i:min(changing_coord_i+1,end)])) do (val,unit)
-#                     @sprintf("%d%s", val, unit)
-#                 end
-#             else
-#                 ticklabel = @sprintf(
-#                     "%.2f%s",
-#                     vals[changing_coord_i],
-#                     units[changing_coord_i]
-#                 )
-#             end
-#             return ticklabel
-#         end
-#     end
-#     return label, formatter
-# end
-
-# # Extended form of deg2dms that further returns mas, microas.
+# Extended form of deg2dms that further returns mas, microas.
 function deg2dmsmμ(deg)
     d,m,s = deg2dms(deg)
     s_f = floor(s)
@@ -336,132 +258,27 @@ const dmsmμ_units = [
     "mas",
     "μas",
 ]
-
-# function deg2hmsmμ(deg)
-#     h,m,s = deg2hms(deg)
-#     s_f = floor(s)
-#     mas = (s - s_f)*1e3
-#     mas_f = floor(mas)
-#     μas = (mas - mas_f)*1e3
-#     return (h,m,s_f,mas_f,μas)
-# end
-# const hmsmμ_units = [
-#     "ʰ",
-#     "ᵐ",
-#     "ˢ",
-#     # "mas",
-#     # "μas",
-# ]
 const hms_units = [
     "ʰ",
     "ᵐ",
     "ˢ",
 ]
 
-
-
-
-
-
-
-# function pix2world_xformatter(x, wcs::WCSTransform)
-#     res = round(pix_to_world(wcs, [float(x), float(x)])[1][1], digits=2)
-#     return string(res, unit2sym(wcs.cunit[1]))
-# end
-# function pix2world_xformatter(x, wcs::WCSTransform, start)
-#     x = pix_to_world(wcs, [float(x), float(x)])[1][1]
-
-#     pm = sign(start - x) >= 0 ? '+' : '-'
-
-#     diff_x_d, diff_x_m, diff_x_s = deg2dms(x) .- deg2dms(start)
-
-#     if abs(diff_x_d) > 1
-#         return string(pm, abs(round(Int, diff_x_d)), unit2sym("deg"))
-#     elseif abs(diff_x_m) > 1
-#         @show diff_x_m
-#         return string(pm, abs(round(Int, diff_x_m)), unit2sym("am"))
-#     elseif abs(diff_x_s) > 1
-#         return string(pm, abs(round(Int, diff_x_s)), unit2sym("as"))
-#     elseif abs(diff_x_s) > 1e-3
-#         return string(pm, abs(round(Int, diff_x_s*1e3)), unit2sym("mas"))
-#     elseif abs(diff_x_s) > 1e-6
-#         return string(pm, abs(round(Int, diff_x_s*1e3)), unit2sym("μas"))
-#     else
-#         return string(pm, abs(diff_x_s), unit2sym("as"))
-#     end
-        
-
-
-#     # return string(pm, diff_x_d, diff_x_m, diff_x_s, unit2sym(tickunit))
-#     return string(pm, abs(round(Int, diff_x_s)), unit2sym(tickunit))
-# end
-
-# function pix2world_yformatter(y, wcs::WCSTransform)
-#     res = round(pix_to_world(wcs, [float(y), float(y)])[2][1], digits=2)
-#     return string(res, unit2sym(wcs.cunit[1]))
-# end
-# function pix2world_yformatter(y, wcs::WCSTransform, start, tickdiv, tickunit)
-#     y = pix_to_world(wcs, [float(y), float(y)])[2][1]
-#     pm = sign(res) >= 0 ? '+' : '-'
-#     return string(pm, abs(round(res,digits=2)), unit2sym(tickunit))
-# end
-
-
-# labler_x(wcs) = ctype_x(wcs)
-# labler_y(wcs) = ctype_y(wcs)
-
-# labler_x(wcs, start) = string(ctype_x(wcs), "  ", start, unit2sym(wcs.cunit[1]))
-# labler_y(wcs, start) = string(ctype_y(wcs), "  ", start, unit2sym(wcs.cunit[2]))
-
-# function unit2sym(unit)
-#     if unit == "deg"       # TODO: add symbols for more units
-#         "°"
-#     elseif unit == "am"       # TODO: add symbols for more units
-#         "'"
-#     elseif unit == "as"       # TODO: add symbols for more units
-#         "\""
-#     else
-#         string(unit)
-#     end
-# end
-
-# function nextunit(div, unit)
-#     if unit == "deg"       # TODO: add symbols for more units
-#         return div*60, "am"
-#     elseif unit == "am"       # TODO: add symbols for more units
-#         return div*60, "as"
-#     elseif unit == "as"       # TODO: add symbols for more units
-#         return div*60, "mas"
-#     else
-#         div, string(unit)
-#     end
-# end
-
-
-function ctype_x(wcs::WCSTransform)
-    if length(wcs.ctype[1]) == 0
-        return wcs.radesys
-    elseif wcs.ctype[1][1:2] == "RA"
-        return "Right Ascension (ICRS)"
-    elseif wcs.ctype[1][1:4] == "GLON"
+function ctype_label(ctype,radesys)
+    if length(ctype) == 0
+        return radesys
+    elseif startswith(ctype, "RA")
+        return "Right Ascension ($(radesys))"
+    elseif startswith(ctype, "GLON")
         return "Galactic Longitude"
-    elseif wcs.ctype[1][1:4] == "TLON"
+    elseif startswith(ctype, "TLON")
         return "ITRS"
-    else
-        return wcs.ctype[1]
-    end
-end
-
-function ctype_y(wcs::WCSTransform)
-    if length(wcs.ctype[2]) == 0
-        return wcs.radesys
-    elseif wcs.ctype[2][1:3] == "DEC"
-        return "Declination (ICRS)"
-    elseif wcs.ctype[2][1:4] == "GLAT"
+    elseif startswith(ctype, "DEC")
+        return "Declination ($(radesys))"
+    elseif startswith(ctype, "GLAT")
         return "Galactic Latitude"
-    elseif wcs.ctype[2][1:4] == "TLAT"
-        return "ITRS"
+    elseif startswith(ctype, "TLAT")
     else
-        return wcs.ctype[2]
+        return ctype
     end
 end

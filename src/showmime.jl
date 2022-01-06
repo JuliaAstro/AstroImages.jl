@@ -221,7 +221,7 @@ function _imview(img, normed::AbstractArray{T}, stretch, cmap) where T
     end
 
     # Flip image to match conventions of other programs
-    flipped_view = view(mapper', reverse(axes(mapper,1)),:)
+    flipped_view = view(mapper', reverse(axes(mapper,2)),:)
 
     return maybe_copyheaders(img, flipped_view)
 end

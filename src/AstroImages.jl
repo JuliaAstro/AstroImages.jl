@@ -156,6 +156,8 @@ for f in [
     @eval ($f)(img::AstroImage) = shareheaders(img, $f(arraydata(img)))
 end
 
+Base.parent(img::AstroImage) = arraydata(img)
+
 # Getting and setting data is forwarded to the underlying array
 # Accessing a single value or a vector returns just the data.
 # Accering a 2+D slice copies the headers and re-wraps the data.
@@ -163,7 +165,7 @@ function Base.getindex(img::AstroImage, inds...)
     dat = getindex(arraydata(img), inds...)
     # ndims is defined for Numbers but not Missing.
     # This check is therefore necessary for img[1,1]->missing to work.
-    if !(typeof(dat) <: Number) || ndims(dat) <= 1
+    if !(eltype(dat) <: Number) || ndims(dat) <= 1
         return dat
     else
         return copyheaders(img, dat)
