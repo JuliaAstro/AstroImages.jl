@@ -84,6 +84,8 @@ end
     # are correct after applying a non-linear stretch
     # colorbar := false
 
+    # TODO: this wcs flag is currently less than useless.
+
     # we have a wcs flag (from the image by default) so that users can skip over 
     # plotting in physical coordinates. This is especially important
     # if the WCS headers are mallformed in some way.
@@ -91,14 +93,30 @@ end
 
         # TODO: fill out coordinates array considering offset indices and slices
         # out of cubes (tricky!)
-        
-        xguide, xticks = prepare_label_ticks(img, 1, ones(wcs.naxis))
-        xguide := xguide
-        xticks := xticks
 
-        yguide, yticks = prepare_label_ticks(img, 2, ones(wcs.naxis))
-        yguide := yguide
-        yticks := yticks
+        # Note: if the axes are on unusual sides (e.g. y-axis at right, x-axis at top)
+        # then these coordinates are not correct. They are only correct exactly
+        # along the axis.
+        # In astropy, the ticks are actually tilted to reflect this, though in general
+        # the transformation from pixel to coordinates can be non-linear and curved.
+
+        (;tickpos1x, tickpos1w, tickpos2x, tickpos2w, ) = gen_wcs_grid_ticks(img, (1,2), ones(wcs.naxis))
+        
+        xticks := (tickpos1x, prepare_tick_labels(img, 1, tickpos1x, tickpos1w))
+        xguide := ctype_label(wcs.ctype[1], wcs.radesys)
+
+        yticks := (tickpos2x, prepare_tick_labels(img, 2, tickpos2x, tickpos2w))
+        yguide := ctype_label(wcs.ctype[2], wcs.radesys)
+
+        # To ensure the physical axis tick labels are correct the axes must be
+        # tight to the image
+        xlims := first(axes(img,1)), last(axes(img,1))
+        ylims := first(axes(img,2)), last(axes(img,2))
+
+        # The grid lines are likely to be confusing since they do not follow
+        # the possibly tilted axes
+        grid --> false
+        tickdirection --> :none
     end
 
     # TODO: also disable equal aspect ratio if the scales are totally different
@@ -106,14 +124,14 @@ end
 
     # We have to do a lot of flipping to keep the orientation corect 
     yflip := false
-    # return axes(img,2), axes(img,1), view(arraydata(img), reverse(axes(img,1)),:)
     xflip := false
+
     return axes(img,2), axes(img,1), view(arraydata(img), reverse(axes(img,1)),:)
 end
 
 
 """
-Calculate good tick positions and nice labels for them
+Calculate good tick positions and nice labels for them.
 
 INPUT
 img:    an AstroImage
@@ -128,16 +146,11 @@ OUTPUT
 tickpos: tick positions in pixels for this axis
 ticklabels: tick labels for each position
 """
-function prepare_label_ticks(img, axnum, coords)
-
-    naxis = wcs(img).naxis
-    coordsx = convert(Vector{Float64}, coords)
-
-    # coordsw = zeros(eltype(coordsx), size(coordsx))
-    coordsw = pix_to_world(wcs(img), coordsx)
-
-
-    label = ctype_label(wcs(img).ctype[axnum], wcs(img).radesys)
+# Most of the complexity of this function is making sure everything
+# generalizes to N different, possiby skewed axes, where a change in
+# the opposite coordinate or even an unplotted coordinate affects
+# the tick labels.
+function prepare_tick_labels(img, axnum, tickposx, tickposw)
 
     if wcs(img).cunit[axnum] == "deg"
         if startswith(uppercase(wcs(img).ctype[axnum]), "RA")
@@ -152,57 +165,17 @@ function prepare_label_ticks(img, axnum, coords)
         units = ("",)
     end
 
-    # w denotes world coordinates along this axis; x denotes pixel coordinates.
-    # wᵀ denotes world coordinates along the opposite axis.
-
-    # TODO: wrapped around axes...
-    # Mabye we can detect this by comparing with the minpoint. If they're not monatonic,
-    # there is a wrap around somewhere. But then what do we do...
-
-    minx = first(axes(img,axnum))
-    maxx = last(axes(img,axnum))
-
-    posx = copy(coordsx)
-    posx[axnum] = minx
-    w1 = pix_to_world(wcs(img), posx)[axnum]
-    posx[axnum] = maxx
-    w3 = pix_to_world(wcs(img), posx)[axnum]
-    minw, maxw = extrema((w1,w3))
-
-    # TODO: May need to rethink this approach in light of coordinates that can wrap around
-    # Perhaps we can instead choose a phyically relevant step size
-
-    # Use PlotUtils.optimize_ticks to find good tick positions in world coordinates
-    Q=[(1.0,1.0), (3.0, 0.8), (2.0, 0.7), (5.0, 0.5)]
-    tickpos_w = optimize_ticks(minw*6, maxw*6; Q, k_min=3, k_ideal=6)[1]
-    if w1 > w3
-        tickpos_w = reverse(tickpos_w)
-    end
-
-    # Then convert back to pixel coordinates along the axis
-    tickpos = map(tickpos_w) do w
-        posw = copy(coordsw)
-        posw[axnum] = w/6
-        # pos[axnumᵀ] = minwᵀ # TODO: should this instead be wᵀ1?
-        x = world_to_pix(wcs(img), posw)[axnum]
-        return x
-    end
-
     # Format inital ticklabel 
-    ticklabels = fill("", length(tickpos))
+    ticklabels = fill("", length(tickposx))
     # We only include the part of the label that has changed since the last time.
     # Split up coordinates into e.g. sexagesimal
-    parts = map(tickpos) do x
-        posx = copy(coordsx)
-        posx[axnum] = x
-        # pos[axnumᵀ] = minxᵀ
-        w = pix_to_world(wcs(img), posx)[axnum]
+    parts = map(tickposw) do w
         vals = converter(w)
         return vals
     end
 
     # Start with something impossible of the same size:
-    last_coord = Inf .* converter(minw)
+    last_coord = Inf .* converter(first(tickposw))
     zero_coords_i = maximum(map(parts) do vals
         changing_coord_i = findfirst(vals .!= last_coord)
         last_coord = vals
@@ -211,10 +184,9 @@ function prepare_label_ticks(img, axnum, coords)
 
     # Loop through using only the relevant part of the label
     # Start with something impossible of the same size:
-    last_coord = Inf .* converter(minw)
+    last_coord = Inf .* converter(first(tickposw))
     for (i,vals) in enumerate(parts)
         changing_coord_i = findfirst(vals .!= last_coord)
- 
         val_unit_zip = zip(vals[changing_coord_i:zero_coords_i],units[changing_coord_i:zero_coords_i])
         ticklabels[i] = mapreduce(*, enumerate(val_unit_zip)) do (coord_i,(val,unit))
             # Last coordinate always gets decimal places
@@ -233,11 +205,10 @@ function prepare_label_ticks(img, axnum, coords)
                 return str
             end
         end
-
         last_coord = vals
     end
 
-    return label, (tickpos, ticklabels)
+    return ticklabels
 
 end
 
@@ -282,3 +253,248 @@ function ctype_label(ctype,radesys)
         return ctype
     end
 end
+
+
+"""
+    gen_wcs_grid_ticks(img::AstroImage, ax=(1,2), coords=(first(axes(img,ax[1])),first(axes(img,ax[2]))))
+
+Given an AstroImage, return information necessary to plot WCS gridlines in physical
+coordinates against the image's pixel coordinates.
+This function has to work on both plotted axes at once to handle rotation and general
+curvature of the WCS grid projected on the image coordinates.
+
+"""
+function gen_wcs_grid_ticks(img, ax=(1,2), coords=(first(axes(img,ax[1])),first(axes(img,ax[2]))); color=:black, label="", p=false, line_kwargs...) #pscing in deg
+    
+    # x and y denote pixel coordinates (along `ax`), u and v are world coordinates along same?
+    ax = collect(ax)
+    coordsx = convert(Vector{Float64}, collect(coords))
+
+    minx = first(axes(img,ax[1]))
+    maxx = last(axes(img,ax[1]))
+    miny = first(axes(img,ax[2]))
+    maxy = last(axes(img,ax[2]))
+
+    # Find the extent of this slice in world coordinates
+    posxy = repeat(coordsx, 1, 4)
+    posxy[ax,1] .= (minx,miny)
+    posxy[ax,2] .= (minx,maxy)
+    posxy[ax,3] .= (maxx,miny)
+    posxy[ax,4] .= (maxx,maxy)
+    posuv = pix_to_world(wcs(img), posxy)
+    (minu, maxu), (minv, maxv) = extrema(posuv, dims=2)
+
+    # Find nice grid spacings
+    Q=[(1.0,1.0), (3.0, 0.8), (2.0, 0.7), (5.0, 0.5)] # dms2deg(0, 0, 20)
+    tickposu = optimize_ticks(6minu, 6maxu; Q, k_min=5, k_ideal=8, k_max=20)[1]./6
+    tickposv = optimize_ticks(6minv, 6maxv; Q, k_min=5, k_ideal=8, k_max=20)[1]./6
+
+    # In general, grid can be curved when plotted back against the image.
+    # So we will need to sample multiple points along the grid.
+    # TODO: find a good heuristic for this based on the curvature.
+    N_points = 15
+    urange = range(minu, maxu, length=N_points)
+    vrange = range(minv, maxv, length=N_points)
+
+    # # Hold one coordinate constant at a time while tracing the other
+    # for ticku in tickposu
+    #     # Make sure we handle unplotted slices correctly.
+    #     griduv = repeat(posuv[:,1], 1, N_points)
+    #     griduv[1,:] .= ticku
+    #     griduv[2,:] .= vrange
+    #     posxy = world_to_pix(wcs(img), griduv)
+    #     p = Main.plot!(
+    #         posxy[1,:],
+    #         posxy[2,:];
+    #         color,
+    #         label,
+    #         line_kwargs...
+    #     )
+    # end
+
+    tickpos1x = Float64[]
+    tickpos1w = Float64[]
+    gridlinesxy1 = map(tickposu) do ticku
+        # Make sure we handle unplotted slices correctly.
+        griduv = repeat(posuv[:,1], 1, N_points)
+        griduv[ax[1],:] .= ticku
+        griduv[ax[2],:] .= vrange
+        posxy = world_to_pix(wcs(img), griduv)
+
+        # Now that we have the grid in pixel coordinates, 
+        # if we find out where the grid intersects the axes we can put
+        # the labels in the correct spot
+        
+        # Find the first and last indices of the grid line that are within the 
+        # plot bounds
+        in_axes = (minx .<=  posxy[ax[1],:] .<= maxx) .& (miny .<=  posxy[ax[2],:] .<= maxy)
+        entered_axes_i = findfirst(in_axes)
+        exitted_axes_i = findlast(in_axes)
+    
+        # From here, do a linear fit to find the intersection with the axis.
+        # This should be accurate enough as long as N_points is high enough
+        # that the curvature of the grid is smooth by eye.
+        # y=mx+b
+        m1 = (posxy[ax[2],entered_axes_i+1] - posxy[ax[2],entered_axes_i])/
+                (posxy[ax[1],entered_axes_i+1] - posxy[ax[1],entered_axes_i])
+        b1 = posxy[ax[2],entered_axes_i] - m1*posxy[ax[1],entered_axes_i]
+        # Find the coordinate of maxy so that we don't run over the top axis
+        x_maxy = (maxy-b1)/m1
+        if x_maxy > maxx
+            # We never hit the axis
+            x1 = maxx
+        else
+            x1 = x_maxy
+        end
+        # Now extrapolate the line
+        y = m1*(x1)+b1
+        point_entered = [
+            x1
+            y
+        ]
+
+        # Now do where the lines exit the plot
+        m2 = (posxy[ax[2],exitted_axes_i] - posxy[ax[2],exitted_axes_i-1])/
+        (posxy[ax[1],exitted_axes_i] - posxy[ax[1],exitted_axes_i-1])
+        b2 = posxy[ax[2],exitted_axes_i] - m2*posxy[ax[1],exitted_axes_i]
+        # Find the coordinate of maxy so that we don't run below the bottom axis
+        x_miny = (miny-b2)/m2
+        if x_miny < minx
+            # We never hit the axis
+            x2 = minx
+        else
+            x2 = x_miny
+        end
+        # Now extrapolate the line
+        y = m2*(x2)+b2
+
+        point_exitted = [
+            x2
+            y
+        ]
+        if minx <= x_miny <= maxx
+            push!(tickpos1x, x2)
+            push!(tickpos1w, ticku)
+        end
+        # Chop off the lines to be inside the plot and then put
+        # out new intercept points back in
+
+        posxy_neat = [point_entered  posxy[:,entered_axes_i:exitted_axes_i] point_exitted]
+        # TODO: other axes also need a fit?
+        
+        if p 
+            Main.plot!(
+            posxy_neat[ax[1],:],
+            posxy_neat[ax[2],:];
+            color,
+            label,
+            line_kwargs...
+        )
+        end
+
+        # TODO: one option could be to place grid labels where they exit the 
+        # plot. This gets around the tilted ticks issue
+
+        gridlinexy = (
+            posxy_neat[ax[1],:],
+            posxy_neat[ax[2],:]
+        )
+        return gridlinexy
+    end
+    # Then do the opposite coordinate
+
+    tickpos2x = Float64[]
+    tickpos2w = Float64[]
+    gridlinesxy2 = map(tickposv) do tickv
+        # Make sure we handle unplotted slices correctly.
+        griduv = repeat(posuv[:,1], 1, N_points)
+        griduv[ax[1],:] .= urange
+        griduv[ax[2],:] .= tickv
+        posxy = world_to_pix(wcs(img), griduv)
+
+        # Now that we have the grid in pixel coordinates, 
+        # if we find out where the grid intersects the axes we can put
+        # the labels in the correct spot
+        
+        # Find the first and last indices of the grid line that are within the 
+        # plot bounds
+        in_axes = (minx .<=  posxy[ax[1],:] .<= maxx) .& (miny .<=  posxy[ax[2],:] .<= maxy)
+        entered_axes_i = findfirst(in_axes)
+        exitted_axes_i = findlast(in_axes)
+    
+        # From here, do a linear fit to find the intersection with the axis.
+        # This should be accurate enough as long as N_points is high enough
+        # that the curvature of the grid is smooth by eye.
+        # y=mx+b
+        m1 = (posxy[ax[2],entered_axes_i+1] - posxy[ax[2],entered_axes_i])/
+                (posxy[ax[1],entered_axes_i+1] - posxy[ax[1],entered_axes_i])
+        b1 = posxy[ax[2],entered_axes_i] - m1*posxy[ax[1],entered_axes_i]
+        # Find the coordinate of maxy so that we don't run over the top axis
+        x_maxy = (maxy-b1)/m1
+        # TODO: both side comparison
+        if x_maxy > minx
+            # We never hit the axis
+            x1 = x_maxy
+        else
+            x1 = minx
+        end
+        # Now extrapolate the line
+        y = m1*(x1)+b1
+        if x_maxy < minx
+            push!(tickpos2x, y)
+            push!(tickpos2w, tickv)
+        end
+        point_entered = [
+            x1
+            y
+        ]
+
+        # Now do where the lines exit the plot
+        m2 = (posxy[ax[2],exitted_axes_i] - posxy[ax[2],exitted_axes_i-1])/
+        (posxy[ax[1],exitted_axes_i] - posxy[ax[1],exitted_axes_i-1])
+        b2 = posxy[ax[2],exitted_axes_i] - m2*posxy[ax[1],exitted_axes_i]
+        # Find the coordinate of maxy so that we don't run below the bottom axis
+        x_miny = (miny-b2)/m2
+        if x_miny > maxx
+            # We never hit the axis
+            x2 = maxx
+        else
+            x2 = x_miny
+        end
+        # Now extrapolate the line
+        y = m2*(x2)+b2
+
+        point_exitted = [
+            x2
+            y
+        ]
+        # Chop off the lines to be inside the plot and then put
+        # out new intercept points back in
+
+        posxy_neat = [point_entered  posxy[:,entered_axes_i:exitted_axes_i] point_exitted]
+        # TODO: other axes also need a fit?
+        
+        if p 
+            Main.plot!(
+            posxy_neat[ax[1],:],
+            posxy_neat[ax[2],:];
+            color,
+            label,
+            line_kwargs...
+        )
+        end
+
+        # TODO: one option could be to place grid labels where they exit the 
+        # plot. This gets around the tilted ticks issue
+
+        gridlinexy = (
+            posxy_neat[ax[1],:],
+            posxy_neat[ax[2],:]
+        )
+        return gridlinexy
+    end
+
+    return (;gridlinesxy1, gridlinesxy2, tickpos1x, tickpos1w, tickpos2x, tickpos2w)
+
+end
+export gen_wcs_grid_ticks
