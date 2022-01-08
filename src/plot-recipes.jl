@@ -100,23 +100,26 @@ end
         # In astropy, the ticks are actually tilted to reflect this, though in general
         # the transformation from pixel to coordinates can be non-linear and curved.
 
-        (;tickpos1x, tickpos1w, tickpos2x, tickpos2w, ) = gen_wcs_grid_ticks(img, (1,2), ones(wcs.naxis))
-        
-        xticks := (tickpos1x, prepare_tick_labels(img, 1, tickpos1x, tickpos1w))
-        xguide := ctype_label(wcs.ctype[1], wcs.radesys)
+        # (;tickpos1x, tickpos1w, tickpos2x, tickpos2w, ) 
+        wcsax = WCSGrid6(img, (1,2))
 
-        yticks := (tickpos2x, prepare_tick_labels(img, 2, tickpos2x, tickpos2w))
-        yguide := ctype_label(wcs.ctype[2], wcs.radesys)
+        gridspec = wcsgridspec(wcsax)
+        
+        xticks --> (gridspec.tickpos1x, prepare_tick_labels(wcs, 1, gridspec))
+        xguide --> ctype_label(wcs.ctype[1], wcs.radesys)
+
+        yticks --> (gridspec.tickpos2x, prepare_tick_labels(wcs, 2, gridspec))
+        yguide --> ctype_label(wcs.ctype[2], wcs.radesys)
 
         # To ensure the physical axis tick labels are correct the axes must be
         # tight to the image
-        xlims := first(axes(img,1)), last(axes(img,1))
-        ylims := first(axes(img,2)), last(axes(img,2))
+        xlims := first(axes(img,2)), last(axes(img,2))
+        ylims := first(axes(img,1)), last(axes(img,1))
 
         # The grid lines are likely to be confusing since they do not follow
         # the possibly tilted axes
-        grid --> false
-        tickdirection --> :none
+        grid := false
+        tickdirection := :none
     end
 
     # TODO: also disable equal aspect ratio if the scales are totally different
@@ -131,10 +134,10 @@ end
 
 
 """
-Calculate good tick positions and nice labels for them.
+Generate nice labels from a WCSTransform, axis, and known positions.
 
 INPUT
-img:    an AstroImage
+w:      a WCSTransform
 axnum:  the index of the axis we want ticks for
 axnumᵀ: the index of the axis we are plotting against
 coords: the position in all coordinates for this plot. The value a axnum and axnumᵀ is igored.
@@ -150,10 +153,21 @@ ticklabels: tick labels for each position
 # generalizes to N different, possiby skewed axes, where a change in
 # the opposite coordinate or even an unplotted coordinate affects
 # the tick labels.
-function prepare_tick_labels(img, axnum, tickposx, tickposw)
+function prepare_tick_labels(w::WCSTransform, axnum, gridspec)#tickposx, tickposw)
 
-    if wcs(img).cunit[axnum] == "deg"
-        if startswith(uppercase(wcs(img).ctype[axnum]), "RA")
+    # TODO: sort out axnum stuff
+    tickposx = axnum == 1 ? gridspec.tickpos1x : gridspec.tickpos2x
+    tickposw = axnum == 1 ? gridspec.tickpos1w : gridspec.tickpos2w
+
+    if length(tickposw) != length(tickposx)
+        error("Tick position vectors are of different length")
+    end
+    if length(tickposx) == 0
+        return String[]
+    end
+
+    if w.cunit[axnum] == "deg"
+        if startswith(uppercase(w.ctype[axnum]), "RA")
             converter = deg2hms
             units = hms_units
         else
@@ -255,8 +269,27 @@ function ctype_label(ctype,radesys)
 end
 
 
+# struct WCSGrid6
+#     w
+#     extent
+#     gridlinesxy1
+#     gridlinesxy2
+#     tickpos1x
+#     tickpos1w
+#     tickslopes1x
+#     tickpos2x
+#     tickpos2w
+#     tickslopes2x
+# end
+struct WCSGrid6
+    w
+    extent
+    ax
+    coords
+end
+
 """
-    gen_wcs_grid_ticks(img::AstroImage, ax=(1,2), coords=(first(axes(img,ax[1])),first(axes(img,ax[2]))))
+    WCSGrid6(img::AstroImage, ax=(1,2), coords=(first(axes(img,ax[1])),first(axes(img,ax[2]))))
 
 Given an AstroImage, return information necessary to plot WCS gridlines in physical
 coordinates against the image's pixel coordinates.
@@ -264,16 +297,25 @@ This function has to work on both plotted axes at once to handle rotation and ge
 curvature of the WCS grid projected on the image coordinates.
 
 """
-function gen_wcs_grid_ticks(img, ax=(1,2), coords=(first(axes(img,ax[1])),first(axes(img,ax[2]))); color=:black, label="", p=false, line_kwargs...) #pscing in deg
-    
-    # x and y denote pixel coordinates (along `ax`), u and v are world coordinates along same?
-    ax = collect(ax)
-    coordsx = convert(Vector{Float64}, collect(coords))
+function WCSGrid6(img::AstroImage, ax=(1,2))
 
     minx = first(axes(img,ax[1]))
     maxx = last(axes(img,ax[1]))
     miny = first(axes(img,ax[2]))
     maxy = last(axes(img,ax[2]))
+    extent = (minx, maxx, miny, maxy)
+
+    return WCSGrid6(wcs(img), extent, ax, (extent[1], extent[3]))
+end
+
+function wcsgridspec(wsg::WCSGrid6)
+# function wcsgridspec(w::WCSTransform, extent, ax=(1,2), coords=(extent[1], extent[3]))#coords=(first(axes(img,ax[1])),first(axes(img,ax[2]))))
+    
+    # x and y denote pixel coordinates (along `ax`), u and v are world coordinates along same?
+    ax = collect(wsg.ax)
+    coordsx = convert(Vector{Float64}, collect(wsg.coords))
+
+    minx, maxx, miny, maxy = wsg.extent
 
     # Find the extent of this slice in world coordinates
     posxy = repeat(coordsx, 1, 4)
@@ -281,13 +323,17 @@ function gen_wcs_grid_ticks(img, ax=(1,2), coords=(first(axes(img,ax[1])),first(
     posxy[ax,2] .= (minx,maxy)
     posxy[ax,3] .= (maxx,miny)
     posxy[ax,4] .= (maxx,maxy)
-    posuv = pix_to_world(wcs(img), posxy)
+    posuv = pix_to_world(wsg.w, posxy)
     (minu, maxu), (minv, maxv) = extrema(posuv, dims=2)
 
     # Find nice grid spacings
+    # These heuristics can probably be improved
     Q=[(1.0,1.0), (3.0, 0.8), (2.0, 0.7), (5.0, 0.5)] # dms2deg(0, 0, 20)
-    tickposu = optimize_ticks(6minu, 6maxu; Q, k_min=5, k_ideal=8, k_max=20)[1]./6
-    tickposv = optimize_ticks(6minv, 6maxv; Q, k_min=5, k_ideal=8, k_max=20)[1]./6
+    k_min = 4
+    k_ideal = 8
+    k_max = 20
+    tickposu = optimize_ticks(6minu, 6maxu; Q, k_min, k_ideal, k_max)[1]./6
+    tickposv = optimize_ticks(6minv, 6maxv; Q, k_min, k_ideal, k_max)[1]./6
 
     # In general, grid can be curved when plotted back against the image.
     # So we will need to sample multiple points along the grid.
@@ -296,30 +342,15 @@ function gen_wcs_grid_ticks(img, ax=(1,2), coords=(first(axes(img,ax[1])),first(
     urange = range(minu, maxu, length=N_points)
     vrange = range(minv, maxv, length=N_points)
 
-    # # Hold one coordinate constant at a time while tracing the other
-    # for ticku in tickposu
-    #     # Make sure we handle unplotted slices correctly.
-    #     griduv = repeat(posuv[:,1], 1, N_points)
-    #     griduv[1,:] .= ticku
-    #     griduv[2,:] .= vrange
-    #     posxy = world_to_pix(wcs(img), griduv)
-    #     p = Main.plot!(
-    #         posxy[1,:],
-    #         posxy[2,:];
-    #         color,
-    #         label,
-    #         line_kwargs...
-    #     )
-    # end
-
     tickpos1x = Float64[]
     tickpos1w = Float64[]
+    tickslopes1x = Float64[]
     gridlinesxy1 = map(tickposu) do ticku
         # Make sure we handle unplotted slices correctly.
         griduv = repeat(posuv[:,1], 1, N_points)
         griduv[ax[1],:] .= ticku
         griduv[ax[2],:] .= vrange
-        posxy = world_to_pix(wcs(img), griduv)
+        posxy = world_to_pix(wsg.w, griduv)
 
         # Now that we have the grid in pixel coordinates, 
         # if we find out where the grid intersects the axes we can put
@@ -355,7 +386,7 @@ function gen_wcs_grid_ticks(img, ax=(1,2), coords=(first(axes(img,ax[1])),first(
 
         # Now do where the lines exit the plot
         m2 = (posxy[ax[2],exitted_axes_i] - posxy[ax[2],exitted_axes_i-1])/
-        (posxy[ax[1],exitted_axes_i] - posxy[ax[1],exitted_axes_i-1])
+                (posxy[ax[1],exitted_axes_i] - posxy[ax[1],exitted_axes_i-1])
         b2 = posxy[ax[2],exitted_axes_i] - m2*posxy[ax[1],exitted_axes_i]
         # Find the coordinate of maxy so that we don't run below the bottom axis
         x_miny = (miny-b2)/m2
@@ -375,25 +406,13 @@ function gen_wcs_grid_ticks(img, ax=(1,2), coords=(first(axes(img,ax[1])),first(
         if minx <= x_miny <= maxx
             push!(tickpos1x, x2)
             push!(tickpos1w, ticku)
+            push!(tickslopes1x, m2)
         end
         # Chop off the lines to be inside the plot and then put
         # out new intercept points back in
 
         posxy_neat = [point_entered  posxy[:,entered_axes_i:exitted_axes_i] point_exitted]
-        # TODO: other axes also need a fit?
-        
-        if p 
-            Main.plot!(
-            posxy_neat[ax[1],:],
-            posxy_neat[ax[2],:];
-            color,
-            label,
-            line_kwargs...
-        )
-        end
-
-        # TODO: one option could be to place grid labels where they exit the 
-        # plot. This gets around the tilted ticks issue
+        # TODO: do unplotted other axes also need a fit?
 
         gridlinexy = (
             posxy_neat[ax[1],:],
@@ -405,12 +424,13 @@ function gen_wcs_grid_ticks(img, ax=(1,2), coords=(first(axes(img,ax[1])),first(
 
     tickpos2x = Float64[]
     tickpos2w = Float64[]
+    tickslopes2x = Float64[]
     gridlinesxy2 = map(tickposv) do tickv
         # Make sure we handle unplotted slices correctly.
         griduv = repeat(posuv[:,1], 1, N_points)
         griduv[ax[1],:] .= urange
         griduv[ax[2],:] .= tickv
-        posxy = world_to_pix(wcs(img), griduv)
+        posxy = world_to_pix(wsg.w, griduv)
 
         # Now that we have the grid in pixel coordinates, 
         # if we find out where the grid intersects the axes we can put
@@ -443,6 +463,7 @@ function gen_wcs_grid_ticks(img, ax=(1,2), coords=(first(axes(img,ax[1])),first(
         if x_maxy < minx
             push!(tickpos2x, y)
             push!(tickpos2w, tickv)
+            push!(tickslopes2x, m1)
         end
         point_entered = [
             x1
@@ -473,16 +494,6 @@ function gen_wcs_grid_ticks(img, ax=(1,2), coords=(first(axes(img,ax[1])),first(
 
         posxy_neat = [point_entered  posxy[:,entered_axes_i:exitted_axes_i] point_exitted]
         # TODO: other axes also need a fit?
-        
-        if p 
-            Main.plot!(
-            posxy_neat[ax[1],:],
-            posxy_neat[ax[2],:];
-            color,
-            label,
-            line_kwargs...
-        )
-        end
 
         # TODO: one option could be to place grid labels where they exit the 
         # plot. This gets around the tilted ticks issue
@@ -494,7 +505,83 @@ function gen_wcs_grid_ticks(img, ax=(1,2), coords=(first(axes(img,ax[1])),first(
         return gridlinexy
     end
 
-    return (;gridlinesxy1, gridlinesxy2, tickpos1x, tickpos1w, tickpos2x, tickpos2w)
+    # return WCSGrid6(w, extent, gridlinesxy1, gridlinesxy2, tickpos1x, tickpos1w, tickslopes1x, tickpos2x, tickpos2w, tickslopes2x)
+    return (;gridlinesxy1, gridlinesxy2, tickpos1x, tickpos1w, tickslopes1x, tickpos2x, tickpos2w, tickslopes2x)
+end
+export WCSGrid6
+
+
+# TODO: the wcs parameter is not getting forwardded correctly. Use plot recipe system for this.
+
+# This recipe plots as AstroImage of color data as an image series (not heatmap).
+# This lets us also plot color composites e.g. in WCS coordinates.
+@recipe function f(wcsax::WCSGrid6)
+    color --> :black # Is there a way to get the foreground color automatically?
+    label --> ""
+
+    gridspec = wcsgridspec(wcsax)
+    
+    # Unroll grid lines into a single series separated by NaNs
+    xs1 = mapreduce(vcat, gridspec.gridlinesxy1) do gridline
+        return vcat(gridline[1], NaN)
+    end
+    ys1 = mapreduce(vcat, gridspec.gridlinesxy1) do gridline
+        return vcat(gridline[2], NaN)
+    end
+    xs2 = mapreduce(vcat, gridspec.gridlinesxy2) do gridline
+        return vcat(gridline[1], NaN)
+    end
+    ys2 = mapreduce(vcat, gridspec.gridlinesxy2) do gridline
+        return vcat(gridline[2], NaN)
+    end
+
+    xs = vcat(xs1, NaN, xs2)
+    ys = vcat(ys1, NaN, ys2)
+
+    # We can optionally annotate the grid with their coordinates
+
+    # @series begin
+    #     ticklabels = prepare_tick_labels(gridspec.w, 2, gridspec.tickpos2x, gridspec.tickpos2w)
+    #     rotations = atand.(gridspec.tickslopes2x, 1)
+    #     series_annotations := [
+    #         Main.Plots.text("  $l", :left, :bottom, :white, 8; rotation)
+    #         for (l, rotation) in zip(ticklabels, rotations)
+    #     ]
+    #     ones(length(gridspec.tickpos2x)), gridspec.tickpos2x
+    # end
+
+    # @series begin
+    #     ticklabels = prepare_tick_labels(gridspec.w, 1, gridspec.tickpos1x, gridspec.tickpos1w)
+    #     rotations = atand.(gridspec.tickslopes1x, 1)
+    #     series_annotations := [
+    #         Main.Plots.text("  $l", :left, :bottom, :white, 8; rotation)
+    #         for (l, rotation) in zip(ticklabels, rotations)
+    #     ]
+    #     gridspec.tickpos1x, ones(length(gridspec.tickpos1x))
+    # end
+
+    if haskey(plotattributes, :annotategrid) && plotattributes[:annotategrid]
+        @series begin
+            ticklabels = prepare_tick_labels(gridspec.w, 2, gridspec.tickpos2x, gridspec.tickpos2w)
+            rotations = atand.(gridspec.tickslopes2x, 1)
+            series_annotations := [
+                Main.Plots.text("  $l", :left, :bottom, :white, 8; rotation)
+                for (l, rotation) in zip(ticklabels, rotations)
+            ]
+            ones(length(gridspec.tickpos2x)), gridspec.tickpos2x
+        end
+
+        @series begin
+            ticklabels = prepare_tick_labels(gridspec.w, 1, gridspec.tickpos1x, gridspec.tickpos1w)
+            rotations = atand.(gridspec.tickslopes1x, 1)
+            series_annotations := [
+                Main.Plots.text("  $l", :left, :bottom, :white, 8; rotation)
+                for (l, rotation) in zip(ticklabels, rotations)
+            ]
+            gridspec.tickpos1x, ones(length(gridspec.tickpos1x))
+        end
+    end
+
+    return xs, ys
 
 end
-export gen_wcs_grid_ticks

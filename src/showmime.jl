@@ -30,14 +30,40 @@ Base.show(io::IO, mime::MIME"image/png", img::AstroImage{T,2}; kwargs...) where 
 Base.show(io::IO, mime::MIME"image/png", img::AstroImage{T,2}; kwargs...) where {T} =
     show(io, mime, imview(img), kwargs...)
 
-using Statistics
-using MappedArrays
-using ColorSchemes
-using PlotUtils: zscale
-export zscale
+
+
+
+# These reproduce the behaviour of DS9 according to http://ds9.si.edu/doc/ref/how.html
+logstretch(x,a=1000) = log(a*x+1)/log(a)
+powstretch(x,a=1000) = (a^x - 1)/a
+sqrtstretch = sqrt
+squarestretch(x) = x^2
+asinhstretch(x) = asinh(10x)/3
+sinhstretch(x) = sinh(3x)/10
+# These additional stretches reproduce behaviour from astropy
+powerdiststretch(x, a=1000) = (a^x - 1) / (a - 1)
+
+"""
+    percent(99.5)
+
+Returns a function that calculates display limits that include the given 
+percent of the image data.
+
+Example:
+```julia
+julia> imview(img, clims=percent(90))
+```
+This will set the limits to be the 5th percentile to the 95th percentile.
+"""
+function percent(perc::Number)
+    trim = (1  - perc/100)/2
+    clims(data) = quantile(data, (trim, 1-trim))
+    clims(data::AbstractMatrix) = quantile(vec(data), (trim, 1-trim))
+    return clims
+end
 
 const _default_cmap  = Ref{Union{Symbol,Nothing}}(nothing)
-const _default_clims = Ref{Any}(extrema)
+const _default_clims = Ref{Any}(percent(99.5))
 const _default_stretch  = Ref{Any}(identity)
 
 """
@@ -77,17 +103,6 @@ end
 Helper to iterate over data skipping missing and non-finite values.
 """ 
 skipmissingnan(itr) = Iterators.filter(el->!ismissing(el) && isfinite(el), itr)
-
-# These reproduce the behaviour of DS9 according to http://ds9.si.edu/doc/ref/how.html
-logstretch(x,a=1000) = log(a*x+1)/log(a)
-powstretch(x,a=1000) = (a^x - 1)/a
-sqrtstretch = sqrt
-squarestretch(x) = x^2
-asinhstretch(x) = asinh(10x)/3
-sinhstretch(x) = sinh(3x)/10
-# These additional stretches reproduce behaviour from astropy
-powerdiststretch(x, a=1000) = (a^x - 1) / (a - 1)
-export logstretch, powstretch, sqrtstretch, squarestretch, asinhstretch, sinhstretch, powerdiststretch
 
 """
     imview(img; clims=extrema, stretch=identity, cmap=nothing)
@@ -225,27 +240,8 @@ function _imview(img, normed::AbstractArray{T}, stretch, cmap) where T
 
     return maybe_copyheaders(img, flipped_view)
 end
-export imview
 
-"""
-    percent(99.5)
 
-Returns a function that calculates display limits that include the given 
-percent of the image data.
-
-Example:
-```julia
-julia> imview(img, clims=percent(90))
-```
-This will set the limits to be the 5th percentile to the 95th percentile.
-"""
-function percent(perc::Number)
-    trim = (1  - perc/100)/2
-    clims(data) = quantile(data, (trim, 1-trim))
-    clims(data::AbstractMatrix) = quantile(vec(data), (trim, 1-trim))
-    return clims
-end
-export percent
 
 # TODO: is this the correct function to extend?
 # Instead of using a datatype like N0f32 to interpret integers as fixed point values in [0,1],
@@ -261,7 +257,6 @@ function Images.normedview(img::AstroImage{T}) where T
     )
     return shareheaders(img, normeddata)
 end
-export normedview
 
 """
     clampednormedview(arr, (min, max))
@@ -300,7 +295,6 @@ end
 function clampednormedview(img::AbstractArray{Bool}, lims)
     return img
 end
-export clampednormedview
 
 # Lazily reinterpret the AstroImage as a Matrix{Color}, upon request.
 # By itself, Images.colorview works fine on AstroImages. But 

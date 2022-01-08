@@ -100,7 +100,10 @@ function composechannels(
     mapped = T.(mapped)
     mapped[isnan.(mapped)] .= RGBA(0,0,0,0)
 
-    return maybe_copyheaders(first(images), mapped')
+    # Flip image to match conventions of other programs
+    flipped_view = view(mapped', reverse(axes(mapped,2)),:)
+
+    return maybe_copyheaders(first(images), flipped_view)
     # return (reprojected .* multipliers .* colors)
 
 
