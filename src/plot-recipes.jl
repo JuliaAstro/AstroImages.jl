@@ -89,7 +89,7 @@ end
     # we have a wcs flag (from the image by default) so that users can skip over 
     # plotting in physical coordinates. This is especially important
     # if the WCS headers are mallformed in some way.
-    if !isnothing(wcs)
+    if !haskey(plotattributes, :wcs) || plotattributes[:wcs]
 
         # TODO: fill out coordinates array considering offset indices and slices
         # out of cubes (tricky!)
@@ -345,7 +345,8 @@ function wcsgridspec(wsg::WCSGrid6)
     tickpos1x = Float64[]
     tickpos1w = Float64[]
     tickslopes1x = Float64[]
-    gridlinesxy1 = map(tickposu) do ticku
+    gridlinesxy1 = NTuple{2,Vector{Float64}}[]
+    for ticku in tickposu
         # Make sure we handle unplotted slices correctly.
         griduv = repeat(posuv[:,1], 1, N_points)
         griduv[ax[1],:] .= ticku
@@ -361,6 +362,9 @@ function wcsgridspec(wsg::WCSGrid6)
         in_axes = (minx .<=  posxy[ax[1],:] .<= maxx) .& (miny .<=  posxy[ax[2],:] .<= maxy)
         entered_axes_i = findfirst(in_axes)
         exitted_axes_i = findlast(in_axes)
+        if count(in_axes) <= 1 || isnothing(entered_axes_i) || isnothing(exitted_axes_i)
+            continue
+        end
     
         # From here, do a linear fit to find the intersection with the axis.
         # This should be accurate enough as long as N_points is high enough
@@ -418,14 +422,16 @@ function wcsgridspec(wsg::WCSGrid6)
             posxy_neat[ax[1],:],
             posxy_neat[ax[2],:]
         )
-        return gridlinexy
+        push!(gridlinesxy1, gridlinexy)
     end
     # Then do the opposite coordinate
 
     tickpos2x = Float64[]
     tickpos2w = Float64[]
     tickslopes2x = Float64[]
-    gridlinesxy2 = map(tickposv) do tickv
+    gridlinesxy2 = NTuple{2,Vector{Float64}}[]
+    for tickv in tickposv
+
         # Make sure we handle unplotted slices correctly.
         griduv = repeat(posuv[:,1], 1, N_points)
         griduv[ax[1],:] .= urange
@@ -441,6 +447,9 @@ function wcsgridspec(wsg::WCSGrid6)
         in_axes = (minx .<=  posxy[ax[1],:] .<= maxx) .& (miny .<=  posxy[ax[2],:] .<= maxy)
         entered_axes_i = findfirst(in_axes)
         exitted_axes_i = findlast(in_axes)
+        if isnothing(entered_axes_i) || isnothing(exitted_axes_i)
+            continue
+        end
     
         # From here, do a linear fit to find the intersection with the axis.
         # This should be accurate enough as long as N_points is high enough
@@ -502,7 +511,7 @@ function wcsgridspec(wsg::WCSGrid6)
             posxy_neat[ax[1],:],
             posxy_neat[ax[2],:]
         )
-        return gridlinexy
+        push!(gridlinesxy2, gridlinexy)
     end
 
     # return WCSGrid6(w, extent, gridlinesxy1, gridlinesxy2, tickpos1x, tickpos1w, tickslopes1x, tickpos2x, tickpos2w, tickslopes2x)
