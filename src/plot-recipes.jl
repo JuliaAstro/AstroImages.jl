@@ -97,7 +97,7 @@ end
         # the transformation from pixel to coordinates can be non-linear and curved.
 
         # (;tickpos1x, tickpos1w, tickpos2x, tickpos2w, ) 
-        wcsg = WCSGrid6(img, (1,2))
+        wcsg = WCSGrid(img, (1,2))
 
         gridspec = wcsgridspec(wcsg)
         
@@ -131,6 +131,15 @@ end
 end
 
 
+struct WCSGrid
+    w
+    extent
+    ax
+    coords
+end
+WCSGrid(w,extent,ax) = WCSGrid(w,extent,ax,ones(length(ax)))
+
+
 """
 Generate nice labels from a WCSTransform, axis, and known positions.
 
@@ -151,8 +160,8 @@ ticklabels: tick labels for each position
 # generalizes to N different, possiby skewed axes, where a change in
 # the opposite coordinate or even an unplotted coordinate affects
 # the tick labels.
-wcsticks(img::AstroImage, axnum) = wcsticks(WCSGrid6(img), axnum)
-function wcsticks(wcsg::WCSGrid6, axnum, gridspec=wcsgridspec(wcsg))#tickposx, tickposw)
+wcsticks(img::AstroImage, axnum) = wcsticks(WCSGrid(img), axnum)
+function wcsticks(wcsg::WCSGrid, axnum, gridspec=wcsgridspec(wcsg))#tickposx, tickposw)
     w = wcsg.w
 
     # TODO: sort out axnum stuff
@@ -268,27 +277,9 @@ function ctype_label(ctype,radesys)
 end
 
 
-# struct WCSGrid6
-#     w
-#     extent
-#     gridlinesxy1
-#     gridlinesxy2
-#     tickpos1x
-#     tickpos1w
-#     tickslopes1x
-#     tickpos2x
-#     tickpos2w
-#     tickslopes2x
-# end
-struct WCSGrid6
-    w
-    extent
-    ax
-    coords
-end
 
 """
-    WCSGrid6(img::AstroImage, ax=(1,2), coords=(first(axes(img,ax[1])),first(axes(img,ax[2]))))
+    WCSGrid(img::AstroImage, ax=(1,2), coords=(first(axes(img,ax[1])),first(axes(img,ax[2]))))
 
 Given an AstroImage, return information necessary to plot WCS gridlines in physical
 coordinates against the image's pixel coordinates.
@@ -296,7 +287,7 @@ This function has to work on both plotted axes at once to handle rotation and ge
 curvature of the WCS grid projected on the image coordinates.
 
 """
-function WCSGrid6(img::AstroImage, ax=(1,2))
+function WCSGrid(img::AstroImage, ax=(1,2))
 
     minx = first(axes(img,ax[1]))
     maxx = last(axes(img,ax[1]))
@@ -304,16 +295,74 @@ function WCSGrid6(img::AstroImage, ax=(1,2))
     maxy = last(axes(img,ax[2]))
     extent = (minx, maxx, miny, maxy)
 
-    return WCSGrid6(wcs(img), extent, ax, (extent[1], extent[3]))
+    return WCSGrid(wcs(img), extent, ax, (extent[1], extent[3]))
 end
 
-function wcsgridspec(wsg::WCSGrid6)
+
+
+# TODO: the wcs parameter is not getting forwardded correctly. Use plot recipe system for this.
+
+# This recipe plots as AstroImage of color data as an image series (not heatmap).
+# This lets us also plot color composites e.g. in WCS coordinates.
+@recipe function f(wcsg::WCSGrid)
+    color --> :black # Is there a way to get the foreground color automatically?
+    label --> ""
+
+    gridspec = wcsgridspec(wcsg)
+    xs, ys = wcsgridlines(gridspec)
+
+    color = plotattributes[:color]
+
+    # We can optionally annotate the grid with their coordinates
+    if haskey(plotattributes, :annotategrid) && plotattributes[:annotategrid]
+        tickpos, ticklabels = wcsticks(wcsg, 2, gridspec)
+        @series begin
+            rotations = atand.(gridspec.tickslopes2x, 1)
+            seriestype := :line
+            linewidth := 0
+            series_annotations := [
+                Main.Plots.text(" $l", :left, :bottom, color, 8; rotation)
+                for (l, rotation) in zip(ticklabels, rotations)
+            ]
+            ones(length(gridspec.tickpos2x)), tickpos
+        end
+
+        tickpos, ticklabels = wcsticks(wcsg, 1, gridspec)
+        @series begin
+            rotations = atand.(gridspec.tickslopes1x, 1)
+            seriestype := :line
+            linewidth := 0
+            series_annotations := [
+                Main.Plots.text(" $l", :left, :bottom, color, 8; rotation)
+                for (l, rotation) in zip(ticklabels, rotations)
+            ]
+            tickpos, ones(length(gridspec.tickpos1x))
+        end
+    end
+
+    xticks --> wcsticks(wcsg, 1, gridspec)
+    xguide --> ctype_label(wcsg.w.ctype[wcsg.ax[1]], wcsg.w.radesys)
+
+    yticks --> wcsticks(wcsg, 2, gridspec)
+    yguide --> ctype_label(wcsg.w.ctype[wcsg.ax[2]], wcsg.w.radesys)
+
+    xlims := wcsg.extent[1], wcsg.extent[2]
+    ylims := wcsg.extent[3], wcsg.extent[4]
+
+    grid := false
+    tickdirection := :none
+
+    return xs, ys
+
+end
+
+
+function wcsgridspec(wsg::WCSGrid)
 # function wcsgridspec(w::WCSTransform, extent, ax=(1,2), coords=(extent[1], extent[3]))#coords=(first(axes(img,ax[1])),first(axes(img,ax[2]))))
     
     # x and y denote pixel coordinates (along `ax`), u and v are world coordinates along same?
     ax = collect(wsg.ax)
     coordsx = convert(Vector{Float64}, collect(wsg.coords))
-
     minx, maxx, miny, maxy = wsg.extent
 
     # Find the extent of this slice in world coordinates
@@ -324,6 +373,8 @@ function wcsgridspec(wsg::WCSGrid6)
     posxy[ax,4] .= (maxx,maxy)
     posuv = pix_to_world(wsg.w, posxy)
     (minu, maxu), (minv, maxv) = extrema(posuv, dims=2)
+    # Δu = abs(maxu-minu)
+    # Δv = abs(maxv-minv)
 
     # Find nice grid spacings
     # These heuristics can probably be improved
@@ -337,14 +388,15 @@ function wcsgridspec(wsg::WCSGrid6)
     # In general, grid can be curved when plotted back against the image.
     # So we will need to sample multiple points along the grid.
     # TODO: find a good heuristic for this based on the curvature.
-    N_points = 30
+    N_points = 20
+    # TODO: this does not handle coordinates that wrap arounds
     urange = range(minu, maxu, length=N_points)
     vrange = range(minv, maxv, length=N_points)
 
-    tickpos1x = Float64[]
-    tickpos1w = Float64[]
-    tickslopes1x = Float64[]
-    gridlinesxy1 = NTuple{2,Vector{Float64}}[]
+    tickpos2x = Float64[]
+    tickpos2w = Float64[]
+    tickslopes2x = Float64[]
+    gridlinesxy2 = NTuple{2,Vector{Float64}}[]
     for ticku in tickposu
         # Make sure we handle unplotted slices correctly.
         griduv = repeat(posuv[:,1], 1, N_points)
@@ -356,65 +408,107 @@ function wcsgridspec(wsg::WCSGrid6)
         # if we find out where the grid intersects the axes we can put
         # the labels in the correct spot
         
-        # Find the first and last indices of the grid line that are within the 
-        # plot bounds
-        in_axes = (minx .<=  posxy[ax[1],:] .<= maxx) .& (miny .<=  posxy[ax[2],:] .<= maxy)
-        entered_axes_i = findfirst(in_axes)
-        exitted_axes_i = findlast(in_axes)
-        if count(in_axes) <= 1 || isnothing(entered_axes_i) || isnothing(exitted_axes_i)
+        # We can use these masks to determine where, and in what direction
+        # the gridlines leave the plot extent
+        in_horz_ax = minx .<=  posxy[ax[1],:] .<= maxx
+        in_vert_ax = miny .<=  posxy[ax[2],:] .<= maxy
+        in_axes = in_horz_ax .& in_vert_ax
+        if count(in_axes) < 2
             continue
-        end
-    
-        # From here, do a linear fit to find the intersection with the axis.
-        # This should be accurate enough as long as N_points is high enough
-        # that the curvature of the grid is smooth by eye.
-        # y=mx+b
-        m1 = (posxy[ax[2],entered_axes_i+1] - posxy[ax[2],entered_axes_i])/
-                (posxy[ax[1],entered_axes_i+1] - posxy[ax[1],entered_axes_i])
-        b1 = posxy[ax[2],entered_axes_i] - m1*posxy[ax[1],entered_axes_i]
-        # Find the coordinate of maxy so that we don't run over the top axis
-        x_maxy = (maxy-b1)/m1
-        if x_maxy > maxx
-            # We never hit the axis
-            x1 = maxx
+        # Vertical grid line
+        elseif all(in_horz_ax)
+            point_entered = [
+                posxy[ax[1],1]
+                miny
+            ]
+            point_exitted = [
+                posxy[ax[1],1]
+                maxy
+            ]
+            push!(tickpos2x, posxy[ax[1],1])
+            push!(tickpos2w, ticku)
+            push!(tickslopes2x, π/2)
         else
-            x1 = x_maxy
-        end
-        # Now extrapolate the line
-        y = m1*(x1)+b1
-        point_entered = [
-            x1
-            y
-        ]
 
-        # Now do where the lines exit the plot
-        m2 = (posxy[ax[2],exitted_axes_i] - posxy[ax[2],exitted_axes_i-1])/
-                (posxy[ax[1],exitted_axes_i] - posxy[ax[1],exitted_axes_i-1])
-        b2 = posxy[ax[2],exitted_axes_i] - m2*posxy[ax[1],exitted_axes_i]
-        # Find the coordinate of maxy so that we don't run below the bottom axis
-        x_miny = (miny-b2)/m2
-        if x_miny < minx
-            # We never hit the axis
-            x2 = minx
-        else
-            x2 = x_miny
-        end
-        # Now extrapolate the line
-        y = m2*(x2)+b2
+            # Use the masks to pick an x,y point inside the axes and an
+            # x,y point outside the axes.
+            i = findfirst(in_axes)
+            x1 = posxy[ax[1],i]
+            y1 = posxy[ax[2],i]
+            x2 = posxy[ax[1],i+1]
+            y2 = posxy[ax[2],i+1]
+            if x2-x1 ≈ 0
+                @show "undef slope A"
+            end
 
-        point_exitted = [
-            x2
-            y
-        ]
-        if minx <= x_miny <= maxx
-            push!(tickpos1x, x2)
-            push!(tickpos1w, ticku)
-            push!(tickslopes1x, m2)
-        end
-        # Chop off the lines to be inside the plot and then put
-        # out new intercept points back in
+            # Fit a line where we cross the axis
+            m1 = (y2-y1)/(x2-x1)
+            b1 = y1-m1*x1
+            # If the line enters via the vertical axes...
+            if findfirst(in_vert_ax) <= findfirst(in_horz_ax)
+                # Then we simply evaluate it at that axis
+                x = abs(x1-maxx) < abs(x1-minx) ? maxx : minx
+                x = clamp(x,minx,maxx)
+                y = m1*x+b1
+                if abs(x-minx) < abs(x-maxx)
+                    push!(tickpos2x, y)
+                    push!(tickpos2w, ticku)
+                    push!(tickslopes2x, atan(m1, 1))
+                end
+            else
+                # We must find where it enters the plot from
+                # bottom or top
+                x = abs(y1-maxy) < abs(y1-miny) ? (maxy-b1)/m1 : (miny-b1)/m1
+                x = clamp(x,minx,maxx)
+                y = m1*x+b1
+            end
+        
+            # From here, do a linear fit to find the intersection with the axis.
+            point_entered = [
+                x
+                y
+            ]
 
-        posxy_neat = [point_entered  posxy[:,entered_axes_i:exitted_axes_i] point_exitted]
+            # Use the masks to pick an x,y point inside the axes and an
+            # x,y point outside the axes.
+            i = findlast(in_axes)
+            x1 = posxy[ax[1],i-1]
+            y1 = posxy[ax[2],i-1]
+            x2 = posxy[ax[1],i]
+            y2 = posxy[ax[2],i]
+            if x2-x1 ≈ 0
+                @show "undef slope B"
+            end
+
+            # Fit a line where we cross the axis
+            m2 = (y2-y1)/(x2-x1)
+            b2 = y2-m2*x2
+            if findlast(in_vert_ax) > findlast(in_horz_ax)
+                # Then we simply evaluate it at that axis
+                x = abs(x1-maxx) < abs(x1-minx) ? maxx : minx
+                x = clamp(x,minx,maxx)
+                y = m2*x+b2
+                if abs(x-minx) < abs(x-maxx)
+                    push!(tickpos2x, y)
+                    push!(tickpos2w, ticku)
+                    push!(tickslopes2x, atan(m2, 1))
+                end
+            else
+                # We must find where it enters the plot from
+                # bottom or top
+                x = abs(y1-maxy) < abs(y1-miny) ? (maxy-b2)/m2 : (miny-b2)/m2
+                x = clamp(x,minx,maxx)
+                y = m2*x+b2
+            end
+        
+            # From here, do a linear fit to find the intersection with the axis.
+            point_exitted = [
+                x 
+                y
+            ]
+        end
+
+        posxy_neat = [point_entered  posxy[[ax[1],ax[2]],in_axes] point_exitted]
         # posxy_neat = posxy
         # TODO: do unplotted other axes also need a fit?
 
@@ -422,16 +516,15 @@ function wcsgridspec(wsg::WCSGrid6)
             posxy_neat[ax[1],:],
             posxy_neat[ax[2],:]
         )
-        push!(gridlinesxy1, gridlinexy)
+        push!(gridlinesxy2, gridlinexy)
     end
+
     # Then do the opposite coordinate
-
-    tickpos2x = Float64[]
-    tickpos2w = Float64[]
-    tickslopes2x = Float64[]
-    gridlinesxy2 = NTuple{2,Vector{Float64}}[]
+    tickpos1x = Float64[]
+    tickpos1w = Float64[]
+    tickslopes1x = Float64[]
+    gridlinesxy1 = NTuple{2,Vector{Float64}}[]
     for tickv in tickposv
-
         # Make sure we handle unplotted slices correctly.
         griduv = repeat(posuv[:,1], 1, N_points)
         griduv[ax[1],:] .= urange
@@ -442,89 +535,117 @@ function wcsgridspec(wsg::WCSGrid6)
         # if we find out where the grid intersects the axes we can put
         # the labels in the correct spot
         
-        # Find the first and last indices of the grid line that are within the 
-        # plot bounds
-        in_axes = (minx .<=  posxy[ax[1],:] .<= maxx) .& (miny .<=  posxy[ax[2],:] .<= maxy)
-        entered_axes_i = findfirst(in_axes)
-        exitted_axes_i = findlast(in_axes)
-        if isnothing(entered_axes_i) || isnothing(exitted_axes_i)
+        # We can use these masks to determine where, and in what direction
+        # the gridlines leave the plot extent
+        in_horz_ax = minx .<=  posxy[ax[1],:] .<= maxx
+        in_vert_ax = miny .<=  posxy[ax[2],:] .<= maxy
+        in_axes = in_horz_ax .& in_vert_ax
+        if count(in_axes) < 2
             continue
-        end
-    
-        # From here, do a linear fit to find the intersection with the axis.
-        # This should be accurate enough as long as N_points is high enough
-        # that the curvature of the grid is smooth by eye.
-        # y=mx+b
-        m1 = (posxy[ax[2],entered_axes_i+1] - posxy[ax[2],entered_axes_i])/
-                (posxy[ax[1],entered_axes_i+1] - posxy[ax[1],entered_axes_i])
-        b1 = posxy[ax[2],entered_axes_i] - m1*posxy[ax[1],entered_axes_i]
-        # Find the coordinate of maxy so that we don't run over the top axis
-        if (posxy[ax[1],entered_axes_i+1]-minx)^2 < (posxy[ax[1],entered_axes_i+1]-maxx)^2
-            x1 = (maxy-b1)/m1
+         # Vertical grid line
+        elseif all(in_vert_ax)
+            point_entered = [
+                maxx
+                posxy[ax[2],1]
+            ]
+            point_exitted = [
+                maxx
+                posxy[ax[2],2]
+            ]
+            push!(tickpos1x, posxy[ax[2],1])
+            push!(tickpos1w, tickv)
+            push!(tickslopes1x, π/2)
         else
-            x1 = (miny-b1)/m1
-        end
-        println()
-        @show x1
-        should_label = false
-        if x1 <= miny
-            should_label = true
-        end
-        x1 = clamp(x1, miny, maxy)
-        # Now extrapolate the line
-        y = m1*(x1)+b1
-        @show x1 y m1 should_label
-        if should_label
-            push!(tickpos2x, y)
-            push!(tickpos2w, tickv)
-            push!(tickslopes2x, m1)
-        end
-        point_entered = [
-            x1
-            y
-        ]
-
-        # Now do where the lines exit the plot
-        m2 = (posxy[ax[2],exitted_axes_i] - posxy[ax[2],exitted_axes_i-1])/
-                (posxy[ax[1],exitted_axes_i] - posxy[ax[1],exitted_axes_i-1])
-        b2 = posxy[ax[2],exitted_axes_i] - m2*posxy[ax[1],exitted_axes_i]
-        # Find the coordinate of maxy so that we don't run below the bottom axis
-        
-
-        # Maybe just find which of minx//maxx are closer?
-        x_miny = (miny-b2)/m2
-        if !(minx <= x_miny <= maxx)
-            if (minx-posxy[ax[1],exitted_axes_i])^2 < (maxx - posxy[ax[1],exitted_axes_i])
-                x2 = minx
-            else
-                x2 = maxx
+            
+            # Use the masks to pick an x,y point inside the axes and an
+            # x,y point outside the axes.
+            i = findfirst(in_axes)
+            x1 = posxy[ax[1],i]
+            y1 = posxy[ax[2],i]
+            x2 = posxy[ax[1],i+1]
+            y2 = posxy[ax[2],i+1]
+            if x2-x1 ≈ 0
+                @show "undef slope C"
             end
-        else
-            x2 = x_miny
+
+            # Fit a line where we cross the axis
+            m1 = (y2-y1)/(x2-x1)
+            b1 = y1-m1*x1
+            # If the line enters via the vertical axes...
+            if findfirst(in_vert_ax) < findfirst(in_horz_ax)
+                # Then we simply evaluate it at that axis
+                x = abs(x1-maxx) < abs(x1-minx) ? maxx : minx
+                x = clamp(x,minx,maxx)
+                y = m1*x+b1
+            else
+                # We must find where it enters the plot from
+                # bottom or top
+                x = abs(y1-maxy) < abs(y1-miny) ? (maxy-b1)/m1 : (miny-b1)/m1
+                # x = clamp(x,minx,maxx)
+                y = m1*x+b1
+                if abs(y-miny) < abs(y-maxy)
+                    push!(tickpos1x, x)
+                    push!(tickpos1w, tickv)
+                    push!(tickslopes1x, atan(m1, 1))
+                end
+            end
+        
+            # From here, do a linear fit to find the intersection with the axis.
+            point_entered = [
+                x
+                y
+            ]
+
+            # Use the masks to pick an x,y point inside the axes and an
+            # x,y point outside the axes.
+            i = findlast(in_axes)
+            x1 = posxy[ax[1],i-1]
+            y1 = posxy[ax[2],i-1]
+            x2 = posxy[ax[1],i]
+            y2 = posxy[ax[2],i]
+            if x2-x1 ≈ 0
+                @show "undef slope D"
+            end
+
+            # Fit a line where we cross the axis
+            m2 = (y2-y1)/(x2-x1)
+            b2 = y2-m2*x2
+            if findlast(in_vert_ax) > findlast(in_horz_ax)
+                # Then we simply evaluate it at that axis
+                x = abs(x1-maxx) < abs(x1-minx) ? maxx : minx
+                x = clamp(x,minx,maxx)
+                y = m2*x+b2
+            else
+                # We must find where it enters the plot from
+                # bottom or top
+                x = abs(y1-maxy) < abs(y1-miny) ? (maxy-b2)/m2 : (miny-b2)/m2
+                x = clamp(x,minx,maxx)
+                y = m2*x+b2
+                if abs(y-miny) < abs(y-maxy)
+                    push!(tickpos1x, x)
+                    push!(tickpos1w, tickv)
+                    push!(tickslopes1x, atan(m2, 1))
+                end
+            end
+        
+            # From here, do a linear fit to find the intersection with the axis.
+            point_exitted = [
+                x 
+                y
+            ]
         end
-        # Now extrapolate the line
-        y = m2*(x2)+b2
 
-        point_exitted = [
-            x2
-            y
-        ]
-        # Chop off the lines to be inside the plot and then put
-        # out new intercept points back in
-
-        # posxy_neat = [point_entered  posxy[:,entered_axes_i:exitted_axes_i] point_exitted]
-        posxy_neat = [point_entered  posxy[:,entered_axes_i:exitted_axes_i] point_exitted]
-        # posxy_neat = posxy
-        # TODO: other axes also need a fit?
+        posxy_neat = [point_entered  posxy[[ax[1],ax[2]],in_axes] point_exitted]
+        # TODO: do unplotted other axes also need a fit?
 
         gridlinexy = (
             posxy_neat[ax[1],:],
             posxy_neat[ax[2],:]
         )
-        push!(gridlinesxy2, gridlinexy)
+        push!(gridlinesxy1, gridlinexy)
     end
 
-    # return WCSGrid6(w, extent, gridlinesxy1, gridlinesxy2, tickpos1x, tickpos1w, tickslopes1x, tickpos2x, tickpos2w, tickslopes2x)
+
     return (;
         gridlinesxy1,
         gridlinesxy2,
@@ -536,63 +657,30 @@ function wcsgridspec(wsg::WCSGrid6)
         tickslopes2x
     )
 end
-export WCSGrid6
 
-
-# TODO: the wcs parameter is not getting forwardded correctly. Use plot recipe system for this.
-
-# This recipe plots as AstroImage of color data as an image series (not heatmap).
-# This lets us also plot color composites e.g. in WCS coordinates.
-@recipe function f(wcsg::WCSGrid6)
-    color --> :black # Is there a way to get the foreground color automatically?
-    label --> ""
-
-    gridspec = wcsgridspec(wcsg)
-    
+function wcsgridlines(wcsg::WCSGrid)
+    return wcsgridlines(wcsgridspec(wcsg))
+end
+function wcsgridlines(gridspec::NamedTuple)
     # Unroll grid lines into a single series separated by NaNs
-    xs1 = mapreduce(vcat, gridspec.gridlinesxy1) do gridline
+    xs1 = mapreduce(vcat, gridspec.gridlinesxy1, init=Float64[]) do gridline
         return vcat(gridline[1], NaN)
     end
-    ys1 = mapreduce(vcat, gridspec.gridlinesxy1) do gridline
+    ys1 = mapreduce(vcat, gridspec.gridlinesxy1, init=Float64[]) do gridline
         return vcat(gridline[2], NaN)
     end
-    xs2 = mapreduce(vcat, gridspec.gridlinesxy2) do gridline
+    xs2 = mapreduce(vcat, gridspec.gridlinesxy2, init=Float64[]) do gridline
         return vcat(gridline[1], NaN)
     end
-    ys2 = mapreduce(vcat, gridspec.gridlinesxy2) do gridline
+    ys2 = mapreduce(vcat, gridspec.gridlinesxy2, init=Float64[]) do gridline
         return vcat(gridline[2], NaN)
     end
 
     xs = vcat(xs1, NaN, xs2)
     ys = vcat(ys1, NaN, ys2)
-
-    # We can optionally annotate the grid with their coordinates
-    if haskey(plotattributes, :annotategrid) && plotattributes[:annotategrid]
-        tickpos, ticklabels = wcsticks(wcsg, 2, gridspec)
-        @series begin
-            rotations = atand.(gridspec.tickslopes2x, 1)
-            seriestype := :line
-            linewidth := 0
-            series_annotations := [
-                Main.Plots.text(" $l", :left, :bottom, :white, 8; rotation)
-                for (l, rotation) in zip(ticklabels, rotations)
-            ]
-            ones(length(gridspec.tickpos2x)), tickpos
-        end
-
-        tickpos, ticklabels = wcsticks(wcsg, 1, gridspec)
-        @series begin
-            rotations = atand.(gridspec.tickslopes1x, 1)
-            seriestype := :line
-            linewidth := 0
-            series_annotations := [
-                Main.Plots.text(" $l", :left, :bottom, :white, 8; rotation)
-                for (l, rotation) in zip(ticklabels, rotations)
-            ]
-            tickpos, ones(length(gridspec.tickpos1x))
-        end
-    end
-
     return xs, ys
-
 end
+export wcsgridlines
+
+export WCSGrid
+
