@@ -383,325 +383,331 @@ function wcsgridspec(wsg::WCSGrid)
     posxy[ax,4] .= (maxx,maxy)
     posuv = pix_to_world(wsg.w, posxy)
     (minu, maxu), (minv, maxv) = extrema(posuv, dims=2)
-    # Δu = abs(maxu-minu)
-    # Δv = abs(maxv-minv)
-
-    # Find nice grid spacings
-    # These heuristics can probably be improved
-    Q=[(1.0,1.0), (3.0, 0.8), (2.0, 0.7), (5.0, 0.5)] # dms2deg(0, 0, 20)
-    k_min = 4
-    k_ideal = 8
-    k_max = 20
-    tickposu = optimize_ticks(6minu, 6maxu; Q, k_min, k_ideal, k_max)[1]./6
-    tickposv = optimize_ticks(6minv, 6maxv; Q, k_min, k_ideal, k_max)[1]./6
 
     # In general, grid can be curved when plotted back against the image.
     # So we will need to sample multiple points along the grid.
     # TODO: find a good heuristic for this based on the curvature.
     N_points = 20
-    # TODO: this does not handle coordinates that wrap arounds
     urange = range(minu, maxu, length=N_points)
     vrange = range(minv, maxv, length=N_points)
+
+    # Find nice grid spacings
+    # These heuristics can probably be improved
+    # TODO: this does not handle coordinates that wrap arounds
+    Q=[(1.0,1.0), (3.0, 0.8), (2.0, 0.7), (5.0, 0.5)] # dms2deg(0, 0, 20)
+    k_min = 3
+    k_ideal = 5
+    k_max = 10
 
     tickpos2x = Float64[]
     tickpos2w = Float64[]
     tickslopes2x = Float64[]
     gridlinesxy2 = NTuple{2,Vector{Float64}}[]
-    for tickv in tickposv
-        # Make sure we handle unplotted slices correctly.
-        griduv = repeat(posuv[:,1], 1, N_points)
-        griduv[ax[1],:] .= urange
-        griduv[ax[2],:] .= tickv
-        posxy = world_to_pix(wsg.w, griduv)
+    while length(tickpos2x) < 2
+        k_min += 2
+        k_ideal += 2
+        k_max += 2
 
-        # Now that we have the grid in pixel coordinates, 
-        # if we find out where the grid intersects the axes we can put
-        # the labels in the correct spot
-        
-        # We can use these masks to determine where, and in what direction
-        # the gridlines leave the plot extent
-        in_horz_ax = minx .<=  posxy[ax[1],:] .<= maxx
-        in_vert_ax = miny .<=  posxy[ax[2],:] .<= maxy
-        in_axes = in_horz_ax .& in_vert_ax
-        if count(in_axes) < 2
-            continue
-        # # Vertical grid line
-        # elseif posxy[ax[1],findfirst(in_axes)] - posxy[ax[1],findlast(in_axes)] ≈ 0
-        #     point_entered = [
-        #         posxy[ax[1],1]
-        #         miny
-        #     ]
-        #     point_exitted = [
-        #         posxy[ax[1],1]
-        #         maxy
-        #     ]
-        #     # TODO: this logic isn't quite right!
-        #     push!(tickpos2x, posxy[ax[1],1])
-        #     push!(tickpos2w, tickv)
-        #     push!(tickslopes2x, π/2)
+        tickposv = optimize_ticks(6minv, 6maxv; Q, k_min, k_ideal, k_max)[1]./6
 
+        empty!(tickpos2x)
+        empty!(tickpos2w)
+        empty!(tickslopes2x)
+        empty!(gridlinesxy2)
+        for tickv in tickposv
+            # Make sure we handle unplotted slices correctly.
+            griduv = repeat(posuv[:,1], 1, N_points)
+            griduv[ax[1],:] .= urange
+            griduv[ax[2],:] .= tickv
+            posxy = world_to_pix(wsg.w, griduv)
 
-        elseif posxy[ax[2],findfirst(in_axes)] - posxy[ax[2],findlast(in_axes)] ≈ 0
-            point_entered = [
-                minx
-                posxy[ax[2],findfirst(in_axes)]
-            ]
-            point_exitted = [
-                maxx
-                posxy[ax[2],findlast(in_axes)]
-            ]
-            push!(tickpos2x, posxy[ax[2],findfirst(in_axes)])
-            push!(tickpos2w, tickv)
-            push!(tickslopes2x, 0)
-        # Vertical grid lines
-        elseif posxy[ax[2],findfirst(in_axes)] - posxy[ax[2],findlast(in_axes)] ≈ 0
-            point_entered = [
-                minx
-                posxy[ax[2],findfirst(in_axes)]
-            ]
-            point_exitted = [
-                maxx
-                posxy[ax[2],findfirst(in_axes)]
-            ]
-            push!(tickpos2x, posxy[ax[2],1])
-            push!(tickpos2w, tickv)
-            push!(tickslopes2x, π/2)
-        else
-
-            # Use the masks to pick an x,y point inside the axes and an
-            # x,y point outside the axes.
-            i = findfirst(in_axes)
-            x1 = posxy[ax[1],i]
-            y1 = posxy[ax[2],i]
-            x2 = posxy[ax[1],i+1]
-            y2 = posxy[ax[2],i+1]
-            if x2-x1 ≈ 0
-                @show "undef slope A"
-            end
-
-            # Fit a line where we cross the axis
-            m1 = (y2-y1)/(x2-x1)
-            b1 = y1-m1*x1
-            # If the line enters via the vertical axes...
-            if findfirst(in_vert_ax) <= findfirst(in_horz_ax)
-                # Then we simply evaluate it at that axis
-                x = abs(x1-maxx) < abs(x1-minx) ? maxx : minx
-                x = clamp(x,minx,maxx)
-                y = m1*x+b1
-                if abs(x-minx) < abs(x-maxx)
-                    push!(tickpos2x, y)
-                    push!(tickpos2w, tickv)
-                    push!(tickslopes2x, atan(m1, 1))
-                end
+            # Now that we have the grid in pixel coordinates, 
+            # if we find out where the grid intersects the axes we can put
+            # the labels in the correct spot
+            
+            # We can use these masks to determine where, and in what direction
+            # the gridlines leave the plot extent
+            in_horz_ax = minx .<=  posxy[ax[1],:] .<= maxx
+            in_vert_ax = miny .<=  posxy[ax[2],:] .<= maxy
+            in_axes = in_horz_ax .& in_vert_ax
+            if count(in_axes) < 2
+                continue
+            elseif posxy[ax[2],findfirst(in_axes)] - posxy[ax[2],findlast(in_axes)] ≈ 0
+                point_entered = [
+                    minx
+                    posxy[ax[2],findfirst(in_axes)]
+                ]
+                point_exitted = [
+                    maxx
+                    posxy[ax[2],findlast(in_axes)]
+                ]
+                push!(tickpos2x, posxy[ax[2],findfirst(in_axes)])
+                push!(tickpos2w, tickv)
+                push!(tickslopes2x, 0)
+            # Vertical grid lines
+            elseif posxy[ax[2],findfirst(in_axes)] - posxy[ax[2],findlast(in_axes)] ≈ 0
+                point_entered = [
+                    minx
+                    posxy[ax[2],findfirst(in_axes)]
+                ]
+                point_exitted = [
+                    maxx
+                    posxy[ax[2],findfirst(in_axes)]
+                ]
+                push!(tickpos2x, posxy[ax[2],1])
+                push!(tickpos2w, tickv)
+                push!(tickslopes2x, π/2)
             else
-                # We must find where it enters the plot from
-                # bottom or top
-                x = abs(y1-maxy) < abs(y1-miny) ? (maxy-b1)/m1 : (miny-b1)/m1
-                x = clamp(x,minx,maxx)
-                y = m1*x+b1
-            end
-        
-            # From here, do a linear fit to find the intersection with the axis.
-            point_entered = [
-                x
-                y
-            ]
 
-
-            # Use the masks to pick an x,y point inside the axes and an
-            # x,y point outside the axes.
-            i = findlast(in_axes)
-            x1 = posxy[ax[1],i-1]
-            y1 = posxy[ax[2],i-1]
-            x2 = posxy[ax[1],i]
-            y2 = posxy[ax[2],i]
-            if x2-x1 ≈ 0
-                @show "undef slope B"
-            end
-
-            # Fit a line where we cross the axis
-            m2 = (y2-y1)/(x2-x1)
-            b2 = y2-m2*x2
-            if findlast(in_vert_ax) > findlast(in_horz_ax)
-                # Then we simply evaluate it at that axis
-                x = abs(x1-maxx) < abs(x1-minx) ? maxx : minx
-                x = clamp(x,minx,maxx)
-                y = m2*x+b2
-                if abs(x-minx) < abs(x-maxx)
-                    push!(tickpos2x, y)
-                    push!(tickpos2w, tickv)
-                    push!(tickslopes2x, atan(m2, 1))
+                # Use the masks to pick an x,y point inside the axes and an
+                # x,y point outside the axes.
+                i = findfirst(in_axes)
+                x1 = posxy[ax[1],i]
+                y1 = posxy[ax[2],i]
+                x2 = posxy[ax[1],i+1]
+                y2 = posxy[ax[2],i+1]
+                if x2-x1 ≈ 0
+                    @show "undef slope A"
                 end
-            else
-                # We must find where it enters the plot from
-                # bottom or top
-                x = abs(y1-maxy) < abs(y1-miny) ? (maxy-b2)/m2 : (miny-b2)/m2
-                x = clamp(x,minx,maxx)
-                y = m2*x+b2
+
+                # Fit a line where we cross the axis
+                m1 = (y2-y1)/(x2-x1)
+                b1 = y1-m1*x1
+                # If the line enters via the vertical axes...
+                if findfirst(in_vert_ax) <= findfirst(in_horz_ax)
+                    # Then we simply evaluate it at that axis
+                    x = abs(x1-maxx) < abs(x1-minx) ? maxx : minx
+                    x = clamp(x,minx,maxx)
+                    y = m1*x+b1
+                    if abs(x-minx) < abs(x-maxx)
+                        push!(tickpos2x, y)
+                        push!(tickpos2w, tickv)
+                        push!(tickslopes2x, atan(m1, 1))
+                    end
+                else
+                    # We must find where it enters the plot from
+                    # bottom or top
+                    x = abs(y1-maxy) < abs(y1-miny) ? (maxy-b1)/m1 : (miny-b1)/m1
+                    x = clamp(x,minx,maxx)
+                    y = m1*x+b1
+                end
+            
+                # From here, do a linear fit to find the intersection with the axis.
+                point_entered = [
+                    x
+                    y
+                ]
+
+
+                # Use the masks to pick an x,y point inside the axes and an
+                # x,y point outside the axes.
+                i = findlast(in_axes)
+                x1 = posxy[ax[1],i-1]
+                y1 = posxy[ax[2],i-1]
+                x2 = posxy[ax[1],i]
+                y2 = posxy[ax[2],i]
+                if x2-x1 ≈ 0
+                    @show "undef slope B"
+                end
+
+                # Fit a line where we cross the axis
+                m2 = (y2-y1)/(x2-x1)
+                b2 = y2-m2*x2
+                if findlast(in_vert_ax) > findlast(in_horz_ax)
+                    # Then we simply evaluate it at that axis
+                    x = abs(x1-maxx) < abs(x1-minx) ? maxx : minx
+                    x = clamp(x,minx,maxx)
+                    y = m2*x+b2
+                    if abs(x-minx) < abs(x-maxx)
+                        push!(tickpos2x, y)
+                        push!(tickpos2w, tickv)
+                        push!(tickslopes2x, atan(m2, 1))
+                    end
+                else
+                    # We must find where it enters the plot from
+                    # bottom or top
+                    x = abs(y1-maxy) < abs(y1-miny) ? (maxy-b2)/m2 : (miny-b2)/m2
+                    x = clamp(x,minx,maxx)
+                    y = m2*x+b2
+                end
+            
+                # From here, do a linear fit to find the intersection with the axis.
+                point_exitted = [
+                    x 
+                    y
+                ]
             end
-        
-            # From here, do a linear fit to find the intersection with the axis.
-            point_exitted = [
-                x 
-                y
-            ]
+
+            posxy_neat = [point_entered  posxy[[ax[1],ax[2]],in_axes] point_exitted]
+            # posxy_neat = posxy
+            # TODO: do unplotted other axes also need a fit?
+
+            gridlinexy = (
+                posxy_neat[ax[1],:],
+                posxy_neat[ax[2],:]
+            )
+            push!(gridlinesxy2, gridlinexy)
         end
-
-        posxy_neat = [point_entered  posxy[[ax[1],ax[2]],in_axes] point_exitted]
-        # posxy_neat = posxy
-        # TODO: do unplotted other axes also need a fit?
-
-        gridlinexy = (
-            posxy_neat[ax[1],:],
-            posxy_neat[ax[2],:]
-        )
-        push!(gridlinesxy2, gridlinexy)
     end
 
     # Then do the opposite coordinate
+    k_min = 3
+    k_ideal = 5
+    k_max = 10
     tickpos1x = Float64[]
     tickpos1w = Float64[]
     tickslopes1x = Float64[]
     gridlinesxy1 = NTuple{2,Vector{Float64}}[]
-    for ticku in tickposu
-        # Make sure we handle unplotted slices correctly.
-        griduv = repeat(posuv[:,1], 1, N_points)
-        griduv[ax[1],:] .= ticku
-        griduv[ax[2],:] .= vrange
-        posxy = world_to_pix(wsg.w, griduv)
+    while length(tickpos1x) < 2
+        k_min += 2
+        k_ideal += 2
+        k_max += 2
 
-        # Now that we have the grid in pixel coordinates, 
-        # if we find out where the grid intersects the axes we can put
-        # the labels in the correct spot
+        tickposu = optimize_ticks(6minu, 6maxu; Q, k_min, k_ideal, k_max)[1]./6
 
-        # We can use these masks to determine where, and in what direction
-        # the gridlines leave the plot extent
-        in_horz_ax = minx .<=  posxy[ax[1],:] .<= maxx
-        in_vert_ax = miny .<=  posxy[ax[2],:] .<= maxy
-        in_axes = in_horz_ax .& in_vert_ax
+        empty!(tickpos1x)
+        empty!(tickpos1w)
+        empty!(tickslopes1x)
+        empty!(gridlinesxy1)
+        for ticku in tickposu
+            # Make sure we handle unplotted slices correctly.
+            griduv = repeat(posuv[:,1], 1, N_points)
+            griduv[ax[1],:] .= ticku
+            griduv[ax[2],:] .= vrange
+            posxy = world_to_pix(wsg.w, griduv)
+
+            # Now that we have the grid in pixel coordinates, 
+            # if we find out where the grid intersects the axes we can put
+            # the labels in the correct spot
+
+            # We can use these masks to determine where, and in what direction
+            # the gridlines leave the plot extent
+            in_horz_ax = minx .<=  posxy[ax[1],:] .<= maxx
+            in_vert_ax = miny .<=  posxy[ax[2],:] .<= maxy
+            in_axes = in_horz_ax .& in_vert_ax
 
 
-        # @show  posxy[ax[1],findfirst(in_axes)] - posxy[ax[1],findlast(in_axes)] ≈ 0
-        # @show  posxy[ax[2],findfirst(in_axes)] - posxy[ax[2],findlast(in_axes)] ≈ 0
-        
-        if count(in_axes) < 2
-            continue
-        # Horizontal grid lines
-        elseif posxy[ax[1],findfirst(in_axes)] - posxy[ax[1],findlast(in_axes)] ≈ 0
-            point_entered = [
-                posxy[ax[1],findfirst(in_axes)]
-                miny
-            ]
-            point_exitted = [
-                posxy[ax[1],findlast(in_axes)]
-                maxy
-            ]
-            push!(tickpos1x, posxy[ax[1],findfirst(in_axes)])
-            push!(tickpos1w, ticku)
-            push!(tickslopes1x, 0)
-        # Vertical grid lines
-        elseif posxy[ax[2],findfirst(in_axes)] - posxy[ax[2],findlast(in_axes)] ≈ 0
-            point_entered = [
-                minx
-                posxy[ax[2],findfirst(in_axes)]
-            ]
-            point_exitted = [
-                maxx
-                posxy[ax[2],findfirst(in_axes)]
-            ]
-            push!(tickpos1x, posxy[ax[2],1])
-            push!(tickpos1w, ticku)
-            push!(tickslopes1x, π/2)
-        else
+            # @show  posxy[ax[1],findfirst(in_axes)] - posxy[ax[1],findlast(in_axes)] ≈ 0
+            # @show  posxy[ax[2],findfirst(in_axes)] - posxy[ax[2],findlast(in_axes)] ≈ 0
             
-            # Use the masks to pick an x,y point inside the axes and an
-            # x,y point outside the axes.
-            i = findfirst(in_axes)
-            x1 = posxy[ax[1],i]
-            y1 = posxy[ax[2],i]
-            x2 = posxy[ax[1],i+1]
-            y2 = posxy[ax[2],i+1]
-            if x2-x1 ≈ 0
-                @show "undef slope C"
-            end
-
-            # Fit a line where we cross the axis
-            m1 = (y2-y1)/(x2-x1)
-            b1 = y1-m1*x1
-            # If the line enters via the vertical axes...
-            if findfirst(in_vert_ax) < findfirst(in_horz_ax)
-                # Then we simply evaluate it at that axis
-                x = abs(x1-maxx) < abs(x1-minx) ? maxx : minx
-                x = clamp(x,minx,maxx)
-                y = m1*x+b1
+            if count(in_axes) < 2
+                continue
+            # Horizontal grid lines
+            elseif posxy[ax[1],findfirst(in_axes)] - posxy[ax[1],findlast(in_axes)] ≈ 0
+                point_entered = [
+                    posxy[ax[1],findfirst(in_axes)]
+                    miny
+                ]
+                point_exitted = [
+                    posxy[ax[1],findlast(in_axes)]
+                    maxy
+                ]
+                push!(tickpos1x, posxy[ax[1],findfirst(in_axes)])
+                push!(tickpos1w, ticku)
+                push!(tickslopes1x, 0)
+            # Vertical grid lines
+            elseif posxy[ax[2],findfirst(in_axes)] - posxy[ax[2],findlast(in_axes)] ≈ 0
+                point_entered = [
+                    minx
+                    posxy[ax[2],findfirst(in_axes)]
+                ]
+                point_exitted = [
+                    maxx
+                    posxy[ax[2],findfirst(in_axes)]
+                ]
+                push!(tickpos1x, posxy[ax[2],1])
+                push!(tickpos1w, ticku)
+                push!(tickslopes1x, π/2)
             else
-                # We must find where it enters the plot from
-                # bottom or top
-                x = abs(y1-maxy) < abs(y1-miny) ? (maxy-b1)/m1 : (miny-b1)/m1
-                # x = clamp(x,minx,maxx)
-                y = m1*x+b1
-                if abs(y-miny) < abs(y-maxy)
-                    push!(tickpos1x, x)
-                    push!(tickpos1w, ticku)
-                    push!(tickslopes1x, atan(m1, 1))
+                
+                # Use the masks to pick an x,y point inside the axes and an
+                # x,y point outside the axes.
+                i = findfirst(in_axes)
+                x1 = posxy[ax[1],i]
+                y1 = posxy[ax[2],i]
+                x2 = posxy[ax[1],i+1]
+                y2 = posxy[ax[2],i+1]
+                if x2-x1 ≈ 0
+                    @show "undef slope C"
                 end
-            end
-        
-            # From here, do a linear fit to find the intersection with the axis.
-            point_entered = [
-                x
-                y
-            ]
 
-            # Use the masks to pick an x,y point inside the axes and an
-            # x,y point outside the axes.
-            i = findlast(in_axes)
-            x1 = posxy[ax[1],i-1]
-            y1 = posxy[ax[2],i-1]
-            x2 = posxy[ax[1],i]
-            y2 = posxy[ax[2],i]
-            if x2-x1 ≈ 0
-                @show "undef slope D"
-            end
-
-            # Fit a line where we cross the axis
-            m2 = (y2-y1)/(x2-x1)
-            b2 = y2-m2*x2
-            if findlast(in_vert_ax) > findlast(in_horz_ax)
-                # Then we simply evaluate it at that axis
-                x = abs(x1-maxx) < abs(x1-minx) ? maxx : minx
-                x = clamp(x,minx,maxx)
-                y = m2*x+b2
-            else
-                # We must find where it enters the plot from
-                # bottom or top
-                x = abs(y1-maxy) < abs(y1-miny) ? (maxy-b2)/m2 : (miny-b2)/m2
-                x = clamp(x,minx,maxx)
-                y = m2*x+b2
-                if abs(y-miny) < abs(y-maxy)
-                    push!(tickpos1x, x)
-                    push!(tickpos1w, ticku)
-                    push!(tickslopes1x, atan(m2, 1))
+                # Fit a line where we cross the axis
+                m1 = (y2-y1)/(x2-x1)
+                b1 = y1-m1*x1
+                # If the line enters via the vertical axes...
+                if findfirst(in_vert_ax) < findfirst(in_horz_ax)
+                    # Then we simply evaluate it at that axis
+                    x = abs(x1-maxx) < abs(x1-minx) ? maxx : minx
+                    x = clamp(x,minx,maxx)
+                    y = m1*x+b1
+                else
+                    # We must find where it enters the plot from
+                    # bottom or top
+                    x = abs(y1-maxy) < abs(y1-miny) ? (maxy-b1)/m1 : (miny-b1)/m1
+                    # x = clamp(x,minx,maxx)
+                    y = m1*x+b1
+                    if abs(y-miny) < abs(y-maxy)
+                        push!(tickpos1x, x)
+                        push!(tickpos1w, ticku)
+                        push!(tickslopes1x, atan(m1, 1))
+                    end
                 end
+            
+                # From here, do a linear fit to find the intersection with the axis.
+                point_entered = [
+                    x
+                    y
+                ]
+
+                # Use the masks to pick an x,y point inside the axes and an
+                # x,y point outside the axes.
+                i = findlast(in_axes)
+                x1 = posxy[ax[1],i-1]
+                y1 = posxy[ax[2],i-1]
+                x2 = posxy[ax[1],i]
+                y2 = posxy[ax[2],i]
+                if x2-x1 ≈ 0
+                    @show "undef slope D"
+                end
+
+                # Fit a line where we cross the axis
+                m2 = (y2-y1)/(x2-x1)
+                b2 = y2-m2*x2
+                if findlast(in_vert_ax) > findlast(in_horz_ax)
+                    # Then we simply evaluate it at that axis
+                    x = abs(x1-maxx) < abs(x1-minx) ? maxx : minx
+                    x = clamp(x,minx,maxx)
+                    y = m2*x+b2
+                else
+                    # We must find where it enters the plot from
+                    # bottom or top
+                    x = abs(y1-maxy) < abs(y1-miny) ? (maxy-b2)/m2 : (miny-b2)/m2
+                    x = clamp(x,minx,maxx)
+                    y = m2*x+b2
+                    if abs(y-miny) < abs(y-maxy)
+                        push!(tickpos1x, x)
+                        push!(tickpos1w, ticku)
+                        push!(tickslopes1x, atan(m2, 1))
+                    end
+                end
+            
+                # From here, do a linear fit to find the intersection with the axis.
+                point_exitted = [
+                    x 
+                    y
+                ]
             end
-        
-            # From here, do a linear fit to find the intersection with the axis.
-            point_exitted = [
-                x 
-                y
-            ]
+
+            posxy_neat = [point_entered  posxy[[ax[1],ax[2]],in_axes] point_exitted]
+            # TODO: do unplotted other axes also need a fit?
+
+            gridlinexy = (
+                posxy_neat[ax[1],:],
+                posxy_neat[ax[2],:]
+            )
+            push!(gridlinesxy1, gridlinexy)
         end
-
-        posxy_neat = [point_entered  posxy[[ax[1],ax[2]],in_axes] point_exitted]
-        # TODO: do unplotted other axes also need a fit?
-
-        gridlinexy = (
-            posxy_neat[ax[1],:],
-            posxy_neat[ax[2],:]
-        )
-        push!(gridlinesxy1, gridlinexy)
     end
-
 
     return (;
         gridlinesxy1,
