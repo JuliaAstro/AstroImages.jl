@@ -69,7 +69,6 @@ save("output.png", v)
     return iv
 end
 
-# TODO: the wcs parameter is not getting forwardded correctly. Use plot recipe system for this.
 
 # This recipe plots as AstroImage of color data as an image series (not heatmap).
 # This lets us also plot color composites e.g. in WCS coordinates.
@@ -197,6 +196,13 @@ function wcsticks(wcsg::WCSGrid, axnum, gridspec=wcsgridspec(wcsg))#tickposx, ti
         return vals
     end
 
+    # if sign(last(tickposx) - first(tickposx)) != sign(last(tickposw) - first(tickposw))
+    # if abs(last(tickposw)) < abs(first(tickposw))
+    #     tickposx = reverse(tickposx)
+    #     tickposw = reverse(tickposw)
+    #     parts = reverse(parts)
+    # end
+
     # Start with something impossible of the same size:
     last_coord = Inf .* converter(first(tickposw))
     zero_coords_i = maximum(map(parts) do vals
@@ -210,17 +216,21 @@ function wcsticks(wcsg::WCSGrid, axnum, gridspec=wcsgridspec(wcsg))#tickposx, ti
     last_coord = Inf .* converter(first(tickposw))
     for (i,vals) in enumerate(parts)
         changing_coord_i = findfirst(vals .!= last_coord)
+        # Don't display just e.g. 00" when we could display 50'00"
+        if changing_coord_i > 1 && vals[changing_coord_i] == 0
+            changing_coord_i = changing_coord_i -1
+        end
         val_unit_zip = zip(vals[changing_coord_i:zero_coords_i],units[changing_coord_i:zero_coords_i])
         ticklabels[i] = mapreduce(*, enumerate(val_unit_zip)) do (coord_i,(val,unit))
             # Last coordinate always gets decimal places
             # if coord_i == zero_coords_i && zero_coords_i == length(vals)
             if coord_i + changing_coord_i - 1== length(vals)
                 str = @sprintf("%.2f", val)
-                while endswith(str, r"0|\.")
-                    str = chop(str)
-                end
+                # while endswith(str, r"0|\.")
+                #     str = chop(str)
+                # end
             else
-                str = @sprintf("%d", val)
+                str = @sprintf("%02d", val)
             end
             if length(str) > 0
                 return str * unit
@@ -397,11 +407,11 @@ function wcsgridspec(wsg::WCSGrid)
     tickpos2w = Float64[]
     tickslopes2x = Float64[]
     gridlinesxy2 = NTuple{2,Vector{Float64}}[]
-    for ticku in tickposu
+    for tickv in tickposv
         # Make sure we handle unplotted slices correctly.
         griduv = repeat(posuv[:,1], 1, N_points)
-        griduv[ax[1],:] .= ticku
-        griduv[ax[2],:] .= vrange
+        griduv[ax[1],:] .= urange
+        griduv[ax[2],:] .= tickv
         posxy = world_to_pix(wsg.w, griduv)
 
         # Now that we have the grid in pixel coordinates, 
@@ -416,7 +426,7 @@ function wcsgridspec(wsg::WCSGrid)
         if count(in_axes) < 2
             continue
         # Vertical grid line
-        elseif all(in_horz_ax)
+        elseif posxy[ax[1],findfirst(in_axes)] - posxy[ax[1],findlast(in_axes)] ≈ 0
             point_entered = [
                 posxy[ax[1],1]
                 miny
@@ -425,8 +435,9 @@ function wcsgridspec(wsg::WCSGrid)
                 posxy[ax[1],1]
                 maxy
             ]
+            # TODO: this logic isn't quite right!
             push!(tickpos2x, posxy[ax[1],1])
-            push!(tickpos2w, ticku)
+            push!(tickpos2w, tickv)
             push!(tickslopes2x, π/2)
         else
 
@@ -452,7 +463,7 @@ function wcsgridspec(wsg::WCSGrid)
                 y = m1*x+b1
                 if abs(x-minx) < abs(x-maxx)
                     push!(tickpos2x, y)
-                    push!(tickpos2w, ticku)
+                    push!(tickpos2w, tickv)
                     push!(tickslopes2x, atan(m1, 1))
                 end
             else
@@ -468,6 +479,7 @@ function wcsgridspec(wsg::WCSGrid)
                 x
                 y
             ]
+
 
             # Use the masks to pick an x,y point inside the axes and an
             # x,y point outside the axes.
@@ -490,7 +502,7 @@ function wcsgridspec(wsg::WCSGrid)
                 y = m2*x+b2
                 if abs(x-minx) < abs(x-maxx)
                     push!(tickpos2x, y)
-                    push!(tickpos2w, ticku)
+                    push!(tickpos2w, tickv)
                     push!(tickslopes2x, atan(m2, 1))
                 end
             else
@@ -524,11 +536,11 @@ function wcsgridspec(wsg::WCSGrid)
     tickpos1w = Float64[]
     tickslopes1x = Float64[]
     gridlinesxy1 = NTuple{2,Vector{Float64}}[]
-    for tickv in tickposv
+    for ticku in tickposu
         # Make sure we handle unplotted slices correctly.
         griduv = repeat(posuv[:,1], 1, N_points)
-        griduv[ax[1],:] .= urange
-        griduv[ax[2],:] .= tickv
+        griduv[ax[1],:] .= ticku
+        griduv[ax[2],:] .= vrange
         posxy = world_to_pix(wsg.w, griduv)
 
         # Now that we have the grid in pixel coordinates, 
@@ -543,7 +555,7 @@ function wcsgridspec(wsg::WCSGrid)
         if count(in_axes) < 2
             continue
          # Vertical grid line
-        elseif all(in_vert_ax)
+        elseif posxy[ax[2],findfirst(in_axes)] - posxy[ax[2],findlast(in_axes)] ≈ 0
             point_entered = [
                 maxx
                 posxy[ax[2],1]
@@ -553,7 +565,7 @@ function wcsgridspec(wsg::WCSGrid)
                 posxy[ax[2],2]
             ]
             push!(tickpos1x, posxy[ax[2],1])
-            push!(tickpos1w, tickv)
+            push!(tickpos1w, ticku)
             push!(tickslopes1x, π/2)
         else
             
@@ -585,7 +597,7 @@ function wcsgridspec(wsg::WCSGrid)
                 y = m1*x+b1
                 if abs(y-miny) < abs(y-maxy)
                     push!(tickpos1x, x)
-                    push!(tickpos1w, tickv)
+                    push!(tickpos1w, ticku)
                     push!(tickslopes1x, atan(m1, 1))
                 end
             end
@@ -623,7 +635,7 @@ function wcsgridspec(wsg::WCSGrid)
                 y = m2*x+b2
                 if abs(y-miny) < abs(y-maxy)
                     push!(tickpos1x, x)
-                    push!(tickpos1w, tickv)
+                    push!(tickpos1w, ticku)
                     push!(tickslopes1x, atan(m2, 1))
                 end
             end
