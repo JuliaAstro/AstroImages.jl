@@ -425,18 +425,45 @@ function wcsgridspec(wsg::WCSGrid)
         in_axes = in_horz_ax .& in_vert_ax
         if count(in_axes) < 2
             continue
-        # Vertical grid line
-        elseif posxy[ax[1],findfirst(in_axes)] - posxy[ax[1],findlast(in_axes)] ≈ 0
+        # # Vertical grid line
+        # elseif posxy[ax[1],findfirst(in_axes)] - posxy[ax[1],findlast(in_axes)] ≈ 0
+        #     point_entered = [
+        #         posxy[ax[1],1]
+        #         miny
+        #     ]
+        #     point_exitted = [
+        #         posxy[ax[1],1]
+        #         maxy
+        #     ]
+        #     # TODO: this logic isn't quite right!
+        #     push!(tickpos2x, posxy[ax[1],1])
+        #     push!(tickpos2w, tickv)
+        #     push!(tickslopes2x, π/2)
+
+
+        elseif posxy[ax[2],findfirst(in_axes)] - posxy[ax[2],findlast(in_axes)] ≈ 0
             point_entered = [
-                posxy[ax[1],1]
-                miny
+                minx
+                posxy[ax[2],findfirst(in_axes)]
             ]
             point_exitted = [
-                posxy[ax[1],1]
-                maxy
+                maxx
+                posxy[ax[2],findlast(in_axes)]
             ]
-            # TODO: this logic isn't quite right!
-            push!(tickpos2x, posxy[ax[1],1])
+            push!(tickpos2x, posxy[ax[2],findfirst(in_axes)])
+            push!(tickpos2w, tickv)
+            push!(tickslopes2x, 0)
+        # Vertical grid lines
+        elseif posxy[ax[2],findfirst(in_axes)] - posxy[ax[2],findlast(in_axes)] ≈ 0
+            point_entered = [
+                minx
+                posxy[ax[2],findfirst(in_axes)]
+            ]
+            point_exitted = [
+                maxx
+                posxy[ax[2],findfirst(in_axes)]
+            ]
+            push!(tickpos2x, posxy[ax[2],1])
             push!(tickpos2w, tickv)
             push!(tickslopes2x, π/2)
         else
@@ -546,23 +573,41 @@ function wcsgridspec(wsg::WCSGrid)
         # Now that we have the grid in pixel coordinates, 
         # if we find out where the grid intersects the axes we can put
         # the labels in the correct spot
-        
+
         # We can use these masks to determine where, and in what direction
         # the gridlines leave the plot extent
         in_horz_ax = minx .<=  posxy[ax[1],:] .<= maxx
         in_vert_ax = miny .<=  posxy[ax[2],:] .<= maxy
         in_axes = in_horz_ax .& in_vert_ax
+
+
+        # @show  posxy[ax[1],findfirst(in_axes)] - posxy[ax[1],findlast(in_axes)] ≈ 0
+        # @show  posxy[ax[2],findfirst(in_axes)] - posxy[ax[2],findlast(in_axes)] ≈ 0
+        
         if count(in_axes) < 2
             continue
-         # Vertical grid line
+        # Horizontal grid lines
+        elseif posxy[ax[1],findfirst(in_axes)] - posxy[ax[1],findlast(in_axes)] ≈ 0
+            point_entered = [
+                posxy[ax[1],findfirst(in_axes)]
+                miny
+            ]
+            point_exitted = [
+                posxy[ax[1],findlast(in_axes)]
+                maxy
+            ]
+            push!(tickpos1x, posxy[ax[1],findfirst(in_axes)])
+            push!(tickpos1w, ticku)
+            push!(tickslopes1x, 0)
+        # Vertical grid lines
         elseif posxy[ax[2],findfirst(in_axes)] - posxy[ax[2],findlast(in_axes)] ≈ 0
             point_entered = [
-                maxx
-                posxy[ax[2],1]
+                minx
+                posxy[ax[2],findfirst(in_axes)]
             ]
             point_exitted = [
                 maxx
-                posxy[ax[2],2]
+                posxy[ax[2],findfirst(in_axes)]
             ]
             push!(tickpos1x, posxy[ax[2],1])
             push!(tickpos1w, ticku)
