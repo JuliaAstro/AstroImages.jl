@@ -8,13 +8,32 @@ using MappedArrays
 using ColorSchemes
 using PlotUtils: zscale
 
-export load, AstroImage, ccd2rgb, set_brightness!, set_contrast!, add_label!, reset!
+export load,
+    save,
+    AstroImage,
+    WCSGrid,
+    ccd2rgb,
+    composechannels,
+    set_brightness!,
+    set_contrast!,
+    add_label!,
+    reset!,
+    zscale,
+    percent,
+    logstretch,
+    powstretch,
+    sqrtstretch,
+    squarestretch,
+    asinhstretch,
+    sinhstretch,
+    powerdiststretch,
+    clampednormedview,
+    imview,
+    clampednormedview,
+    wcsticks,
+    wcsgridlines
 
-export zscale, percent
-export logstretch, powstretch, sqrtstretch, squarestretch, asinhstretch, sinhstretch, powerdiststretch
 
-export imview
-export clampednormedview
 
 
 _load(fits::FITS, ext::Int) = read(fits[ext])
@@ -178,6 +197,11 @@ for f in [
 end
 
 Base.parent(img::AstroImage) = arraydata(img)
+
+# We might want property access for headers in future.
+function Base.getproperty(img::AstroImage, ::Symbol)
+    error("getproperty reserved for future use.")
+end
 
 # Getting and setting data is forwarded to the underlying array
 # Accessing a single value or a vector returns just the data.

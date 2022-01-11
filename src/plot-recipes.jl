@@ -234,6 +234,7 @@ function wcsticks(wcsg::WCSGrid, axnum, gridspec=wcsgridspec(wcsg))#tickposx, ti
         return changing_coord_i
     end)
 
+
     # Loop through using only the relevant part of the label
     # Start with something impossible of the same size:
     last_coord = Inf .* converter(first(tickposw))
@@ -266,7 +267,6 @@ function wcsticks(wcsg::WCSGrid, axnum, gridspec=wcsgridspec(wcsg))#tickposx, ti
 
     return tickposx, ticklabels
 end
-export wcsticks
 
 # Extended form of deg2dms that further returns mas, microas.
 function deg2dmsmμ(deg)
@@ -779,7 +779,4 @@ function wcsgridlines(gridspec::NamedTuple)
     ys = vcat(ys1, NaN, ys2)
     return xs, ys
 end
-export wcsgridlines
-
-export WCSGrid
 
