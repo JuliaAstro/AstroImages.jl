@@ -95,8 +95,9 @@ end
         # In astropy, the ticks are actually tilted to reflect this, though in general
         # the transformation from pixel to coordinates can be non-linear and curved.
 
-        # (;tickpos1x, tickpos1w, tickpos2x, tickpos2w, ) 
-        wcsg = WCSGrid(img, (1,2))
+        ax = haskey(plotattributes, :axes) ? plotattributes[:axes] : (1,2)
+        slice = haskey(plotattributes, :slice) ? plotattributes[:slice] : ones(wcs(img).naxis)
+        wcsg = WCSGrid(img, ax, slice)
 
         gridspec = wcsgridspec(wcsg)
         
@@ -112,11 +113,6 @@ end
         # # tight to the image
         xlims := first(axes(img,2)), last(axes(img,2))
         ylims := first(axes(img,1)), last(axes(img,1))
-
-        # The grid lines are likely to be confusing since they do not follow
-        # the possibly tilted axes
-        grid := false
-        tickdirection := :none
     end
 
     # TODO: also disable equal aspect ratio if the scales are totally different
@@ -126,7 +122,28 @@ end
     yflip := false
     xflip := false
 
-    return axes(img,2), axes(img,1), view(arraydata(img), reverse(axes(img,1)),:)
+    @series begin
+        axes(img,2), axes(img,1), view(arraydata(img), reverse(axes(img,1)),:)
+    end
+
+    # If wcs=true (default) and grid=true (not default), overplot a WCS 
+    # grid.
+    if (!haskey(plotattributes, :wcs) || plotattributes[:wcs])
+        if haskey(plotattributes, :xgrid) && plotattributes[:xgrid] &&
+            haskey(plotattributes, :ygrid) && plotattributes[:ygrid]
+
+            # Plot the WCSGrid as a second series (actually just lines)
+            @series begin
+                wcsg
+            end
+        end
+
+        # The actual grid lines are likely to be confusing since they do not follow
+        # the possibly tilted axes. Always hide them and the ticks.
+        grid := false
+        tickdirection := :none
+     end
+     return
 end
 
 
@@ -163,7 +180,6 @@ wcsticks(img::AstroImage, axnum) = wcsticks(WCSGrid(img), axnum)
 function wcsticks(wcsg::WCSGrid, axnum, gridspec=wcsgridspec(wcsg))#tickposx, tickposw)
     w = wcsg.w
 
-    # TODO: sort out axnum stuff
     tickposx = axnum == 1 ? gridspec.tickpos1x : gridspec.tickpos2x
     tickposw = axnum == 1 ? gridspec.tickpos1w : gridspec.tickpos2w
 
@@ -174,6 +190,7 @@ function wcsticks(wcsg::WCSGrid, axnum, gridspec=wcsgridspec(wcsg))#tickposx, ti
         return similar(tickposx, 0), String[]
     end
 
+    # Select a unit converter (e.g. 12.12 -> (a,b,c,d)) and list of units
     if w.cunit[axnum] == "deg"
         if startswith(uppercase(w.ctype[axnum]), "RA")
             converter = deg2hms
@@ -196,13 +213,6 @@ function wcsticks(wcsg::WCSGrid, axnum, gridspec=wcsgridspec(wcsg))#tickposx, ti
         return vals
     end
 
-    # if sign(last(tickposx) - first(tickposx)) != sign(last(tickposw) - first(tickposw))
-    # if abs(last(tickposw)) < abs(first(tickposw))
-    #     tickposx = reverse(tickposx)
-    #     tickposw = reverse(tickposw)
-    #     parts = reverse(parts)
-    # end
-
     # Start with something impossible of the same size:
     last_coord = Inf .* converter(first(tickposw))
     zero_coords_i = maximum(map(parts) do vals
@@ -216,19 +226,16 @@ function wcsticks(wcsg::WCSGrid, axnum, gridspec=wcsgridspec(wcsg))#tickposx, ti
     last_coord = Inf .* converter(first(tickposw))
     for (i,vals) in enumerate(parts)
         changing_coord_i = findfirst(vals .!= last_coord)
-        # Don't display just e.g. 00" when we could display 50'00"
+        # Don't display just e.g. 00" when we should display 50'00"
         if changing_coord_i > 1 && vals[changing_coord_i] == 0
             changing_coord_i = changing_coord_i -1
         end
         val_unit_zip = zip(vals[changing_coord_i:zero_coords_i],units[changing_coord_i:zero_coords_i])
         ticklabels[i] = mapreduce(*, enumerate(val_unit_zip)) do (coord_i,(val,unit))
-            # Last coordinate always gets decimal places
-            # if coord_i == zero_coords_i && zero_coords_i == length(vals)
+            # If the last coordinate we print if the last coordinate we have available,
+            # display it with decimal places
             if coord_i + changing_coord_i - 1== length(vals)
                 str = @sprintf("%.2f", val)
-                # while endswith(str, r"0|\.")
-                #     str = chop(str)
-                # end
             else
                 str = @sprintf("%02d", val)
             end
@@ -280,7 +287,7 @@ function ctype_label(ctype,radesys)
         return "Declination ($(radesys))"
     elseif startswith(ctype, "GLAT")
         return "Galactic Latitude"
-    elseif startswith(ctype, "TLAT")
+    # elseif startswith(ctype, "TLAT")
     else
         return ctype
     end
@@ -297,7 +304,7 @@ This function has to work on both plotted axes at once to handle rotation and ge
 curvature of the WCS grid projected on the image coordinates.
 
 """
-function WCSGrid(img::AstroImage, ax=(1,2))
+function WCSGrid(img::AstroImage, ax=(1,2), coords=ones(wcs(img).naxis))
 
     minx = first(axes(img,ax[1]))
     maxx = last(axes(img,ax[1]))
@@ -305,7 +312,7 @@ function WCSGrid(img::AstroImage, ax=(1,2))
     maxy = last(axes(img,ax[2]))
     extent = (minx, maxx, miny, maxy)
 
-    return WCSGrid(wcs(img), extent, ax, (extent[1], extent[3]))
+    return WCSGrid(wcs(img), extent, ax, coords)
 end
 
 
@@ -315,40 +322,24 @@ end
 # This recipe plots as AstroImage of color data as an image series (not heatmap).
 # This lets us also plot color composites e.g. in WCS coordinates.
 @recipe function f(wcsg::WCSGrid)
-    color --> :black # Is there a way to get the foreground color automatically?
     label --> ""
 
     gridspec = wcsgridspec(wcsg)
     xs, ys = wcsgridlines(gridspec)
 
-    color = plotattributes[:color]
-
-    # We can optionally annotate the grid with their coordinates
-    if haskey(plotattributes, :annotategrid) && plotattributes[:annotategrid]
-        tickpos, ticklabels = wcsticks(wcsg, 2, gridspec)
-        @series begin
-            rotations = atand.(gridspec.tickslopes2x, 1)
-            seriestype := :line
-            linewidth := 0
-            series_annotations := [
-                Main.Plots.text(" $l", :left, :bottom, color, 8; rotation)
-                for (l, rotation) in zip(ticklabels, rotations)
-            ]
-            ones(length(gridspec.tickpos2x)), tickpos
-        end
-
-        tickpos, ticklabels = wcsticks(wcsg, 1, gridspec)
-        @series begin
-            rotations = atand.(gridspec.tickslopes1x, 1)
-            seriestype := :line
-            linewidth := 0
-            series_annotations := [
-                Main.Plots.text(" $l", :left, :bottom, color, 8; rotation)
-                for (l, rotation) in zip(ticklabels, rotations)
-            ]
-            tickpos, ones(length(gridspec.tickpos1x))
-        end
+    if haskey(plotattributes, :foreground_color_grid) 
+        color --> plotattributes[:foreground_color_grid]
+    elseif haskey(plotattributes, :foreground_color) 
+        color --> plotattributes[:foreground_color]
+    else
+        color --> :black
     end
+    if haskey(plotattributes, :foreground_color_text) 
+        textcolor = plotattributes[:foreground_color_text]
+    else
+        textcolor = plotattributes[:color]
+    end
+
 
     xticks --> wcsticks(wcsg, 1, gridspec)
     xguide --> ctype_label(wcsg.w.ctype[wcsg.ax[1]], wcsg.w.radesys)
@@ -362,8 +353,36 @@ end
     grid := false
     tickdirection := :none
 
-    return xs, ys
+    @series xs, ys
 
+    # We can optionally annotate the grid with their coordinates
+    if haskey(plotattributes, :annotategrid) && plotattributes[:annotategrid]
+        tickpos, ticklabels = wcsticks(wcsg, 2, gridspec)
+        @series begin
+            rotations  = rad2deg.(gridspec.tickslopes2x)
+            seriestype := :line
+            linewidth := 0
+            series_annotations := [
+                Main.Plots.text(" $l", :left, :bottom, textcolor, 8; rotation)
+                for (l, rotation) in zip(ticklabels, rotations)
+            ]
+            ones(length(gridspec.tickpos2x)), tickpos
+        end
+
+        tickpos, ticklabels = wcsticks(wcsg, 1, gridspec)
+        @series begin
+            rotations  = rad2deg.(gridspec.tickslopes1x)
+            seriestype := :line
+            linewidth := 0
+            series_annotations := [
+                Main.Plots.text(" $l", :right, :bottom, textcolor, 8; rotation)
+                for (l, rotation) in zip(ticklabels, rotations)
+            ]
+            tickpos, ones(length(gridspec.tickpos1x))
+        end
+    end
+
+    return
 end
 
 
@@ -393,8 +412,8 @@ function wcsgridspec(wsg::WCSGrid)
 
     # Find nice grid spacings
     # These heuristics can probably be improved
-    # TODO: this does not handle coordinates that wrap arounds
-    Q=[(1.0,1.0), (3.0, 0.8), (2.0, 0.7), (5.0, 0.5)] # dms2deg(0, 0, 20)
+    # TODO: this does not handle coordinates that wrap around
+    Q=[(1.0,1.0), (3.0, 0.8), (2.0, 0.7), (5.0, 0.5)] 
     k_min = 3
     k_ideal = 5
     k_max = 10
@@ -403,10 +422,12 @@ function wcsgridspec(wsg::WCSGrid)
     tickpos2w = Float64[]
     tickslopes2x = Float64[]
     gridlinesxy2 = NTuple{2,Vector{Float64}}[]
-    while length(tickpos2x) < 2
+    i = 3
+    while length(tickpos2x) < 2 && i > 0
         k_min += 2
         k_ideal += 2
         k_max += 2
+        i -= 1
 
         tickposv = optimize_ticks(6minv, 6maxv; Q, k_min, k_ideal, k_max)[1]./6
 
@@ -467,7 +488,7 @@ function wcsgridspec(wsg::WCSGrid)
                 x2 = posxy[ax[1],i+1]
                 y2 = posxy[ax[2],i+1]
                 if x2-x1 ≈ 0
-                    @show "undef slope A"
+                    @warn "undef slope"
                 end
 
                 # Fit a line where we cross the axis
@@ -507,7 +528,7 @@ function wcsgridspec(wsg::WCSGrid)
                 x2 = posxy[ax[1],i]
                 y2 = posxy[ax[2],i]
                 if x2-x1 ≈ 0
-                    @show "undef slope B"
+                    @warn "undef slope"
                 end
 
                 # Fit a line where we cross the axis
@@ -521,7 +542,7 @@ function wcsgridspec(wsg::WCSGrid)
                     if abs(x-minx) < abs(x-maxx)
                         push!(tickpos2x, y)
                         push!(tickpos2w, tickv)
-                        push!(tickslopes2x, atan(m2, 1))
+                        push!(tickslopes2x, atan(m2, 0))
                     end
                 else
                     # We must find where it enters the plot from
@@ -558,10 +579,12 @@ function wcsgridspec(wsg::WCSGrid)
     tickpos1w = Float64[]
     tickslopes1x = Float64[]
     gridlinesxy1 = NTuple{2,Vector{Float64}}[]
-    while length(tickpos1x) < 2
+    i = 3
+    while length(tickpos1x) < 2 && i > 0
         k_min += 2
         k_ideal += 2
         k_max += 2
+        i -= 1
 
         tickposu = optimize_ticks(6minu, 6maxu; Q, k_min, k_ideal, k_max)[1]./6
 
@@ -586,10 +609,6 @@ function wcsgridspec(wsg::WCSGrid)
             in_vert_ax = miny .<=  posxy[ax[2],:] .<= maxy
             in_axes = in_horz_ax .& in_vert_ax
 
-
-            # @show  posxy[ax[1],findfirst(in_axes)] - posxy[ax[1],findlast(in_axes)] ≈ 0
-            # @show  posxy[ax[2],findfirst(in_axes)] - posxy[ax[2],findlast(in_axes)] ≈ 0
-            
             if count(in_axes) < 2
                 continue
             # Horizontal grid lines
@@ -628,7 +647,7 @@ function wcsgridspec(wsg::WCSGrid)
                 x2 = posxy[ax[1],i+1]
                 y2 = posxy[ax[2],i+1]
                 if x2-x1 ≈ 0
-                    @show "undef slope C"
+                    @warn "undef slope"
                 end
 
                 # Fit a line where we cross the axis
@@ -667,7 +686,7 @@ function wcsgridspec(wsg::WCSGrid)
                 x2 = posxy[ax[1],i]
                 y2 = posxy[ax[2],i]
                 if x2-x1 ≈ 0
-                    @show "undef slope D"
+                    @warn "undef slope"
                 end
 
                 # Fit a line where we cross the axis
