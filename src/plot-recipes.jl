@@ -63,6 +63,17 @@ save("output.png", v)
     stretch=_default_stretch[],
     cmap=_default_cmap[],
 ) where {T<:Number}
+
+    # TODO: we often plot an AstroImage{<:Number} which hasn't yet had
+    # its wcs cached (wcs_stale=true) and we make an image view here.
+    # That means we may have to keep recomputing the WCS on each plot call
+    # since the result is stored in the imview instead of original image.
+    # Call wcs(img) here if we are later  going to plot with wcs coordinates
+    # to ensure this gets cached beween calls.
+    if !haskey(plotattributes, :wcs) || plotattributes[:wcs]
+        wcs(img)
+    end
+
     # We currently use the AstroImages defaults. If unset, we could
     # instead follow the plot theme.
     iv = imview(img; clims, stretch, cmap)
@@ -110,9 +121,14 @@ end
         yguide --> ctype_label(wcs(img).ctype[2], wcs(img).radesys)
 
         # To ensure the physical axis tick labels are correct the axes must be
-        # # tight to the image
+        # tight to the image
         xlims := first(axes(img,2)), last(axes(img,2))
         ylims := first(axes(img,1)), last(axes(img,1))
+
+        # The actual grid lines are likely to be confusing since they do not follow
+        # the possibly tilted axes. Always hide them and the ticks.
+        grid := false
+        tickdirection := :none
     end
 
     # TODO: also disable equal aspect ratio if the scales are totally different
@@ -128,22 +144,16 @@ end
 
     # If wcs=true (default) and grid=true (not default), overplot a WCS 
     # grid.
-    if (!haskey(plotattributes, :wcs) || plotattributes[:wcs])
-        if haskey(plotattributes, :xgrid) && plotattributes[:xgrid] &&
-            haskey(plotattributes, :ygrid) && plotattributes[:ygrid]
+    if (!haskey(plotattributes, :wcs) || plotattributes[:wcs]) &&
+        haskey(plotattributes, :xgrid) && plotattributes[:xgrid] &&
+        haskey(plotattributes, :ygrid) && plotattributes[:ygrid]
 
-            # Plot the WCSGrid as a second series (actually just lines)
-            @series begin
-                wcsg
-            end
+        # Plot the WCSGrid as a second series (actually just lines)
+        @series begin
+            wcsg
         end
-
-        # The actual grid lines are likely to be confusing since they do not follow
-        # the possibly tilted axes. Always hide them and the ticks.
-        grid := false
-        tickdirection := :none
-     end
-     return
+    end
+    return
 end
 
 
@@ -217,6 +227,9 @@ function wcsticks(wcsg::WCSGrid, axnum, gridspec=wcsgridspec(wcsg))#tickposx, ti
     last_coord = Inf .* converter(first(tickposw))
     zero_coords_i = maximum(map(parts) do vals
         changing_coord_i = findfirst(vals .!= last_coord)
+        if isnothing(changing_coord_i)
+            changing_coord_i = 1
+        end
         last_coord = vals
         return changing_coord_i
     end)
@@ -226,6 +239,9 @@ function wcsticks(wcsg::WCSGrid, axnum, gridspec=wcsgridspec(wcsg))#tickposx, ti
     last_coord = Inf .* converter(first(tickposw))
     for (i,vals) in enumerate(parts)
         changing_coord_i = findfirst(vals .!= last_coord)
+        if isnothing(changing_coord_i)
+            changing_coord_i = 1
+        end
         # Don't display just e.g. 00" when we should display 50'00"
         if changing_coord_i > 1 && vals[changing_coord_i] == 0
             changing_coord_i = changing_coord_i -1
@@ -339,12 +355,9 @@ end
     else
         textcolor = plotattributes[:color]
     end
+    annotate = haskey(plotattributes, :annotategrid) && plotattributes[:annotategrid]
 
-
-    xticks --> wcsticks(wcsg, 1, gridspec)
     xguide --> ctype_label(wcsg.w.ctype[wcsg.ax[1]], wcsg.w.radesys)
-
-    yticks --> wcsticks(wcsg, 2, gridspec)
     yguide --> ctype_label(wcsg.w.ctype[wcsg.ax[2]], wcsg.w.radesys)
 
     xlims := wcsg.extent[1], wcsg.extent[2]
@@ -353,10 +366,13 @@ end
     grid := false
     tickdirection := :none
 
+    xticks --> wcsticks(wcsg, 1, gridspec)
+    yticks --> wcsticks(wcsg, 2, gridspec)
+
     @series xs, ys
 
     # We can optionally annotate the grid with their coordinates
-    if haskey(plotattributes, :annotategrid) && plotattributes[:annotategrid]
+    if annotate
         tickpos, ticklabels = wcsticks(wcsg, 2, gridspec)
         @series begin
             rotations  = rad2deg.(gridspec.tickslopes2x)
@@ -374,9 +390,10 @@ end
             rotations  = rad2deg.(gridspec.tickslopes1x)
             seriestype := :line
             linewidth := 0
+            direction = ifelse.(rotations .> 0, :left, :right)
             series_annotations := [
-                Main.Plots.text(" $l", :right, :bottom, textcolor, 8; rotation)
-                for (l, rotation) in zip(ticklabels, rotations)
+                Main.Plots.text(" $l", dir, :bottom, textcolor, 8; rotation)
+                for (l, rotation, dir) in zip(ticklabels, rotations, direction)
             ]
             tickpos, ones(length(gridspec.tickpos1x))
         end
