@@ -363,7 +363,7 @@ end
     else
         textcolor = plotattributes[:color]
     end
-    annotate = haskey(plotattributes, :annotategrid) && plotattributes[:annotategrid]
+    annotate = haskey(plotattributes, :gridlabels) && plotattributes[:gridlabels]
 
     xguide --> ctype_label(wcsg.w.ctype[wcsg.ax[1]], wcsg.w.radesys)
     yguide --> ctype_label(wcsg.w.ctype[wcsg.ax[2]], wcsg.w.radesys)
@@ -382,12 +382,13 @@ end
     # We can optionally annotate the grid with their coordinates
     if annotate
         @series begin
-            rotations = rad2deg.(gridspec.annotations1θ)
+            # TODO: why is this reverse necessary?
+            rotations = reverse(rad2deg.(gridspec.annotations1θ))
             ticklabels = wcslabels(wcsg.w, 1, gridspec.annotations1w)
             seriestype := :line
             linewidth := 0
             series_annotations := [
-                Main.Plots.text(" $l", :center, :bottom, textcolor, 8, rotation=(-90 <= r <= 90) ? r : r+180)
+                Main.Plots.text(" $l", :right, :bottom, textcolor, 8, rotation=(-90 <= r <= 90) ? r : r+180)
                 for (l, r) in zip(ticklabels, rotations)
             ]
             gridspec.annotations1x, gridspec.annotations1y
@@ -398,7 +399,7 @@ end
             seriestype := :line
             linewidth := 0
             series_annotations := [
-                Main.Plots.text(" $l", :center, :bottom, textcolor, 8, rotation=(-90 <= r <= 90) ? r : r+180)
+                Main.Plots.text(" $l", :right, :bottom, textcolor, 8, rotation=(-90 <= r <= 90) ? r : r+180)
                 for (l, r) in zip(ticklabels, rotations)
             ]
             gridspec.annotations2x, gridspec.annotations2y
@@ -793,7 +794,8 @@ function wcsgridspec(wsg::WCSGrid)
         push!(annotations1y, posxy[ax[2]])
 
         # Now find slope (TODO: stepsize)
-        griduv[ax[2]] -= 1
+        # griduv[ax[2]] -= 1
+        griduv[ax[2]] += 0.1step(vrange)
         posxy2 = world_to_pix(wsg.w, griduv)
         θ = atan(
             posxy2[ax[2]] - posxy[ax[2]],
@@ -819,8 +821,7 @@ function wcsgridspec(wsg::WCSGrid)
         push!(annotations2x, posxy[ax[1]])
         push!(annotations2y, posxy[ax[2]])
 
-        # Now find slope (TODO: stepsize)
-        griduv[ax[1]] += 1
+        griduv[ax[1]] += 0.1step(urange)
         posxy2 = world_to_pix(wsg.w, griduv)
         θ = atan(
             posxy2[ax[2]] - posxy[ax[2]],
