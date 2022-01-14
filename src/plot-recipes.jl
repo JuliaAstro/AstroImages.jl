@@ -108,8 +108,14 @@ end
 
         ax = haskey(plotattributes, :axes) ? plotattributes[:axes] : (1,2)
         slice = haskey(plotattributes, :slice) ? plotattributes[:slice] : ones(wcs(img).naxis)
-        wcsg = WCSGrid(img, ax, slice)
 
+        minx = first(axes(img,ax[2]))
+        maxx = last(axes(img,ax[2]))
+        miny = first(axes(img,ax[1]))
+        maxy = last(axes(img,ax[1]))
+        extent = (minx, maxx, miny, maxy)
+
+        wcsg = WCSGrid(wcs(img), extent, ax, slice)
         gridspec = wcsgridspec(wcsg)
         
         # xticks --> (gridspec.tickpos1x, wcsticks(wcs(img), 1, gridspec))
@@ -124,11 +130,6 @@ end
         # tight to the image
         xlims := first(axes(img,2)), last(axes(img,2))
         ylims := first(axes(img,1)), last(axes(img,1))
-
-        # The actual grid lines are likely to be confusing since they do not follow
-        # the possibly tilted axes. Always hide them and the ticks.
-        grid := false
-        tickdirection := :none
     end
 
     # TODO: also disable equal aspect ratio if the scales are totally different
@@ -139,7 +140,7 @@ end
     xflip := false
 
     @series begin
-        axes(img,2), axes(img,1), view(arraydata(img), reverse(axes(img,1)),:)
+        view(arraydata(img), reverse(axes(img,1)),:)
     end
 
     # If wcs=true (default) and grid=true (not default), overplot a WCS 
@@ -404,7 +405,6 @@ end
 
 
 function wcsgridspec(wsg::WCSGrid)
-# function wcsgridspec(w::WCSTransform, extent, ax=(1,2), coords=(extent[1], extent[3]))#coords=(first(axes(img,ax[1])),first(axes(img,ax[2]))))
     
     # x and y denote pixel coordinates (along `ax`), u and v are world coordinates along same?
     ax = collect(wsg.ax)
@@ -423,7 +423,7 @@ function wcsgridspec(wsg::WCSGrid)
     # In general, grid can be curved when plotted back against the image.
     # So we will need to sample multiple points along the grid.
     # TODO: find a good heuristic for this based on the curvature.
-    N_points = 20
+    N_points = 50
     urange = range(minu, maxu, length=N_points)
     vrange = range(minv, maxv, length=N_points)
 
@@ -439,12 +439,12 @@ function wcsgridspec(wsg::WCSGrid)
     tickpos2w = Float64[]
     tickslopes2x = Float64[]
     gridlinesxy2 = NTuple{2,Vector{Float64}}[]
-    i = 3
-    while length(tickpos2x) < 2 && i > 0
+    j = 3
+    while length(tickpos2x) < 2 && j > 0
         k_min += 2
         k_ideal += 2
         k_max += 2
-        i -= 1
+        j -= 1
 
         tickposv = optimize_ticks(6minv, 6maxv; Q, k_min, k_ideal, k_max)[1]./6
 
@@ -470,7 +470,16 @@ function wcsgridspec(wsg::WCSGrid)
             in_axes = in_horz_ax .& in_vert_ax
             if count(in_axes) < 2
                 continue
-            elseif posxy[ax[2],findfirst(in_axes)] - posxy[ax[2],findlast(in_axes)] ≈ 0
+            # elseif all(in_axes)
+            #     point_entered = [
+            #         posxy[ax[1],begin]
+            #         posxy[ax[2],begin]
+            #     ]
+            #     point_exitted = [
+            #         posxy[ax[1],end]
+            #         posxy[ax[2],end]
+            #     ]
+            elseif foldl(==, posxy[ax[1],findfirst(in_axes):findlast(in_axes)], init=true)
                 point_entered = [
                     minx
                     posxy[ax[2],findfirst(in_axes)]
@@ -483,7 +492,7 @@ function wcsgridspec(wsg::WCSGrid)
                 push!(tickpos2w, tickv)
                 push!(tickslopes2x, 0)
             # Vertical grid lines
-            elseif posxy[ax[2],findfirst(in_axes)] - posxy[ax[2],findlast(in_axes)] ≈ 0
+            elseif foldl(==, posxy[ax[2],findfirst(in_axes):findlast(in_axes)], init=true)
                 point_entered = [
                     minx
                     posxy[ax[2],findfirst(in_axes)]
@@ -505,7 +514,7 @@ function wcsgridspec(wsg::WCSGrid)
                 x2 = posxy[ax[1],i+1]
                 y2 = posxy[ax[2],i+1]
                 if x2-x1 ≈ 0
-                    @warn "undef slope"
+                    # @warn "undef slope"
                 end
 
                 # Fit a line where we cross the axis
@@ -545,7 +554,7 @@ function wcsgridspec(wsg::WCSGrid)
                 x2 = posxy[ax[1],i]
                 y2 = posxy[ax[2],i]
                 if x2-x1 ≈ 0
-                    @warn "undef slope"
+                    # @warn "undef slope"
                 end
 
                 # Fit a line where we cross the axis
@@ -596,12 +605,12 @@ function wcsgridspec(wsg::WCSGrid)
     tickpos1w = Float64[]
     tickslopes1x = Float64[]
     gridlinesxy1 = NTuple{2,Vector{Float64}}[]
-    i = 3
-    while length(tickpos1x) < 2 && i > 0
+    j = 3
+    while length(tickpos1x) < 2 && j > 0
         k_min += 2
         k_ideal += 2
         k_max += 2
-        i -= 1
+        j -= 1
 
         tickposu = optimize_ticks(6minu, 6maxu; Q, k_min, k_ideal, k_max)[1]./6
 
@@ -628,8 +637,17 @@ function wcsgridspec(wsg::WCSGrid)
 
             if count(in_axes) < 2
                 continue
+            # elseif all(in_axes)
+            #     point_entered = [
+            #         posxy[ax[1],begin]
+            #         posxy[ax[2],begin]
+            #     ]
+            #     point_exitted = [
+            #         posxy[ax[1],end]
+            #         posxy[ax[2],end]
+            #     ]
             # Horizontal grid lines
-            elseif posxy[ax[1],findfirst(in_axes)] - posxy[ax[1],findlast(in_axes)] ≈ 0
+            elseif foldl(==, posxy[ax[1],findfirst(in_axes):findlast(in_axes)], init=true)
                 point_entered = [
                     posxy[ax[1],findfirst(in_axes)]
                     miny
@@ -642,7 +660,7 @@ function wcsgridspec(wsg::WCSGrid)
                 push!(tickpos1w, ticku)
                 push!(tickslopes1x, 0)
             # Vertical grid lines
-            elseif posxy[ax[2],findfirst(in_axes)] - posxy[ax[2],findlast(in_axes)] ≈ 0
+            elseif foldl(==, posxy[ax[2],findfirst(in_axes):findlast(in_axes)], init=true)
                 point_entered = [
                     minx
                     posxy[ax[2],findfirst(in_axes)]
@@ -655,7 +673,6 @@ function wcsgridspec(wsg::WCSGrid)
                 push!(tickpos1w, ticku)
                 push!(tickslopes1x, π/2)
             else
-                
                 # Use the masks to pick an x,y point inside the axes and an
                 # x,y point outside the axes.
                 i = findfirst(in_axes)
@@ -664,7 +681,7 @@ function wcsgridspec(wsg::WCSGrid)
                 x2 = posxy[ax[1],i+1]
                 y2 = posxy[ax[2],i+1]
                 if x2-x1 ≈ 0
-                    @warn "undef slope"
+                    # @warn "undef slope"
                 end
 
                 # Fit a line where we cross the axis
@@ -703,7 +720,7 @@ function wcsgridspec(wsg::WCSGrid)
                 x2 = posxy[ax[1],i]
                 y2 = posxy[ax[2],i]
                 if x2-x1 ≈ 0
-                    @warn "undef slope"
+                    # @warn "undef slope"
                 end
 
                 # Fit a line where we cross the axis
