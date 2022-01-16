@@ -1,5 +1,3 @@
-__precompile__()
-
 module AstroImages
 
 using FITSIO, FileIO, Images, Interact, Reproject, WCS, MappedArrays
@@ -626,6 +624,19 @@ include("plot-recipes.jl")
 include("ccd2rgb.jl")
 
 include("patches.jl")
+
+function __init__()
+
+    # You can only `imview` 2D slices. Add an error hint if the user
+    # tries to display a cube.
+    if isdefined(Base.Experimental, :register_error_hint)
+        Base.Experimental.register_error_hint(MethodError) do io, exc, argtypes, kwargs
+            if exc.f == imview && first(argtypes) <: AbstractArray && ndims(first(argtypes)) != 2
+                print(io, "\n`imview` is only supported on 2D arrays.\nIf you have a cube, try viewing one slice at a time.")
+            end
+        end
+    end
+end
 
 end # module
 
