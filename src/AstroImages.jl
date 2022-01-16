@@ -29,20 +29,13 @@ export load,
     imview,
     clampednormedview,
     wcsticks,
-    wcsgridlines
+    wcsgridlines,
+    arraydata,
+    headers,
+    wcs,
+    Comment,
+    History
 
-
-
-
-_load(fits::FITS, ext::Int) = read(fits[ext])
-# _load(fits::FITS, ext::NTuple{N, Int}) where {N} = ntuple(i-> read(fits[ext[i]]), N)
-# # _load(fits::NTuple{N, FITS}, ext::NTuple{N, Int}) where {N} = ntuple(i -> _load(fits[i], ext[i]), N)
-
-# _header(fits::FITS, ext::Int) = WCS.from_header(read_header(fits[ext], String))[1]
-# _header(fits::FITS, ext::NTuple{N, Int}) where {N} = 
-#     ntuple(i -> WCS.from_header(read_header(fits[ext[i]], String))[1], N)
-# _header(fits::NTuple{N, FITS}, ext::NTuple{N, Int}) where {N} = 
-#     ntuple(i -> _header(fits[i], ext[i]), N)
 """
     load(fitsfile::String, n=1)
 
@@ -167,13 +160,9 @@ function wcs(img::AstroImage)
     return getfield(img, :wcs)
 end
 
-export arraydata, headers, wcs
-
 struct Comment end
-export Comment
-
 struct History end
-export History
+
 
 
 # extending the AbstractArray interface
@@ -378,23 +367,6 @@ find_img(::Any, rest) = find_img(rest)
 Construct an `AstroImage` object of `data`, using `color` as color map, `Gray` by default.
 """
 AstroImage(img::AstroImage) = img
-# AstroImage(data::AbstractArray{T,N}, headers::FITSHeader, wcs::WCSTransform) where {T,N} = 
-#     AstroImage{T,N,typeof(data)}(data, headers, wcs)
-
-# AstroImage(color::Type{<:Color}, data::AbstractArray{T,N}, wcs::WCSTransform) where {T<:Real,N<:Int} =
-#     AstroImage{T, N, color, Float64}(data, extrema(data), false, wcs, Properties{Float64}())
-# function AstroImage(color::Type{<:AbstractRGB}, data::NTuple{N, Matrix{T}}, wcs::NTuple{N, WCSTransform}) where {T <: Union{AbstractFloat, FixedPoint}, N}
-#     if N == 3
-#         img = ccd2rgb((data[1], wcs[1]),(data[2], wcs[2]),(data[3], wcs[3]))
-#         return AstroImage{T,color,N, widen(T)}(data, ntuple(i -> extrema(data[i]), N), wcs, Properties{widen(T)}(rgb_image = img))
-#     end
-# end
-# function AstroImage(color::Type{<:AbstractRGB}, data::NTuple{N, Matrix{T}}, wcs::NTuple{N, WCSTransform}) where {T<:Real, N}
-#     if N == 3
-#         img = ccd2rgb((data[1], wcs[1]),(data[2], wcs[2]),(data[3], wcs[3]))
-#         return AstroImage{T,color,N, Float64}(data, ntuple(i -> extrema(data[i]), N), wcs, Properties{Float64}(rgb_image = img))
-#     end
-# end
 
 """
     emptyheaders()
@@ -465,7 +437,6 @@ FITSHeaders.
 function wcsfromheaders(img::AstroImage; relax=WCS.HDR_ALL)
     # We only need to stringify WCS headers. This might just be 4-10 header keywords
     # out of thousands.
-    # wcsout = WCS.from_header(string(filterwcsheaders(headers(img))), ignore_rejected=true)
     local wcsout
     # Load the headers without ignoring rejected to get error messages
     try
@@ -510,15 +481,6 @@ AstroImage(fits::FITS, ext::Int=1) = AstroImage(fits[ext], read_header(fits[ext]
 Given an open FITS HDU, load it as an AstroImage.
 """
 AstroImage(hdu::HDU) = AstroImage(read(hdu), read_header(hdu))
-# AstroImage(color::Type{<:Color}, fits::FITS, ext::NTuple{N, Int}) where {N} =
-#     AstroImage(color, _load(fits, ext), ntuple(i -> WCS.from_header(read_header(fits[ext[i]], String))[1], N))
-# AstroImage(color::Type{<:Color}, fits::NTuple{N, FITS}, ext::NTuple{N, Int}) where {N} =
-#     AstroImage(color, ntuple(i -> _load(fits[i], ext[i]), N), ntuple(i -> WCS.from_header(read_header(fits[i][ext[i]], String))[1], N))
-
-# AstroImage(files::NTuple{N,String}) where {N} = 
-#     AstroImage(Gray, load(files)...)
-# AstroImage(color::Type{<:Color}, files::NTuple{N,String}) where {N} = 
-#     AstroImage(color, load(files)...)
 
 """
     img = AstroImage(filename::AbstractString, ext::Integer=1)
@@ -619,10 +581,11 @@ function reset!(img::AstroImage{T,N}) where {T,N}
 end
 
 include("wcs_headers.jl")
+include("imview.jl")
 include("showmime.jl")
 include("plot-recipes.jl")
-include("ccd2rgb.jl")
 
+include("ccd2rgb.jl")
 include("patches.jl")
 
 function __init__()
