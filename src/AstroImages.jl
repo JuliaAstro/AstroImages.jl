@@ -6,6 +6,8 @@ using MappedArrays
 using ColorSchemes
 using PlotUtils: zscale
 
+using OffsetArrays
+
 export load,
     save,
     AstroImage,
@@ -233,7 +235,13 @@ function Base.getindex(img::AstroImage, ::Type{Comment})
     ii = findall(==("COMMENT"), hdr.keys)
     return view(hdr.comments, ii)
 end
-# Adding new history entries
+# Adding new comment and history entries
+function Base.push!(img::AstroImage, ::Type{Comment}, history::AbstractString)
+    hdr = headers(img)
+    push!(hdr.keys, "HISTORY")
+    push!(hdr.values, nothing)
+    push!(hdr.comments, history)
+end
 function Base.push!(img::AstroImage, ::Type{History}, history::AbstractString)
     hdr = headers(img)
     push!(hdr.keys, "HISTORY")
@@ -595,7 +603,7 @@ function __init__()
     if isdefined(Base.Experimental, :register_error_hint)
         Base.Experimental.register_error_hint(MethodError) do io, exc, argtypes, kwargs
             if exc.f == imview && first(argtypes) <: AbstractArray && ndims(first(argtypes)) != 2
-                print(io, "\n`imview` is only supported on 2D arrays.\nIf you have a cube, try viewing one slice at a time.")
+                print(io, "\nThe `imview` function only supports 2D images. If you have a cube, try viewing one slice at a time.\n")
             end
         end
     end
@@ -610,7 +618,9 @@ TODO:
 * contrast/bias?
 * interactive (Jupyter)
 * Plots & Makie recipes
+* Plots: vertical/horizotat axes from m106
 * indexing
+* recenter that updates indexes and CRPIX
 * cubes
 * RGB and other composites
 * tests
@@ -621,6 +631,5 @@ TODO:
 
 * FITSIO PR/issue (performance)
 * PlotUtils PR/issue (zscale with iteratble)
-* WCS PR/issue (locking)
 
 =#
