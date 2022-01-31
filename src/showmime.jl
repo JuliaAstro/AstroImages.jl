@@ -32,7 +32,6 @@ Base.show(io::IO, mime::MIME"image/png", img::AstroImage{T,2}; kwargs...) where 
 
 
 
-
 # Lazily reinterpret the AstroImage as a Matrix{Color}, upon request.
 # By itself, Images.colorview works fine on AstroImages. But 
 # AstroImages are not normalized to be between [0,1]. So we override 
