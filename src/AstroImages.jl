@@ -5,6 +5,7 @@ using Statistics
 using MappedArrays
 using ColorSchemes
 using PlotUtils: zscale
+using OffsetArrays
 
 export load,
     save,
@@ -138,13 +139,19 @@ end
 Provides access to a FITS image along with its accompanying 
 headers and WCS information, if applicable.
 """
-mutable struct AstroImage{T, N, TDat} <: AbstractArray{T,N}
+struct AstroImage{T, N, TDat} <: AbstractArray{T,N}
     data::TDat
     headers::FITSHeader
-    wcs::WCSTransform
-    wcs_stale::Bool
+    wcs::Ref{WCSTransform}
+    wcs_stale::Ref{Bool}
+    wcs_axes::NTuple{N,Union{Int,Colon}} where N
 end
-AstroImage(data::AbstractArray{T,N}, headers, wcs, wcs_stale) where {T,N} = AstroImage{T,N,typeof(data)}(data,headers,wcs,wcs_stale)
+# Provide a type alias for a 1D version of our data structure. This is useful when extracting e.g. a spectrum from a data cube and
+# retaining the headers and spectral axis information.
+const AstroVec{T,TDat} = AstroImage{T,1,TDat} where {T,TDat}
+export AstroVec
+
+AstroImage(data::AbstractArray{T,N}, headers, wcs, wcs_stale, wcs_axes) where {T,N} = AstroImage{T,N,typeof(data)}(data,headers,Ref(wcs),Ref(wcs_stale),wcs_axes)
 
 
 """
@@ -153,11 +160,11 @@ AstroImage(data::AbstractArray{T,N}, headers, wcs, wcs_stale) where {T,N} = Astr
 Images.arraydata(img::AstroImage) = getfield(img, :data)
 headers(img::AstroImage) = getfield(img, :headers)
 function wcs(img::AstroImage)
-    if getfield(img, :wcs_stale)
-        setfield!(img, :wcs, wcsfromheaders(img))
-        setfield!(img, :wcs_stale, false)
+    if getfield(img, :wcs_stale)[]
+        getfield(img, :wcs)[] = wcsfromheaders(img)
+        getfield(img, :wcs_stale)[] = false
     end
-    return getfield(img, :wcs)
+    return getfield(img, :wcs)[]
 end
 
 struct Comment end
@@ -197,12 +204,32 @@ function Base.getindex(img::AstroImage, inds...)
     dat = getindex(arraydata(img), inds...)
     # ndims is defined for Numbers but not Missing.
     # This check is therefore necessary for img[1,1]->missing to work.
-    if !(eltype(dat) <: Number) || ndims(dat) <= 1
+    if !(eltype(dat) <: Number) || ndims(dat) == 0
         return dat
     else
-        return copyheaders(img, dat)
+        ax_in = collect(getfield(img, :wcs_axes))
+        ax_mask = ax_in .=== (:)
+        ax_out = Vector{Union{Int,Colon}}(ax_in)
+        ax_out[ax_mask] .= _filter_inds(inds)
+        @show ax_out
+        @show _ranges(inds)
+        @show typeof(dat) size(dat)
+        return AstroImage(
+            OffsetArray(dat, _ranges(inds)...),
+            deepcopy(headers(img)),
+            getfield(img, :wcs)[],
+            getfield(img, :wcs_stale)[],
+            tuple(ax_out...)
+        )
+        # return copyheaders(img, dat)
     end
 end
+_filter_inds(inds) = tuple((
+    typeof(ind) <: Union{AbstractRange,Colon} ? (:) : ind
+    for ind in inds 
+)...)
+_ranges(args) = filter(arg -> typeof(arg) <:  Union{AbstractRange,Colon}, args)
+
 Base.getindex(img::AstroImage{T}, inds...) where {T<:Colorant} = getindex(arraydata(img), inds...)
 Base.setindex!(img::AstroImage, v, inds...) = setindex!(arraydata(img), v, inds...) # default fallback for operations on Array
 
@@ -210,9 +237,9 @@ Base.setindex!(img::AstroImage, v, inds...) = setindex!(arraydata(img), v, inds.
 Base.getindex(img::AstroImage, inds::AbstractString...) = getindex(headers(img), inds...) # accesing header using strings
 function Base.setindex!(img::AstroImage, v, ind::AbstractString)  # modifying header using a string
     setindex!(headers(img), v, ind)
-    # Mark the WCS object as beign out of date if this was a WCS header keyword
+    # Mark the WCS object as being out of date if this was a WCS header keyword
     if ind ∈ WCS_HEADERS
-        setfield!(img, :wcs_stale, true)
+        getfield(img, :wcs_stale)[] = true
     end
 end
 Base.getindex(img::AstroImage, inds::Symbol...) = getindex(img, string.(inds)...) # accessing header using symbol
@@ -241,7 +268,6 @@ function Base.push!(img::AstroImage, ::Type{History}, history::AbstractString)
     push!(hdr.comments, history)
 end
 
-# TODO: do we need to adjust CRPIX_ when selecting a subset of the image?
 """
     copyheaders(img::AstroImage, data) -> imgnew
 Create a new image copying the headers of `img` but
@@ -250,7 +276,7 @@ headers of `imgnew` does not affect the headers of `img`.
 See also: [`shareheaders`](@ref).
 """
 copyheaders(img::AstroImage, data::AbstractArray) =
-    AstroImage(data, deepcopy(headers(img)), getfield(img, :wcs), getfield(img, :wcs_stale))
+    AstroImage(data, deepcopy(headers(img)), getfield(img, :wcs), getfield(img, :wcs_stale), getfield(img, :wcs_axes))
 export copyheaders
 
 """
@@ -260,7 +286,7 @@ using the data of the AbstractArray `data`. The two images have
 synchronized headers; modifying one also affects the other.
 See also: [`copyheaders`](@ref).
 """ 
-shareheaders(img::AstroImage, data::AbstractArray) = AstroImage(data, headers(img), getfield(img, :wcs), getfield(img, :wcs_stale))
+shareheaders(img::AstroImage, data::AbstractArray) = AstroImage(data, headers(img), getfield(img, :wcs)[], getfield(img, :wcs_stale)[], getfield(img, :wcs_axes))
 export shareheaders
 # Share headers if an AstroImage, do nothing if AbstractArray
 maybe_shareheaders(img::AstroImage, data) = shareheaders(img, data)
@@ -294,6 +320,7 @@ function Base.similar(img::AstroImage) where T
         deepcopy(headers(img)),
         getfield(img, :wcs),
         getfield(img, :wcs_stale),
+        getfield(img, :wcs_axes),
     )
 end
 # Getting a similar AstroImage with specific indices will typyically
@@ -309,7 +336,8 @@ function Base.similar(img::AstroImage, dims::Tuple) where T
         dat,
         deepcopy(headers(img)),
         getfield(img, :wcs),
-        getfield(img, :wcs_stale)
+        getfield(img, :wcs_stale),
+        getfield(img, :wcs_axes)
     )
 end
 
@@ -349,7 +377,8 @@ function Base.similar(bc::Broadcast.Broadcasted{Broadcast.ArrayStyle{AstroImage}
         dat,
         deepcopy(headers(img)),
         getfield(img, :wcs),
-        getfield(img, :wcs_stale)
+        getfield(img, :wcs_stale),
+        getfield(img, :wcs_axes)
     )
 end
 "`A = find_img(As)` returns the first AstroImage among the arguments."
@@ -382,6 +411,8 @@ Given an AbstractArray, return a blank WCSTransform of the appropriate
 dimensionality.
 """
 emptywcs(data::AbstractArray) = WCSTransform(ndims(data))
+emptywcs(img::AstroImage) = WCSTransform(length(getfield(img, :wcs_axes)))
+
 
 
 """
@@ -423,7 +454,7 @@ function AstroImage(
     # This avoids those computations if the WCS transform is not needed.
     # It also allows us to create images with invalid WCS headers,
     # only erroring when/if they are used.
-    return AstroImage{T,N,typeof(data)}(data, header, wcs, wcs_stale)
+    return AstroImage{T,N,typeof(data)}(data, header, wcs, wcs_stale, tuple(((:) for _ in 1:N)...))
 end
 AstroImage(data::AbstractArray, wcs::WCSTransform) = AstroImage(data, emptyheaders(), wcs)
 
@@ -460,7 +491,7 @@ function wcsfromheaders(img::AstroImage; relax=WCS.HDR_ALL)
     if length(wcsout) == 1
         return only(wcsout)
     elseif length(wcsout) == 0
-        return emptywcs(arraydata(img))
+        return emptywcs(img)
     else
         error("Mutiple WCSTransform returned from headers")
     end
@@ -581,7 +612,8 @@ function reset!(img::AstroImage{T,N}) where {T,N}
 end
 
 include("wcs_headers.jl")
-include("imview.jl")
+# include("imview.jl")
+imview(args...;kwargs...) = nothing
 include("showmime.jl")
 include("plot-recipes.jl")
 

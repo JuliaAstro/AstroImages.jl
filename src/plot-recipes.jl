@@ -111,8 +111,18 @@ end
         # In astropy, the ticks are actually tilted to reflect this, though in general
         # the transformation from pixel to coordinates can be non-linear and curved.
 
-        ax = haskey(plotattributes, :axes) ? plotattributes[:axes] : (1,2)
-        coords = haskey(plotattributes, :coords) ? plotattributes[:coords] : ones(wcs(img).naxis)
+        # ax = haskey(plotattributes, :axes) ? plotattributes[:axes] : (1,2)
+        # coords = haskey(plotattributes, :coords) ? plotattributes[:coords] : ones(wcs(img).naxis)
+        ax = findall(==(:), getfield(img, :wcs_axes))
+        j = 0
+        coords = map(getfield(img, :wcs_axes)) do coord
+            j += 1
+            if coord === (:)
+                first(axes(img,j))
+            else
+                coord
+            end
+        end
 
         minx = first(axes(img,ax[2]))
         maxx = last(axes(img,ax[2]))
