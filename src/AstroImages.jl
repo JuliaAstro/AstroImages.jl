@@ -284,7 +284,7 @@ headers of `imgnew` does not affect the headers of `img`.
 See also: [`shareheaders`](@ref).
 """
 copyheaders(img::AstroImage, data::AbstractArray) =
-    AstroImage(data, deepcopy(headers(img)), getfield(img, :wcs), getfield(img, :wcs_stale), getfield(img, :wcs_axes))
+    AstroImage(data, deepcopy(headers(img)), getfield(img, :wcs)[], getfield(img, :wcs_stale)[], getfield(img, :wcs_axes))
 export copyheaders
 
 """
@@ -620,8 +620,7 @@ function reset!(img::AstroImage{T,N}) where {T,N}
 end
 
 include("wcs_headers.jl")
-# include("imview.jl")
-imview(args...;kwargs...) = nothing
+include("imview.jl")
 include("showmime.jl")
 include("plot-recipes.jl")
 
