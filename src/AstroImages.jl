@@ -144,8 +144,8 @@ headers and WCS information, if applicable.
 struct AstroImage{T, N, TDat} <: AbstractArray{T,N}
     data::TDat
     headers::FITSHeader
-    wcs::Ref{WCSTransform}
-    wcs_stale::Ref{Bool}
+    wcs::Base.RefValue{WCSTransform}
+    wcs_stale::Base.RefValue{Bool}
     wcs_axes::NTuple{N,Union{Int,Colon}} where N
 end
 # Provide a type alias for a 1D version of our data structure. This is useful when extracting e.g. a spectrum from a data cube and
@@ -213,9 +213,6 @@ function Base.getindex(img::AstroImage, inds...)
         ax_mask = ax_in .=== (:)
         ax_out = Vector{Union{Int,Colon}}(ax_in)
         ax_out[ax_mask] .= _filter_inds(inds)
-        @show ax_out
-        @show _ranges(inds)
-        @show typeof(dat) size(dat)
         return AstroImage(
             OffsetArray(dat, _ranges(inds)...),
             deepcopy(headers(img)),
@@ -326,8 +323,8 @@ function Base.similar(img::AstroImage) where T
     return AstroImage(
         dat,
         deepcopy(headers(img)),
-        getfield(img, :wcs),
-        getfield(img, :wcs_stale),
+        getfield(img, :wcs)[],
+        getfield(img, :wcs_stale)[],
         getfield(img, :wcs_axes),
     )
 end
@@ -343,8 +340,8 @@ function Base.similar(img::AstroImage, dims::Tuple) where T
     return AstroImage(
         dat,
         deepcopy(headers(img)),
-        getfield(img, :wcs),
-        getfield(img, :wcs_stale),
+        getfield(img, :wcs)[],
+        getfield(img, :wcs_stale)[],
         getfield(img, :wcs_axes)
     )
 end
@@ -356,8 +353,9 @@ Base.copy(img::AstroImage) = AstroImage(
     # We copy the headers but share the WCS object.
     # If the headers change such that wcs is now out of date,
     # a new wcs will be generated when needed.
-    getfield(img, :wcs),
-    getfield(img, :wcs_stale)
+    getfield(img, :wcs)[],
+    getfield(img, :wcs_stale)[],
+    getfield(img, :wcs_axes)
 )
 Base.convert(::Type{AstroImage}, A::AstroImage) = A
 Base.convert(::Type{AstroImage}, A::AbstractArray) = AstroImage(A)
