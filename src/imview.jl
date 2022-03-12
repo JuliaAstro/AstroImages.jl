@@ -181,9 +181,7 @@ function _imview(img, normed::AbstractArray{T}, stretch, cmap) where T
         cmap = :grays
     end
     cscheme = ColorSchemes.colorschemes[cmap]
-    img_no = OffsetArrays.no_offset_view(img)
-    normed_no = OffsetArrays.no_offset_view(normed)
-    mapper = mappedarray(img_no, normed_no) do pixr, pixn
+    mapper = mappedarray(img, normed) do pixr, pixn
         if ismissing(pixr) || !isfinite(pixr) || ismissing(pixn) || !isfinite(pixn)
             # We check pixr in addition to pixn because we want to preserve if the pixels
             # are +-Inf
@@ -225,7 +223,7 @@ function _imview(img, normed::AbstractArray{T}, stretch, cmap) where T
         :,
     )
 
-    return maybe_copyheaders(img, OffsetArray(flipped_view, axes(img,2), axes(img,1)))
+    return maybe_copyheaders(img, flipped_view)
 end
 
 

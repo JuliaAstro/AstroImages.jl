@@ -58,11 +58,13 @@ save("output.png", v)
 # This recipe promotes AstroImages of numerical data into full color using
 # imview().
 @recipe function f(
-    img::AstroImage{T,2};
+    ::DimensionalData.HeatMapLike,
+    img::AstroImage{T};
     clims=_default_clims[],
     stretch=_default_stretch[],
     cmap=_default_cmap[],
 ) where {T<:Number}
+    println("Hit AstroImage recipe")
 
     # We often plot an AstroImage{<:Number} which hasn't yet had
     # its wcs cached (wcs_stale=true) and we make an image view here.
@@ -74,100 +76,88 @@ save("output.png", v)
         wcs(img)
     end
 
-    # We don't to override e.g. histograms
-    if haskey(plotattributes, :seriestype)
-        return arraydata(img)
-    else
-        # We currently use the AstroImages defaults. If unset, we could
-        # instead follow the plot theme.
-        imgv = imview(img; clims, stretch, cmap)
+    # We currently use the AstroImages defaults. If unset, we could
+    # instead follow the plot theme.
+    imgv = imview(img; clims, stretch, cmap)
 
-        xgrid --> true
-        ygrid --> true
+    xgrid --> true
+    ygrid --> true
 
-        # By default, disable the colorbar.
-        # Plots.jl does no give us sufficient control to make sure the range and ticks
-        # are correct after applying a non-linear stretch
-        # colorbar := false
+    # By default, disable the colorbar.
+    # Plots.jl does no give us sufficient control to make sure the range and ticks
+    # are correct after applying a non-linear stretch
+    # colorbar := false
 
-        # we have a wcs flag (from the image by default) so that users can skip over 
-        # plotting in physical coordinates. This is especially important
-        # if the WCS headers are mallformed in some way.
-        if !haskey(plotattributes, :wcs) || plotattributes[:wcs]
+    # we have a wcs flag (from the image by default) so that users can skip over 
+    # plotting in physical coordinates. This is especially important
+    # if the WCS headers are mallformed in some way.
+    if !haskey(plotattributes, :wcs) || plotattributes[:wcs]
 
-            # TODO: fill out coordinates array considering offset indices and slices
-            # out of cubes (tricky!)
+        # TODO: fill out coordinates array considering offset indices and slices
+        # out of cubes (tricky!)
 
-            # Note: if the axes are on unusual sides (e.g. y-axis at right, x-axis at top)
-            # then these coordinates are not correct. They are only correct exactly
-            # along the axis.
-            # In astropy, the ticks are actually tilted to reflect this, though in general
-            # the transformation from pixel to coordinates can be non-linear and curved.
+        # Note: if the axes are on unusual sides (e.g. y-axis at right, x-axis at top)
+        # then these coordinates are not correct. They are only correct exactly
+        # along the axis.
+        # In astropy, the ticks are actually tilted to reflect this, though in general
+        # the transformation from pixel to coordinates can be non-linear and curved.
 
-            # ax = haskey(plotattributes, :axes) ? plotattributes[:axes] : (1,2)
-            # coords = haskey(plotattributes, :coords) ? plotattributes[:coords] : ones(wcs(img).naxis)
-            ax = findall(==(:), getfield(imgv, :wcs_axes))
-            j = 0
-            coords = map(getfield(imgv, :wcs_axes)) do coord
-                j += 1
-                if coord === (:)
-                    first(axes(imgv,j))
-                else
-                    coord
-                end
-            end
-            minx = first(axes(imgv,2))
-            maxx = last(axes(imgv,2))
-            miny = first(axes(imgv,1))
-            maxy = last(axes(imgv,1))
-            extent = (minx, maxx, miny, maxy)
+        # ax = haskey(plotattributes, :axes) ? plotattributes[:axes] : (1,2)
+        # coords = haskey(plotattributes, :coords) ? plotattributes[:coords] : ones(wcs(img).naxis)
+        ax = [1,1]
+        dax = [X(),Y()]
+        minx = first(axes(imgv,2))
+        maxx = last(axes(imgv,2))
+        miny = first(axes(imgv,1))
+        maxy = last(axes(imgv,1))
+        extent = (minx, maxx, miny, maxy)
 
-            wcsg = WCSGrid(wcs(imgv), extent, ax, coords)
-            gridspec = wcsgridspec(wcsg)
-            
-            xticks --> (gridspec.tickpos1x, wcslabels(wcs(imgv), ax[1], gridspec.tickpos1w))
-            xguide --> ctype_label(wcs(imgv).ctype[ax[1]], wcs(imgv).radesys)
+        wcsg = WCSGrid(wcs(imgv), extent, ax, coords)
+        gridspec = wcsgridspec(wcsg)
+        
+        xticks --> (gridspec.tickpos1x, wcslabels(wcs(imgv), ax[1], gridspec.tickpos1w))
+        xguide --> ctype_label(wcs(imgv).ctype[ax[1]], wcs(imgv).radesys)
 
-            yticks --> (gridspec.tickpos2x, wcslabels(wcs(imgv), ax[2], gridspec.tickpos2w))
-            yguide --> ctype_label(wcs(imgv).ctype[ax[2]], wcs(imgv).radesys)
+        yticks --> (gridspec.tickpos2x, wcslabels(wcs(imgv), ax[2], gridspec.tickpos2w))
+        yguide --> ctype_label(wcs(imgv).ctype[ax[2]], wcs(imgv).radesys)
 
-            # To ensure the physical axis tick labels are correct the axes must be
-            # tight to the image
-            xl = first(axes(imgv,2)), last(axes(imgv,2))
-            yl = first(axes(imgv,1)), last(axes(imgv,1))
-            ylims --> yl
-            xlims --> xl
-        end
-
-        # Disable equal aspect ratios if the scales are totally different
-        if max(size(imgv)...)/min(size(imgv)...) >= 7
-            aspect_ratio --> :none
-        end
-
-        # We have to do a lot of flipping to keep the orientation corect 
-        yflip := false
-        xflip := false
-
-        @series begin
-            # axes(imgv,2), axes(imgv,1), view(arraydata(imgv), reverse(axes(imgv,1)),:)
-            # axes(imgv,2) .- 0.5, axes(imgv,1) .- 0.5, 
-            # @show size(view(arraydata(imgv), reverse(axes(imgv,1)),:))
-            view(arraydata(imgv), reverse(axes(imgv,1)),:)
-        end
-
-        # If wcs=true (default) and grid=true (not default), overplot a WCS 
-        # grid.
-        if (!haskey(plotattributes, :wcs) || plotattributes[:wcs]) &&
-            haskey(plotattributes, :xgrid) && plotattributes[:xgrid] &&
-            haskey(plotattributes, :ygrid) && plotattributes[:ygrid]
-
-            # Plot the WCSGrid as a second series (actually just lines)
-            @series begin
-                wcsg, gridspec
-            end
-        end
-        return
+        # To ensure the physical axis tick labels are correct the axes must be
+        # tight to the image
+        xl = first(axes(imgv,2)), last(axes(imgv,2))
+        yl = first(axes(imgv,1)), last(axes(imgv,1))
+        ylims --> yl
+        xlims --> xl
     end
+
+    # Disable equal aspect ratios if the scales are totally different
+    if max(size(imgv)...)/min(size(imgv)...) >= 7
+        aspect_ratio --> :none
+    end
+
+    # We have to do a lot of flipping to keep the orientation corect 
+    yflip := false
+    xflip := false
+
+    println("In plot recipe")
+    @series begin
+        # axes(imgv,2), axes(imgv,1), view(arraydata(imgv), reverse(axes(imgv,1)),:)
+        # axes(imgv,2) .- 0.5, axes(imgv,1) .- 0.5, 
+        # @show size(view(arraydata(imgv), reverse(axes(imgv,1)),:))
+        view(arraydata(imgv), reverse(axes(imgv,1)),:)
+    end
+
+    # If wcs=true (default) and grid=true (not default), overplot a WCS 
+    # grid.
+    if (!haskey(plotattributes, :wcs) || plotattributes[:wcs]) &&
+        haskey(plotattributes, :xgrid) && plotattributes[:xgrid] &&
+        haskey(plotattributes, :ygrid) && plotattributes[:ygrid]
+
+        # Plot the WCSGrid as a second series (actually just lines)
+        @series begin
+            wcsg, gridspec
+        end
+    end
+    return
 end
 
 
