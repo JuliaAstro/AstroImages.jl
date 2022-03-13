@@ -27,10 +27,33 @@ Base.show(io::IO, mime::MIME"image/png", img::AstroImageMat{T}; kwargs...) where
     show(io, mime, arraydata(img), kwargs...)
 
 # Otherwise, call imview with the default settings.
-Base.show(io::IO, mime::MIME"image/png", img::AstroImageMat{T}; kwargs...) where {T} =
+Base.show(io::IO, mime::MIME"image/png", img::AstroImageMat{T}; kwargs...) where {T<:Real} =
     show(io, mime, imview(img), kwargs...)
 
+# Special handling for complex images
+function Base.show(io::IO, mime::MIME"image/png", img::AstroImageMat{T}; kwargs...) where {T<:Complex}
+    # Not sure we really want to support this functionality, but we will allow it for
+    # now with a warning.
+    @warn "Displaying complex image as magnitude and phase (maxlog=1)" maxlog=1
+    mag_view = imview(abs.(img))
+    angle_view = imview(angle.(img), clims=(-pi, pi), cmap=:turbo)
+    show(io, mime, vcat(mag_view,angle_view), kwargs...)
+end
 
+# const _autoshow = Base.RefValue{Bool}(true)
+# """
+#     set_autoshow!(autoshow::Bool)
+
+# By default, `display`ing a 2D AstroImage e.g. at the REPL or in a notebook
+# shows it as a PNG image using the `imview` function and user's default
+# colormap, stretch, etc.
+# If set to false, displaying an image will just show a textual representation.
+# You can still visualize images using `imview`.
+# """
+# function set_autoshow!(autoshow::Bool)
+#     _autoshow[] = autoshow
+# end
+# TODO: for this to work, we need to actually add and remove a show method. TBD how.
 
 # Lazily reinterpret the AstroImageMat as a Matrix{Color}, upon request.
 # By itself, Images.colorview works fine on AstroImages. But 
