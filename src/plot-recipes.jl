@@ -4,9 +4,9 @@ using Printf
 using PlotUtils: optimize_ticks
 
 """
-    plot(img::AstroImage; clims=extrema, stretch=identity, cmap=nothing)
+    plot(img::AstroImageMat; clims=extrema, stretch=identity, cmap=nothing)
 
-Create a read only view of an array or AstroImage mapping its data values
+Create a read only view of an array or AstroImageMat mapping its data values
 to Colors according to `clims`, `stretch`, and `cmap`.
 
 The data is first clamped to `clims`, which can either be a tuple of (min, max)
@@ -39,7 +39,7 @@ You may alter these defaults using `AstroImages.set_clims!`,  `AstroImages.set_s
 `AstroImages.set_cmap!`.
 
 ### Automatic Display
-Arrays wrapped by `AstroImage()` get displayed as images automatically by calling 
+Arrays wrapped by `AstroImageMat()` get displayed as images automatically by calling 
 `imview` on them with the default settings when using displays that support showing PNG images.
 
 ### Missing data
@@ -59,14 +59,14 @@ save("output.png", v)
 # imview().
 @recipe function f(
     ::DimensionalData.HeatMapLike,
-    img::AstroImage{T};
+    img::AstroImageMat{T};
     clims=_default_clims[],
     stretch=_default_stretch[],
     cmap=_default_cmap[],
 ) where {T<:Number}
-    println("Hit AstroImage recipe")
+    println("Hit AstroImageMat recipe")
 
-    # We often plot an AstroImage{<:Number} which hasn't yet had
+    # We often plot an AstroImageMat{<:Number} which hasn't yet had
     # its wcs cached (wcs_stale=true) and we make an image view here.
     # That means we may have to keep recomputing the WCS on each plot call
     # since the result is stored in the imview instead of original image.
@@ -163,7 +163,7 @@ end
 
 
 @recipe function f(
-    img::AstroVec{T};
+    img::AstroImageVec{T};
 ) where {T<:Number}
 
     # We don't to override e.g. histograms
@@ -264,13 +264,13 @@ WCSGrid(w,extent,ax) = WCSGrid(w,extent,ax,ones(length(ax)))
 """
     wcsticks(img, axnum)
 
-Generate nice tick labels for an AstroImage along axis `axnum`
+Generate nice tick labels for an AstroImageMat along axis `axnum`
 Returns a vector of pixel positions and a vector of strings.
 
 Example:
 plot(img, xticks=wcsticks(img, 1), yticks=wcsticks(img, 2))
 """
-function wcsticks(img::AstroImage, axnum)
+function wcsticks(img::AstroImageMat, axnum)
     gs = wcsgridspec(WCSGrid(img))
     tickposx = axnum == 1 ? gs.tickpos1x : gs.tickpos2x
     tickposw = axnum == 1 ? gs.tickpos1w : gs.tickpos2w
@@ -402,15 +402,15 @@ end
 
 
 """
-    WCSGrid(img::AstroImage, ax=(1,2), coords=(first(axes(img,ax[1])),first(axes(img,ax[2]))))
+    WCSGrid(img::AstroImageMat, ax=(1,2), coords=(first(axes(img,ax[1])),first(axes(img,ax[2]))))
 
-Given an AstroImage, return information necessary to plot WCS gridlines in physical
+Given an AstroImageMat, return information necessary to plot WCS gridlines in physical
 coordinates against the image's pixel coordinates.
 This function has to work on both plotted axes at once to handle rotation and general
 curvature of the WCS grid projected on the image coordinates.
 
 """
-function WCSGrid(img::AstroImage, ax=(1,2), coords=ones(wcs(img).naxis))
+function WCSGrid(img::AstroImageMat, ax=(1,2), coords=ones(wcs(img).naxis))
 
     minx = first(axes(img,ax[1]))
     maxx = last(axes(img,ax[1]))
@@ -425,7 +425,7 @@ end
 
 # Recipe for a WCSGrid with lines, optional ticks (on by default),
 # and optional grid labels (off by defaut).
-# The AstroImage plotrecipe uses this recipe for grid lines if `grid=true`.
+# The AstroImageMat plotrecipe uses this recipe for grid lines if `grid=true`.
 @recipe function f(wcsg::WCSGrid, gridspec=wcsgridspec(wcsg))
     label --> ""
     xs, ys = wcsgridlines(gridspec)

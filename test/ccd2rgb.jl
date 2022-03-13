@@ -45,8 +45,8 @@ end
     @test isapprox(blue.(asinh_res), blue.(asinh_ans), nans = true, rtol = 3e-5)
     @test isapprox(green.(asinh_res), green.(asinh_ans), nans = true, rtol = 3e-5)
 
-    @testset "AstroImage using ccd2rgb and properties" begin
-        img = AstroImage(RGB, (joinpath("data","casa_0.5-1.5keV.fits"), joinpath("data","casa_1.5-3.0keV.fits"),
+    @testset "AstroImageMat using ccd2rgb and properties" begin
+        img = AstroImageMat(RGB, (joinpath("data","casa_0.5-1.5keV.fits"), joinpath("data","casa_1.5-3.0keV.fits"),
                                 joinpath("data","casa_4.0-6.0keV.fits")))
         
         @test RGB.(img.property.rgb_image) isa Array{RGB{Float64},2}
@@ -85,7 +85,7 @@ end
         @test isapprox(blue.(img.property.rgb_image), blue.(ans), nans = true)
         
 
-        img = AstroImage(joinpath("data","casa_0.5-1.5keV.fits"))
+        img = AstroImageMat(joinpath("data","casa_0.5-1.5keV.fits"))
         @test_throws DomainError set_brightness!(img, 1.2)
         @test_throws DomainError set_contrast!(img, 1.2)
     end

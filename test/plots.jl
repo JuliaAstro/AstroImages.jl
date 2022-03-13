@@ -3,7 +3,7 @@ using AstroImages: pix2world_xformatter, pix2world_yformatter
 
 @testset "Plot recipes" begin
     data = randn(10, 10)
-    img = AstroImage(data)
+    img = AstroImageMat(data)
     wcs1 = WCSTransform(2; ctype = ["RA---AIR", "DEC--AIR"])
     wcs2 = WCSTransform(2; ctype = ["GLON--", "GLAT--"])
     wcs3 = WCSTransform(2; ctype = ["TLON--", "TLAT--"])

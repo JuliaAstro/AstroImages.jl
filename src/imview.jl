@@ -27,7 +27,7 @@ function percent(perc::Number)
     return clims
 end
 
-const _default_cmap  = Ref{Union{Symbol,Nothing}}(nothing)
+const _default_cmap  = Ref{Union{Symbol,Nothing}}(:magma)#nothing)
 const _default_clims = Ref{Any}(percent(99.5))
 const _default_stretch  = Ref{Any}(identity)
 
@@ -36,7 +36,7 @@ const _default_stretch  = Ref{Any}(identity)
     set_cmap!(cmap::Nothing)
 
 Alter the default color map used to display images when using
-`imview` or displaying an AstroImage.
+`imview` or displaying an AstroImageMat.
 """
 function set_cmap!(cmap)
     if cmap ∉ keys(ColorSchemes.colorschemes)
@@ -49,7 +49,7 @@ end
     set_clims!(clims::Function)
 
 Alter the default limits used to display images when using
-`imview` or displaying an AstroImage.
+`imview` or displaying an AstroImageMat.
 """
 function set_clims!(clims)
     _default_clims[] = clims
@@ -58,7 +58,7 @@ end
     set_stretch!(stretch::Function)
 
 Alter the default value stretch functio used to display images when using
-`imview` or displaying an AstroImage.
+`imview` or displaying an AstroImageMat.
 """
 function set_stretch!(stretch)
     _default_stretch[] = stretch
@@ -74,7 +74,7 @@ skipmissingnan(itr) = Iterators.filter(el->!ismissing(el) && isfinite(el), itr)
 """
     imview(img; clims=extrema, stretch=identity, cmap=nothing)
 
-Create a read only view of an array or AstroImage mapping its data values
+Create a read only view of an array or AstroImageMat mapping its data values
 to Colors according to `clims`, `stretch`, and `cmap`.
 
 The data is first clamped to `clims`, which can either be a tuple of (min, max)
@@ -107,7 +107,7 @@ You may alter these defaults using `AstroImages.set_clims!`,  `AstroImages.set_s
 `AstroImages.set_cmap!`.
 
 ### Automatic Display
-Arrays wrapped by `AstroImage()` get displayed as images automatically by calling 
+Arrays wrapped by `AstroImageMat()` get displayed as images automatically by calling 
 `imview` on them with the default settings when using displays that support showing PNG images.
 
 ### Missing data
@@ -206,8 +206,8 @@ function _imview(img, normed::AbstractArray{T}, stretch, cmap) where T
 
     # Flip image to match conventions of other programs
     # flipped_view = view(mapper', reverse(axes(mapper,2)),:)
-    # return maybe_copyheaders(img, flipped_view)
-    # return maybe_copyheaders(img, mapper)
+    # return maybe_copyheader(img, flipped_view)
+    # return maybe_copyheader(img, mapper)
 
     # flipped_view = OffsetArray(
     #     view(
@@ -223,7 +223,7 @@ function _imview(img, normed::AbstractArray{T}, stretch, cmap) where T
         :,
     )
 
-    return maybe_copyheaders(img, flipped_view)
+    return maybe_copyheader(img, flipped_view)
 end
 
 
@@ -231,8 +231,8 @@ end
 # TODO: is this the correct function to extend?
 # Instead of using a datatype like N0f32 to interpret integers as fixed point values in [0,1],
 # we use a mappedarray to map the native data range (regardless of type) to [0,1]
-Images.normedview(img::AstroImage{<:FixedPoint}) = img
-function Images.normedview(img::AstroImage{T}) where T
+Images.normedview(img::AstroImageMat{<:FixedPoint}) = img
+function Images.normedview(img::AstroImageMat{T}) where T
     imgmin, imgmax = extrema(skipmissingnan(img))
     Δ = abs(imgmax - imgmin)
     normeddata = mappedarray(
@@ -240,7 +240,7 @@ function Images.normedview(img::AstroImage{T}) where T
         pix_norm -> convert(T, pix_norm*Δ + imgmin),
         img
     )
-    return shareheaders(img, normeddata)
+    return shareheader(img, normeddata)
 end
 
 """
@@ -260,7 +260,7 @@ function clampednormedview(img::AbstractArray{T}, lims) where T
         pix_norm -> convert(T, pix_norm*Δ + imgmin),
         img
     )
-    return maybe_shareheaders(img, normeddata)
+    return maybe_shareheader(img, normeddata)
 end
 function clampednormedview(img::AbstractArray{T}, lims) where T <: Normed
     # If the data is in a Normed type and the limits are [0,1] then
@@ -275,7 +275,7 @@ function clampednormedview(img::AbstractArray{T}, lims) where T <: Normed
         pix_norm -> pix_norm*Δ + imgmin,
         img
     )
-    return maybe_shareheaders(img, normeddata)
+    return maybe_shareheader(img, normeddata)
 end
 function clampednormedview(img::AbstractArray{Bool}, lims)
     return img

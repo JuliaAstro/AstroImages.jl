@@ -8,17 +8,17 @@
 Introduction
 ------------
 
-`AstroImage.jl` allows you to plot images from an
+`AstroImageMat.jl` allows you to plot images from an
 astronomical [`FITS`](https://en.wikipedia.org/wiki/FITS) file using the
 popular [`Images.jl`](https://github.com/JuliaImages/Images.jl)
 and [`Plots.jl`](https://github.com/JuliaPlots/Plots.jl) Julia packages.
-`AstroImage.jl` uses [`FITSIO.jl`](https://github.com/JuliaAstro/FITSIO.jl) to
+`AstroImageMat.jl` uses [`FITSIO.jl`](https://github.com/JuliaAstro/FITSIO.jl) to
 read FITS files.
 
 Installation
 ------------
 
-`AstroImage.jl` is available for Julia 1.0 and later versions, and can be
+`AstroImageMat.jl` is available for Julia 1.0 and later versions, and can be
 installed with [Julia built-in package
 manager](https://docs.julialang.org/en/v1/stdlib/Pkg/).
 
@@ -55,44 +55,44 @@ julia> load("file.fits", 3)
 [...]
 ```
 
-## AstroImage type
+## AstroImageMat type
 
-The package provides a new type, `AstroImage` to integrate FITS images with
-Julia packages for plotting and image processing.  The `AstroImage` function has
+The package provides a new type, `AstroImageMat` to integrate FITS images with
+Julia packages for plotting and image processing.  The `AstroImageMat` function has
 the same syntax as `load`.  This command:
 
 ```julia
-julia> img = AstroImage("file.fits")
-AstroImages.AstroImage{UInt16,ColorTypes.Gray,1,Float64}[...]
+julia> img = AstroImageMat("file.fits")
+AstroImages.AstroImageMat{UInt16,ColorTypes.Gray,1,Float64}[...]
 ```
 
 will read the first valid extension from the `file.fits` file and wrap its content in
 a `NTuple{N, Matrix{Gray}}`, that can be easily used with `Images.jl` and related packages.
 
-If you are working in a Jupyter notebook, an `AstroImage` object is
+If you are working in a Jupyter notebook, an `AstroImageMat` object is
 automatically rendered as a PNG image.
 
-`AstroImage` automatically extracts and store `wcs` information of images in a `NTuple{N, WCSTransform}`.
+`AstroImageMat` automatically extracts and store `wcs` information of images in a `NTuple{N, WCSTransform}`.
 
 ## Forming RGB image
-`AstroImage` can automatically construct a RGB image if 3 different colour band data is given.
+`AstroImageMat` can automatically construct a RGB image if 3 different colour band data is given.
 
 ```julia
-julia> img = AstroImage(RGB, ("file1.fits","file2.fits", "file3.fits"))
+julia> img = AstroImageMat(RGB, ("file1.fits","file2.fits", "file3.fits"))
 ```
 Where 1st index of `file1.fits`, `file2.fits`, `file3.fits` contains band data of red, blue and  green channels respectively.
 
-Optionally, `ccd2rgb` method can be used to form a coloured image from 3 bands without creating an `AstroImage`.
+Optionally, `ccd2rgb` method can be used to form a coloured image from 3 bands without creating an `AstroImageMat`.
 
 The formed image can be accessed using `img.property.rgb_image`. 
 `set_brightness!` and `set_contrast!` methods can be used to change brightness and contrast of formed `rgb_image`.
-`add_label!` method can be used to add/store Astronomical labels in an `AstroImage`.
+`add_label!` method can be used to add/store Astronomical labels in an `AstroImageMat`.
 `reset!` method resets `brightness`, `contrast` and `label` fields to defaults and construct a fresh `rgb_image` without any brightness, contrast operations.
 
 
-## Plotting an AstroImage
+## Plotting an AstroImageMat
 
-An `AstroImage` object can be plotted with `Plots.jl` package.  Just use
+An `AstroImageMat` object can be plotted with `Plots.jl` package.  Just use
 
 ```julia
 julia> using Plots

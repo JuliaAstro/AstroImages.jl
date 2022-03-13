@@ -24,9 +24,9 @@ julia> ccd2rgb(r, b, g, shape_out = (1000,1000), stretch = asinh)
 ```
 """
 function ccd2rgb(
-    red::AstroImage,
-    green::AstroImage,
-    blue::AstroImage;
+    red::AstroImageMat,
+    green::AstroImageMat,
+    blue::AstroImageMat;
     stretch = identity,
     shape_out = size(red[1])
 )

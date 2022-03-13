@@ -39,7 +39,7 @@ end
         end
         @test load(fname, 1)[1] == data
         @test load(fname, (1, 1))[1] == (data, data)
-        img = AstroImage(fname)
+        img = AstroImageMat(fname)
         rendered_img = colorview(img)
         @test iszero(minimum(rendered_img))
     end
@@ -57,7 +57,7 @@ end
     @test @inferred(_brightness_contrast(Gray, M, 0,   255)) == Gray.(M)
     @test @inferred(_brightness_contrast(Gray, M, 255,   0)) == Gray.(ones(size(M)))
     @test @inferred(_brightness_contrast(Gray, M,   0,   0)) == Gray.(zeros(size(M)))
-    @test brightness_contrast(AstroImage(M)) isa Widgets.Widget{:manipulate,Any}
+    @test brightness_contrast(AstroImageMat(M)) isa Widgets.Widget{:manipulate,Any}
 end
 
 @testset "default handler" begin
@@ -67,7 +67,7 @@ end
         FITS(fname, "w") do f
             write(f, data)
         end
-        @test_throws ErrorException AstroImage(fname)
+        @test_throws ErrorException AstroImageMat(fname)
     end
 
     @testset "no ImageHDU" begin
@@ -86,23 +86,23 @@ end
 
         FITS(fname, "w") do f
             write(f, indata; varcols=["vcol", "VCOL"])
-            @test_throws MethodError AstroImage(f)
+            @test_throws MethodError AstroImageMat(f)
         end
     end
 
-    @testset "Opening AstroImage in different ways" begin
+    @testset "Opening AstroImageMat in different ways" begin
         data = rand(2,2)
         wcs = WCSTransform(2;)
         FITS(fname, "w") do f
             write(f, data)
         end
         f = FITS(fname)
-        @test AstroImage(fname, 1) isa AstroImage
-        @test AstroImage(Gray ,fname, 1) isa AstroImage
-        @test AstroImage(Gray, f, 1) isa AstroImage
-        @test AstroImage(data, wcs) isa AstroImage
-        @test AstroImage((data,data), (wcs,wcs)) isa AstroImage
-        @test AstroImage(Gray, data, wcs) isa AstroImage
+        @test AstroImageMat(fname, 1) isa AstroImageMat
+        @test AstroImageMat(Gray ,fname, 1) isa AstroImageMat
+        @test AstroImageMat(Gray, f, 1) isa AstroImageMat
+        @test AstroImageMat(data, wcs) isa AstroImageMat
+        @test AstroImageMat((data,data), (wcs,wcs)) isa AstroImageMat
+        @test AstroImageMat(Gray, data, wcs) isa AstroImageMat
         close(f)
     end
 
@@ -125,17 +125,17 @@ end
             write(f, rand(2, 2))
         end
 
-        @test @test_logs (:info, "Image was loaded from HDU 3") AstroImage(fname) isa AstroImage
+        @test @test_logs (:info, "Image was loaded from HDU 3") AstroImageMat(fname) isa AstroImageMat
     end
     rm(fname, force = true)
 end
 
 @testset "Utility functions" begin
-   @test size(AstroImage((rand(10,10), rand(10,10)))) == ((10,10), (10,10))
-   @test length(AstroImage((rand(10,10), rand(10,10)))) == 2
+   @test size(AstroImageMat((rand(10,10), rand(10,10)))) == ((10,10), (10,10))
+   @test length(AstroImageMat((rand(10,10), rand(10,10)))) == 2
 end
 
-@testset "multi image AstroImage" begin
+@testset "multi image AstroImageMat" begin
     data1 = rand(10,10)
     data2 = rand(10,10)
     fname = tempname() * ".fits"
@@ -144,20 +144,20 @@ end
         write(f, data2)
     end
 
-    img = AstroImage(fname, (1,2))
+    img = AstroImageMat(fname, (1,2))
     @test length(img.data) == 2
     @test img.data[1] == data1
     @test img.data[2] == data2
 
     f = FITS(fname)
-    img = AstroImage(Gray, f, (1,2))
+    img = AstroImageMat(Gray, f, (1,2))
     @test length(img.data) == 2
     @test img.data[1] == data1
     @test img.data[2] == data2
     close(f)
 end
 
-@testset "multi wcs AstroImage" begin
+@testset "multi wcs AstroImageMat" begin
     fname = tempname() * ".fits"
     f = FITS(fname, "w")
     inhdr = FITSHeader(["CTYPE1", "CTYPE2", "RADESYS", "FLTKEY", "INTKEY", "BOOLKEY", "STRKEY", "COMMENT",
@@ -178,20 +178,20 @@ end
     write(f, indata; header=inhdr)
     close(f)
 
-    img = AstroImage(fname, (1,2))
+    img = AstroImageMat(fname, (1,2))
     f = FITS(fname)
     @test length(img.wcs) == 2
     @test WCS.to_header(img.wcs[1]) === WCS.to_header(WCS.from_header(read_header(f[1], String))[1])
     @test WCS.to_header(img.wcs[2]) === WCS.to_header(WCS.from_header(read_header(f[2], String))[1])
 
-    img = AstroImage(Gray, f, (1,2))
+    img = AstroImageMat(Gray, f, (1,2))
     @test length(img.wcs) == 2
     @test WCS.to_header(img.wcs[1]) === WCS.to_header(WCS.from_header(read_header(f[1], String))[1])
     @test WCS.to_header(img.wcs[2]) === WCS.to_header(WCS.from_header(read_header(f[2], String))[1])
     close(f)
 end
 
-@testset "multi file AstroImage" begin
+@testset "multi file AstroImageMat" begin
     fname1 = tempname() * ".fits"
     f = FITS(fname1, "w")
     inhdr = FITSHeader(["CTYPE1", "CTYPE2", "RADESYS", "FLTKEY", "INTKEY", "BOOLKEY", "STRKEY", "COMMENT",
@@ -223,7 +223,7 @@ end
     write(f, indata3; header=inhdr)
     close(f)
 
-    img = AstroImage((fname1, fname2, fname3))
+    img = AstroImageMat((fname1, fname2, fname3))
     f1 = FITS(fname1)
     f2 = FITS(fname2)
     f3 = FITS(fname3)
@@ -236,7 +236,7 @@ end
         WCS.to_header(img.wcs[3]) == WCS.to_header(WCS.from_header(read_header(f1[1], String))[1])
     @test eltype(eltype(img.data)) == Int
 
-    img = AstroImage(Gray, (f1, f2, f3), (1,1,1))
+    img = AstroImageMat(Gray, (f1, f2, f3), (1,1,1))
     @test length(img.data) == length(img.wcs) == 3
     @test img.data[1] == indata1
     @test img.data[2] == indata2
