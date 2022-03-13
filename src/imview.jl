@@ -27,9 +27,9 @@ function percent(perc::Number)
     return clims
 end
 
-const _default_cmap  = Ref{Union{Symbol,Nothing}}(:magma)#nothing)
-const _default_clims = Ref{Any}(percent(99.5))
-const _default_stretch  = Ref{Any}(identity)
+const _default_cmap  = Base.RefValue{Union{Symbol,Nothing}}(:magma)#nothing)
+const _default_clims = Base.RefValue{Any}(percent(99.5))
+const _default_stretch  = Base.RefValue{Any}(identity)
 
 """
     set_cmap!(cmap::Symbol)
