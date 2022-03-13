@@ -87,6 +87,12 @@ const AstroImageVec{T,D,R,A} = AstroImage{T,1,D,R,A} where {T,D,R,A}
 const AstroImageMat{T,D,R,A} = AstroImage{T,2,D,R,A} where {T,D,R,A}
 export AstroImage, AstroImageVec, AstroImageMat
 
+# Re-export symbols from DimensionalData that users will need 
+# for indexing.
+export X, Y, Z, Dim
+export At, Near, Between, ..
+export dims, refdims
+
 # Accessors
 """
     Images.arraydata(img::AstroImage)
@@ -100,7 +106,6 @@ function wcs(img::AstroImage)
     end
     return getfield(img, :wcs)[]
 end
-
 
 
 # Implement DimensionalData interface
@@ -274,16 +279,6 @@ end
 AstroImage(data::AbstractArray, wcs::WCSTransform) = AstroImage(data, emptyheader(), wcs)
 
 
-using UUIDs
-# TODO: This should be registered correctly with FileIO
-del_format(format"FITS")
-add_format(format"FITS",
-    # See https://www.loc.gov/preservation/digital/formats/fdd/fdd000317.shtml#sign
-    [0x53,0x49,0x4d,0x50,0x4c,0x45,0x20,0x20,0x3d,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x54],
-    [".fit", ".fits", ".fts", ".FIT", ".FITS", ".FTS"],
-    [:FITSIO => UUID("525bcba6-941b-5504-bd06-fd0dc1a4d2eb")],
-    [:AstroImages => UUID("fe3fc30c-9b16-11e9-1c73-17dabf39f4ad")]
-)
 
 """
     load(fitsfile::String)
@@ -509,6 +504,7 @@ include("showmime.jl")
 
 # include("ccd2rgb.jl")
 # include("patches.jl")
+using UUIDs
 
 function __init__()
 
@@ -521,6 +517,16 @@ function __init__()
             end
         end
     end
+
+    # TODO: This should be registered correctly with FileIO
+    del_format(format"FITS")
+    add_format(format"FITS",
+        # See https://www.loc.gov/preservation/digital/formats/fdd/fdd000317.shtml#sign
+        [0x53,0x49,0x4d,0x50,0x4c,0x45,0x20,0x20,0x3d,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x54],
+        [".fit", ".fits", ".fts", ".FIT", ".FITS", ".FTS"],
+        [:FITSIO => UUID("525bcba6-941b-5504-bd06-fd0dc1a4d2eb")],
+        [:AstroImages => UUID("fe3fc30c-9b16-11e9-1c73-17dabf39f4ad")]
+    )
 end
 
 end # module
