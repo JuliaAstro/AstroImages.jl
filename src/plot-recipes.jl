@@ -58,7 +58,7 @@ save("output.png", v)
 # This recipe promotes AstroImages of numerical data into full color using
 # imview().
 @recipe function f(
-    ::DimensionalData.HeatMapLike,
+    s::DimensionalData.HeatMapLike,
     img::AstroImageMat{T};
     clims=_default_clims[],
     stretch=_default_stretch[],
@@ -102,24 +102,23 @@ save("output.png", v)
         # In astropy, the ticks are actually tilted to reflect this, though in general
         # the transformation from pixel to coordinates can be non-linear and curved.
 
-        # ax = haskey(plotattributes, :axes) ? plotattributes[:axes] : (1,2)
-        # coords = haskey(plotattributes, :coords) ? plotattributes[:coords] : ones(wcs(img).naxis)
         ax = [1,1]
-        dax = [X(),Y()]
-        minx = first(axes(imgv,2))
-        maxx = last(axes(imgv,2))
-        miny = first(axes(imgv,1))
-        maxy = last(axes(imgv,1))
+        minx = first(dims(imgv,2))
+        maxx = last(dims(imgv,2))
+        miny = first(dims(imgv,1))
+        maxy = last(dims(imgv,1))
         extent = (minx, maxx, miny, maxy)
 
-        wcsg = WCSGrid(wcs(imgv), extent, ax, coords)
-        gridspec = wcsgridspec(wcsg)
-        
-        xticks --> (gridspec.tickpos1x, wcslabels(wcs(imgv), ax[1], gridspec.tickpos1w))
-        xguide --> ctype_label(wcs(imgv).ctype[ax[1]], wcs(imgv).radesys)
+        @show extent
 
-        yticks --> (gridspec.tickpos2x, wcslabels(wcs(imgv), ax[2], gridspec.tickpos2w))
-        yguide --> ctype_label(wcs(imgv).ctype[ax[2]], wcs(imgv).radesys)
+        # wcsg = WCSGrid(wcs(imgv), extent, ax, coords)
+        # gridspec = wcsgridspec(wcsg)
+        
+        # xticks --> (gridspec.tickpos1x, wcslabels(wcs(imgv), ax[1], gridspec.tickpos1w))
+        # xguide --> ctype_label(wcs(imgv).ctype[ax[1]], wcs(imgv).radesys)
+
+        # yticks --> (gridspec.tickpos2x, wcslabels(wcs(imgv), ax[2], gridspec.tickpos2w))
+        # yguide --> ctype_label(wcs(imgv).ctype[ax[2]], wcs(imgv).radesys)
 
         # To ensure the physical axis tick labels are correct the axes must be
         # tight to the image
@@ -144,20 +143,31 @@ save("output.png", v)
         # axes(imgv,2) .- 0.5, axes(imgv,1) .- 0.5, 
         # @show size(view(arraydata(imgv), reverse(axes(imgv,1)),:))
         view(arraydata(imgv), reverse(axes(imgv,1)),:)
+        
+        # imgv = permutedims(imgv, DimensionalData.commondims(>:, (DimensionalData.ZDim, DimensionalData.YDim, DimensionalData.XDim, DimensionalData.TimeDim, DimensionalData.Dimension, DimensionalData.Dimension), dims(imgv)))
+        # y, x = dims(imgv)
+        # :xguide --> DimensionalData.label(x)
+        # :yguide --> DimensionalData.label(y)
+        # :zguide --> DimensionalData.label(imgv)
+        # :colorbar_title --> DimensionalData.label(imgv)
+        # DimensionalData._xticks!(plotattributes, s, x)
+        # DimensionalData._yticks!(plotattributes, s, y)
+        # DimensionalData._withaxes(x, y, imgv)
+        # arraydata(imgv)
     end
 
-    # If wcs=true (default) and grid=true (not default), overplot a WCS 
-    # grid.
-    if (!haskey(plotattributes, :wcs) || plotattributes[:wcs]) &&
-        haskey(plotattributes, :xgrid) && plotattributes[:xgrid] &&
-        haskey(plotattributes, :ygrid) && plotattributes[:ygrid]
+    # # If wcs=true (default) and grid=true (not default), overplot a WCS 
+    # # grid.
+    # if (!haskey(plotattributes, :wcs) || plotattributes[:wcs]) &&
+    #     haskey(plotattributes, :xgrid) && plotattributes[:xgrid] &&
+    #     haskey(plotattributes, :ygrid) && plotattributes[:ygrid]
 
-        # Plot the WCSGrid as a second series (actually just lines)
-        @series begin
-            wcsg, gridspec
-        end
-    end
-    return
+    #     # Plot the WCSGrid as a second series (actually just lines)
+    #     @series begin
+    #         wcsg, gridspec
+    #     end
+    # end
+    # return
 end
 
 

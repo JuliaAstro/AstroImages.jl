@@ -513,7 +513,7 @@ emptyheader() = FITSHeader(String[],[],String[])
 include("wcs.jl")
 include("imview.jl")
 include("showmime.jl")
-# include("plot-recipes.jl")
+include("plot-recipes.jl")
 
 # include("ccd2rgb.jl")
 # include("patches.jl")
