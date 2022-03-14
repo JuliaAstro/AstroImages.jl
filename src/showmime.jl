@@ -36,7 +36,7 @@ function Base.show(io::IO, mime::MIME"image/png", img::AstroImageMat{T}; kwargs.
     # now with a warning.
     @warn "Displaying complex image as magnitude and phase (maxlog=1)" maxlog=1
     mag_view = imview(abs.(img))
-    angle_view = imview(angle.(img), clims=(-pi, pi), cmap=:turbo)
+    angle_view = imview(angle.(img), clims=(-pi, pi), cmap=:cyclic_mygbm_30_95_c78_n256_s25)
     show(io, mime, vcat(mag_view,angle_view), kwargs...)
 end
 

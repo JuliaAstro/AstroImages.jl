@@ -237,7 +237,7 @@ Given an AbstractArray, return a blank WCSTransform of the appropriate
 dimensionality.
 """
 emptywcs(data::AbstractArray) = WCSTransform(ndims(data))
-emptywcs(img::AstroImage) = WCSTransform(length(getfield(img, :wcs_axes)))
+emptywcs(img::AstroImage) = WCSTransform(length(dims(img))+length(refdims(img)))
 
 
 
@@ -299,6 +299,61 @@ end
 
 
 # Smart versions of pix_to_world and world_to_pix
+"""
+    pix_to_world(img::AstroImage, pixcoords)
+
+Given an astro image, look up the world coordinates of the pixels given 
+by `pixcoords`. World coordinates are resolved using WCS.jl and a
+WCSTransform calculated from any FITS header present in `img`. If
+no WCS information is in the header, or the axes are all linear, this will
+just return pixel coordinates.
+
+`pixcoords` should be the coordinates in your current selection
+of the image. For example, if you select a slice like this:
+```julia
+julia> cube = load("some-3d-cube.fits")
+julia> slice = cube[10:20, 30:40, 5]
+```
+
+Then to look up the coordinates of the pixel in the bottom left corner of
+`slice`, run:
+```julia
+julia> world_coords = pix_to_world(img, (1, 1))
+[10, 30, 5]
+```
+If WCS information was present in the header of `cube`, then those coordinates
+would be resolved using axis 1, 2, and 3 respectively.
+
+!! Coordinates must be provided in the order of `dims(img)`. If you transpose 
+an image, the order you pass the coordinates should not change.
+"""
+function WCS.pix_to_world(img::AstroImage, pixcoords)
+    if pixcoords isa Array{Float64}
+        pixcoords_prepared = pixcoords
+    else
+        pixcoords_prepared = [Float64(c) for c in pixcoords]
+    end
+    D_out = length(dims(img))+length(refdims(img))
+    if ndims(pixcoords_prepared) > 1
+        out = similar(pixcoords_prepared, Float64, D_out, size(pixcoords_prepared,2)) 
+    else
+        out = similar(pixcoords_prepared, Float64, D_out) 
+    end
+    return WCS.pix_to_world!(out, img, pixcoords_prepared)
+end
+function WCS.pix_to_world(img::AstroImage, pixcoords::NTuple{N,DimensionalData.Dimension}) where N
+    pixcoords_prepared = zeros(Float64, length(pixcoords))
+    for dim in pixcoords
+        j = findfirst(dimnames) do dim_candidate
+            name(dim_candidate) == name(dim)
+        end
+        pixcoords_prepared[j] = dim[]
+    end
+    D_out = length(dims(img))+length(refdims(img))
+    out = zeros(Float64, D_out)
+    return WCS.pix_to_world!(out, img, pixcoords_prepared)
+end
+WCS.pix_to_world(img::AstroImage, pixcoords::DimensionalData.Dimension...) = WCS.pix_to_world(img, pixcoords)
 function WCS.pix_to_world!(world_coords_out, img::AstroImage, pixcoords)
     # Find the coordinates in the parent array.
     # Dimensional data
@@ -307,24 +362,26 @@ function WCS.pix_to_world!(world_coords_out, img::AstroImage, pixcoords)
     parentcoords = getindex.(dims(img), pixcoords_floored) .+ pixcoords_frac
     # WCS.jl is very restrictive. We need to supply a Vector{Float64}
     # as input, not any other kind of collection.
-    if parentcoords isa Array{Float64}
-        parentcoords_prepared = parentcoords
-    else
-        parentcoords_prepared = [Float64(c) for c in parentcoords]
-    end
+    # TODO: avoid allocation in case where refdims=() and pixcoords isa Array{Float64}
+    parentcoords_prepared = zeros(length(dims(img))+length(refdims(img)))
 
     # TODO: we need to pass in ref dims locations as well, and then filter the
     # output to only include the dims of the current slice?
     # out = zeros(Float64, length(dims(img))+length(refdims(img)), size(pixcoords,2))
+    for (i, dim) in enumerate(dims(img))
+        j = findfirst(dimnames) do dim_candidate
+            name(dim_candidate) == name(dim)
+        end
+        parentcoords_prepared[j] = parentcoords[i]
+    end
+    for dim in refdims(img)
+        j = findfirst(dimnames) do dim_candidate
+            name(dim_candidate) == name(dim)
+        end
+        parentcoords_prepared[j] = dim[1]
+    end
+    @show parentcoords_prepared
+
 
     return WCS.pix_to_world!(wcs(img), parentcoords_prepared, world_coords_out)
-end
-function WCS.pix_to_world(img::AstroImage, pixcoords)
-    if pixcoords isa Array{Float64}
-        pixcoords_prepared = pixcoords
-    else
-        pixcoords_prepared = [Float64(c) for c in pixcoords]
-    end
-    out = similar(pixcoords_prepared, Float64)
-    return WCS.pix_to_world!(out, img, pixcoords_prepared)
 end

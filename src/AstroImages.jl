@@ -93,6 +93,19 @@ export X, Y, Z, Dim
 export At, Near, Between, ..
 export dims, refdims
 
+# We need to keep a canonical order of dimensions to match back with WCS
+# dimension numbers. E.g. if we see Z(), we need to know this is WCSTransform(..).ctype[3].
+# Currently this is supported up to dimension 10, but this feels arbitrary.
+# In future, let's just hardcode X,Y,Z and then use the dimension number itself
+# after that.
+const dimnames = (
+    X, Y, Z,
+    (Dim{i} for i in 4:10)...
+)
+
+# Export WCS coordinate conversion functions
+export pix_to_world, pix_to_world!
+
 # Accessors
 """
     Images.arraydata(img::AstroImage)
@@ -161,8 +174,8 @@ for f in [
     :(Base.adjoint),
     :(Base.transpose),
     :(Base.view)
-    # TODO: check view works
 ]
+    # TODO: these functions are copying headers
     @eval ($f)(img::AstroImage) = shareheader(img, $f(arraydata(img)))
 end
 
