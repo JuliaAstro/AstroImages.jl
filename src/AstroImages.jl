@@ -104,7 +104,7 @@ const dimnames = (
 )
 
 # Export WCS coordinate conversion functions
-export pix_to_world, pix_to_world!
+export pix_to_world, pix_to_world!, world_to_pix, world!_to_pix
 
 # Accessors
 """

@@ -354,7 +354,7 @@ function WCS.pix_to_world(img::AstroImage, pixcoords::NTuple{N,DimensionalData.D
     return WCS.pix_to_world!(out, img, pixcoords_prepared)
 end
 WCS.pix_to_world(img::AstroImage, pixcoords::DimensionalData.Dimension...) = WCS.pix_to_world(img, pixcoords)
-function WCS.pix_to_world!(world_coords_out, img::AstroImage, pixcoords)
+function WCS.pix_to_world!(worldcoords_out, img::AstroImage, pixcoords)
     # Find the coordinates in the parent array.
     # Dimensional data
     pixcoords_floored = floor.(Int, pixcoords)
@@ -380,8 +380,56 @@ function WCS.pix_to_world!(world_coords_out, img::AstroImage, pixcoords)
         end
         parentcoords_prepared[j] = dim[1]
     end
-    @show parentcoords_prepared
+
+    return WCS.pix_to_world!(wcs(img), parentcoords_prepared, worldcoords_out)
+end
 
 
-    return WCS.pix_to_world!(wcs(img), parentcoords_prepared, world_coords_out)
+##
+function WCS.world_to_pix(img::AstroImage, worldcoords)
+    if worldcoords isa Array{Float64}
+        worldcoords_prepared = worldcoords
+    else
+        worldcoords_prepared = [Float64(c) for c in worldcoords]
+    end
+    D_out = length(dims(img))+length(refdims(img))
+    if ndims(worldcoords_prepared) > 1
+        out = similar(worldcoords_prepared, Float64, D_out, size(worldcoords_prepared,2)) 
+    else
+        out = similar(worldcoords_prepared, Float64, D_out) 
+    end
+    return WCS.world_to_pix!(out, img, worldcoords_prepared)
+end
+function WCS.world_to_pix!(pixcoords_out, img::AstroImage, worldcoords)
+    # # Find the coordinates in the parent array.
+    # # Dimensional data
+    # worldcoords_floored = floor.(Int, worldcoords)
+    # worldcoords_frac = (worldcoords .- worldcoords_floored) .* step.(dims(img))
+    # parentcoords = getindex.(dims(img), worldcoords_floored) .+ worldcoords_frac
+    # WCS.jl is very restrictive. We need to supply a Vector{Float64}
+    # as input, not any other kind of collection.
+    # TODO: avoid allocation in case where refdims=() and worldcoords isa Array{Float64}
+    worldcoords_prepared = zeros(length(dims(img))+length(refdims(img)))
+
+    # TODO: we need to pass in ref dims locations as well, and then filter the
+    # output to only include the dims of the current slice?
+    # out = zeros(Float64, length(dims(img))+length(refdims(img)), size(worldcoords,2))
+    for (i, dim) in enumerate(dims(img))
+        j = findfirst(dimnames) do dim_candidate
+            name(dim_candidate) == name(dim)
+        end
+        worldcoords_prepared[j] = worldcoords[i]
+    end
+    for dim in refdims(img)
+        j = findfirst(dimnames) do dim_candidate
+            name(dim_candidate) == name(dim)
+        end
+        worldcoords_prepared[j] = dim[1]
+    end
+
+    # This returns the parent pixel coordinates.
+    WCS.world_to_pix!(wcs(img), worldcoords_prepared, pixcoords_out)
+
+    pixcoords_out .-= first.(dims(img))
+    pixcoords_out .= pixcoords_out ./ step.(dims(img)) .+ 1
 end
