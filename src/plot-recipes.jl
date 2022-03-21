@@ -476,8 +476,7 @@ function wcsgridspec(wsg::WCSGrid)
     # If we don't get enough valid tick marks (at least 2) loop again
     # requesting more locations up to three times.
     local tickposv
-    # j = 3
-    j = 1
+    j = 3
     while length(tickpos2x) < 2 && j > 0
         k_min += 2
         k_ideal += 2
@@ -641,8 +640,7 @@ function wcsgridspec(wsg::WCSGrid)
     # If we don't get enough valid tick marks (at least 2) loop again
     # requesting more locations up to three times.
     local tickposu
-    # j = 3
-    j = 1
+    j = 3
     while length(tickpos1x) < 2 && j > 0
         k_min += 2
         k_ideal += 2
