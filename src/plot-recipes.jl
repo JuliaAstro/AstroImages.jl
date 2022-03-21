@@ -48,6 +48,12 @@ using PlotUtils: optimize_ticks
     xgrid --> true
     ygrid --> true
 
+    # Use a default grid color that shows up across more 
+    # color maps
+    if !haskey(plotattributes, :xforeground_color_grid) && !haskey(plotattributes, :yforeground_color_grid)
+        gridcolor --> :lightgray
+    end
+
     # By default, disable the colorbar.
     # Plots.jl does no give us sufficient control to make sure the range and ticks
     # are correct after applying a non-linear stretch.
@@ -110,7 +116,26 @@ using PlotUtils: optimize_ticks
     yflip := false
     xflip := false
 
+    if length(refdims(imgv)) > 0
+        if !haskey(plotattributes, :wcsticks) || plotattributes[:wcsticks]
+            refdimslabel = join(map(refdims(imgv)) do d
+                # match dimension with the wcs axis number
+                i = findfirst(dimnames) do dim_candidate
+                    name(dim_candidate) == name(d)
+                end
+                label = ctype_label(wcs(imgv).ctype[i], wcs(imgv).radesys)
+                value = pix_to_world(imgv, [1,1], all=true)[i]
+                unit = wcs(imgv).cunit[i]
+                return @sprintf("%s = %.5g %s", label, value, unit)
+            end)
+        else
+            refdimslabel = join(map(d->"$(name(d))= $(d[1])", refdims(imgv)))
+        end
+        title --> refdimslabel
+    end
+
     @series begin
+
         view(arraydata(imgv), reverse(axes(imgv,1)),:)
         
         # imgv = permutedims(imgv, DimensionalData.commondims(>:, (DimensionalData.ZDim, DimensionalData.YDim, DimensionalData.XDim, DimensionalData.TimeDim, DimensionalData.Dimension, DimensionalData.Dimension), dims(imgv)))
@@ -476,7 +501,7 @@ function wcsgridspec(wsg::WCSGrid)
     # If we don't get enough valid tick marks (at least 2) loop again
     # requesting more locations up to three times.
     local tickposv
-    j = 3
+    j = 5
     while length(tickpos2x) < 2 && j > 0
         k_min += 2
         k_ideal += 2
@@ -640,7 +665,7 @@ function wcsgridspec(wsg::WCSGrid)
     # If we don't get enough valid tick marks (at least 2) loop again
     # requesting more locations up to three times.
     local tickposu
-    j = 3
+    j = 5
     while length(tickpos1x) < 2 && j > 0
         k_min += 2
         k_ideal += 2
