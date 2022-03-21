@@ -386,21 +386,9 @@ struct History end
 
 
 # We might want getproperty for header access in future.
-function Base.getproperty(img::AstroImage, ::Symbol)
-    error("getproperty reserved for future use.")
-end
-
-# All data indexing is handled by DimensionalData.
-# We add overloads for String and Symbol indexing to 
-# access the FITS header instead.
-# _filter_inds(inds) = tuple((
-#     typeof(ind) <: Union{AbstractRange,Colon} ? (:) : ind
-#     for ind in inds 
-# )...)
-# _ranges(args) = filter(arg -> typeof(arg) <:  Union{AbstractRange,Colon}, args)
-
-# Base.getindex(img::AstroImage{T}, inds...) where {T<:Colorant} = getindex(arraydata(img), inds...)
-# Base.setindex!(img::AstroImage, v, inds...) = setindex!(arraydata(img), v, inds...) # default fallback for operations on Array
+# function Base.getproperty(img::AstroImage, ::Symbol)
+#     error("getproperty reserved for future use.")
+# end
 
 # Getting and setting comments
 Base.getindex(img::AstroImage, inds::AbstractString...) = getindex(header(img), inds...) # accesing header using strings
@@ -536,7 +524,7 @@ function __init__()
     add_format(format"FITS",
         # See https://www.loc.gov/preservation/digital/formats/fdd/fdd000317.shtml#sign
         [0x53,0x49,0x4d,0x50,0x4c,0x45,0x20,0x20,0x3d,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x54],
-        [".fit", ".fits", ".fts", ".FIT", ".FITS", ".FTS"],
+        [".fit", ".fits", ".fts", ".FIT", ".FITS", ".FTS", ".fit", ".fits.gz", ".fts.gz", ".FIT.gz", ".FITS.gz", ".FTS.gz"],
         [:FITSIO => UUID("525bcba6-941b-5504-bd06-fd0dc1a4d2eb")],
         [:AstroImages => UUID("fe3fc30c-9b16-11e9-1c73-17dabf39f4ad")]
     )

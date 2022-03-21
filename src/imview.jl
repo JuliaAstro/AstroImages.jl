@@ -133,13 +133,15 @@ function imview(
     # TODO: catch this in `show` instead of here.
     isempt = isempty(img)
     if isempt
-        return
+        @warn "imview called with empty argument"
+        return fill(RGBA{N0f8}(0,0,0,0), 0,0)
     end
     # Users will occaisionally pass in data that is 0D, filled with NaN, or filled with missing.
     # We still need to do something reasonable in those caes.
     nonempty = any(x-> !ismissing(x) && isfinite(x), img)
     if !nonempty
-        return
+        @warn "imview called with all missing or non-finite values"
+        return map(px->RGBA{N0f8}(0,0,0,0), img)
     end
 
     # TODO: Images.jl has logic to downsize huge images before displaying them.
