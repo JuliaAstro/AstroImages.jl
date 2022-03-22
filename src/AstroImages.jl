@@ -237,10 +237,10 @@ end
 
 
 """
-    AstroImage([color=Gray,] data::Matrix{Real})
-    AstroImage(color::Type{<:Color}, data::NTuple{N, Matrix{T}}) where {T<:Real, N}
+    AstroImage(img::AstroImage)
 
-Construct an `AstroImage` object of `data`, using `color` as color map, `Gray` by default.
+Returns its argument. Useful to ensure an argument is converted to an
+AstroImage before proceeding.
 """
 AstroImage(img::AstroImage) = img
 
@@ -316,6 +316,8 @@ returned as AstroImage, and TableHDUs are returned as column tables.
 
 Read and return the data from the HDUs given by `exts`. ImageHDUs are
 returned as AstroImage, and TableHDUs are returned as column tables.
+
+!! Currently comments on TableHDUs are not supported and are ignored.
 """
 function fileio_load(f::File{format"FITS"}, ext::Union{Int,Nothing}=nothing) where N
     return FITS(f.filename, "r") do fits
@@ -368,6 +370,41 @@ function indexer(fits::FITS)
     return ext
 end
 indexer(fits::NTuple{N, FITS}) where {N} = ntuple(i -> indexer(fits[i]), N)
+
+
+# Fallback for saving arbitrary arrays
+function fileio_save(f::File{format"FITS"}, args...)
+    FITS(f.filename, "w") do fits
+        for arg in args
+            writearg(fits, arg)
+        end
+    end
+end
+writearg(fits, img::AstroImage) = write(fits, arraydata(img), header=header(img))
+# Fallback for writing plain arrays
+writearg(fits, arr::AbstractArray) = write(fits, arr)
+# For table compatible data.
+# This allows users to round trip: dat = load("abc.fits", :); write("abc", dat) 
+# when it contains FITS tables.
+function writearg(fits, table)
+    if !Tables.istable(table)
+        error("Cannot save argument to FITS file. Value is not an AbstractArray or table.")
+    end
+    # FITSIO has fairly restrictive input types for writing tables (assertions for documentation only)
+    colname_strings = string.(collect(Tables.columnnames(table)))::Vector{String}
+    columns = collect(Tables.columns(table))::Vector
+    write(
+        fits,
+        colname_strings,
+        columns;
+        hdutype=TableHDU,
+        # TODO: In future, we want to be able to access and round-trip coments
+        # on table HDUs
+        # header=nothing
+    )
+end
+
+
 export load, save
 
 
@@ -412,7 +449,7 @@ end
 # Adding new comment and history entries
 function Base.push!(img::AstroImage, ::Type{Comment}, history::AbstractString)
     hdr = header(img)
-    push!(hdr.keys, "HISTORY")
+    push!(hdr.keys, "COMMENT")
     push!(hdr.values, nothing)
     push!(hdr.comments, history)
 end
@@ -527,20 +564,21 @@ end # module
 
 #=
 TODO:
+
+
 * properties?
 * contrast/bias?
 * interactive (Jupyter)
 * Plots & Makie recipes
-* Plots: vertical/horizotat axes from m106
-* indexing
-* recenter that updates indexes and CRPIX
-* cubes
 * RGB and other composites
 * tests
-
 * histogram equaization
 
-* fileio
+* FileIO Registration. 
+* fits.gz support
+* Table wrapper for TableHDUs that preserves comment access, units.
+* Reading/writing subbarrays
+* Specifying what kind of table, ASCII or TableHDU when wriring.
 
 * FITSIO PR/issue (performance)
 * PlotUtils PR/issue (zscale with iteratble)
