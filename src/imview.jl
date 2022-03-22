@@ -130,11 +130,10 @@ function imview(
     cmap=_default_cmap[],
 ) where {T}
 
-    # TODO: catch this in `show` instead of here.
     isempt = isempty(img)
     if isempt
         @warn "imview called with empty argument"
-        return fill(RGBA{N0f8}(0,0,0,0), 0,0)
+        return fill(RGBA{N0f8}(0,0,0,0), 1,1)
     end
     # Users will occaisionally pass in data that is 0D, filled with NaN, or filled with missing.
     # We still need to do something reasonable in those caes.

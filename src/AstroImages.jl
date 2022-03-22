@@ -334,29 +334,18 @@ function fileio_load(f::File{format"FITS"}, exts::Colon) where N
         end
     end
 end
-_loadhdu(hdu::FITSIO.ImageHDU) = AstroImage(hdu)
+
 _loadhdu(hdu::FITSIO.TableHDU) = Tables.columntable(hdu)
-export load, save
-
-# function fileio_load(f::File{format"FITS"}, ext::NTuple{N,Int}) where {N}
-#     fits = FITS(f.filename)
-#     out = _load(fits, ext)
-#     header = _header(fits, ext)
-#     close(fits)
-#     return out, header
-# end
-
-# function fileio_load(f::NTuple{N, String}) where {N}
-#     fits = ntuple(i-> FITS(f[i]), N)
-#     ext = indexer(fits)
-#     out = _load(fits, ext)
-#     header = _header(fits, ext)
-#     for i in 1:N
-#         close(fits[i])
-#     end
-#     return out, header
-# end
-
+function _loadhdu(hdu::FITSIO.ImageHDU)
+    if size(hdu) != ()
+        return AstroImage(hdu)
+    else
+        # Sometimes files have an empty data HDU that shows up as an image HDU but has headers.
+        # Fallback to creating an empty AstroImage with those headers.
+        emptydata = fill(0, (0,0))
+        return AstroImage(emptydata, (), (), read_header(hdu), Ref(emptywcs(emptydata)), Ref(false))
+    end
+end
 function indexer(fits::FITS)
     ext = 0
     for (i, hdu) in enumerate(fits)
@@ -373,6 +362,7 @@ function indexer(fits::FITS)
     return ext
 end
 indexer(fits::NTuple{N, FITS}) where {N} = ntuple(i -> indexer(fits[i]), N)
+export load, save
 
 
 
