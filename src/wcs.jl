@@ -267,17 +267,23 @@ function wcsfromheader(img::AstroImage; relax=WCS.HDR_ALL)
     # We only need to stringify WCS header. This might just be 4-10 header keywords
     # out of thousands.
     local wcsout
-    # Load the header without ignoring rejected to get error messages
+
+    io = IOBuffer()
+    serializeheader(io, header(img))
+    hdrstr = String(take!(io))
+
+
+    # Load the headers without ignoring rejected to get error messages
     try
         wcsout = WCS.from_header(
-            string(header(img));
+            hdrstr;
             ignore_rejected=false,
             relax
         )
     catch err
         # Load them again ignoring error messages
         wcsout = WCS.from_header(
-            string(header(img));
+            hdrstr;
             ignore_rejected=true,
             relax
         )
@@ -295,7 +301,6 @@ function wcsfromheader(img::AstroImage; relax=WCS.HDR_ALL)
         return first(wcsout)
     end
 end
-# TODO: wcsfromheader(::FITSHeader,)
 
 
 # Smart versions of pix_to_world and world_to_pix
@@ -498,5 +503,54 @@ end
 function dimindex(imgdims, ind::Int)
     findfirst(dimnames) do dim_candidate
         name(dim_candidate) == name(imgdims[ind])
+    end
+end
+
+
+
+
+## For now, we use a copied version of FITSIO's show method for FITSHeader.
+# We have to be careful to format things in a way WCSLib will like.
+# In particular, we can't put newlines after each 80 characters.
+# FITSIO has to do this so users can see the header.
+
+# functions for displaying header values in show(io, header)
+hdrval_repr(v::Bool) = v ? "T" : "F"
+hdrval_repr(v::String) = @sprintf "'%-8s'" v
+hdrval_repr(v::Union{AbstractFloat, Integer}) = string(v)
+
+function serializeheader(io, hdr::FITSHeader)
+    n = length(hdr)
+    for i=1:n
+        if hdr.keys[i] == "COMMENT" || hdr.keys[i] == "HISTORY"
+                lastc = min(72, lastindex(hdr.comments[i]))
+                @printf io "%s %s" hdr.keys[i] hdr.comments[i][1:lastc]
+                print(io, " "^(72-lastc))
+        else
+            @printf io "%-8s" hdr.keys[i]
+            if hdr.values[i] === nothing
+                print(io, "                      ")
+                rc = 50  # remaining characters on line
+            elseif hdr.values[i] isa String
+                val = hdrval_repr(hdr.values[i])
+                @printf io "= %-20s" val
+                rc = length(val) <= 20 ? 50 : 70 - length(val)
+            else
+                val = hdrval_repr(hdr.values[i])
+                @printf io "= %20s" val
+                rc = length(val) <= 20 ? 50 : 70 - length(val)
+            end
+            if length(hdr.comments[i]) > 0
+                lastc = min(rc-3, lastindex(hdr.comments[i]))
+                @printf io " / %s" hdr.comments[i][1:lastc]
+                rc -= lastc + 3
+            end
+            print(io, " "^rc)
+        end
+        if i == n
+            print(io, "\nEND"*(" "^77))
+        else  
+            print(io)
+        end
     end
 end

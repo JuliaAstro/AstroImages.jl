@@ -19,9 +19,6 @@ export load,
     WCSGrid,
     ccd2rgb,
     composechannels,
-    set_brightness!,
-    set_contrast!,
-    add_label!,
     reset!,
     zscale,
     percent,
@@ -32,11 +29,10 @@ export load,
     asinhstretch,
     sinhstretch,
     powerdiststretch,
-    clampednormedview,
     imview,
     clampednormedview,
-    wcsticks,
-    wcsgridlines,
+    # wcsticks,
+    # wcsgridlines,
     arraydata,
     header,
     wcs,
@@ -481,15 +477,6 @@ Base.convert(::Type{AstroImage{T}}, A::AbstractArray) where {T} = AstroImage(con
 
 # TODO: share headers in View. Needs support from DimensionalData.
 
-# "`A = find_img(As)` returns the first AstroImage among the arguments."
-# find_img(bc::Base.Broadcast.Broadcasted) = find_img(bc.args)
-# find_img(args::Tuple) = find_img(find_img(args[1]), Base.tail(args))
-# find_img(x) = x
-# find_img(::Tuple{}) = nothing
-# find_img(a::AstroImage, rest) = a
-# find_img(::Any, rest) = find_img(rest)
-
-
 """
     emptyheader()
 
@@ -524,10 +511,19 @@ function __init__()
     add_format(format"FITS",
         # See https://www.loc.gov/preservation/digital/formats/fdd/fdd000317.shtml#sign
         [0x53,0x49,0x4d,0x50,0x4c,0x45,0x20,0x20,0x3d,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x54],
-        [".fit", ".fits", ".fts", ".FIT", ".FITS", ".FTS", ".fit", ".fits.gz", ".fts.gz", ".FIT.gz", ".FITS.gz", ".FTS.gz"],
+        [".fit", ".fits", ".fts", ".FIT", ".FITS", ".FTS", ".fit",],
         [:FITSIO => UUID("525bcba6-941b-5504-bd06-fd0dc1a4d2eb")],
         [:AstroImages => UUID("fe3fc30c-9b16-11e9-1c73-17dabf39f4ad")]
     )
+    # TODO: How to add FileIO support for fits.gz files? We can open these
+    # with AstroImage("...fits.gz") but not load, since the .gz takes precedence.
+    # add_format(format"FITS.GZ",
+    #     [0x1f, 0x8b, 0x08],
+    #     [".fits.gz", ".fts.gz", ".FIT.gz", ".FITS.gz", ".FTS.gz"],
+    #     [:FITSIO => UUID("525bcba6-941b-5504-bd06-fd0dc1a4d2eb")],
+    #     [:AstroImages => UUID("fe3fc30c-9b16-11e9-1c73-17dabf39f4ad")]
+    # )
+    
 end
 
 end # module
