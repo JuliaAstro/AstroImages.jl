@@ -1,9 +1,3 @@
-using RecipesBase
-using AstroAngles
-using Printf
-using PlotUtils: optimize_ticks
-
-
 @userplot ImPlot
 @recipe function f(h::ImPlot)
     if length(h.args) != 1 || !(typeof(h.args[1]) <: AbstractArray)
@@ -34,8 +28,6 @@ using PlotUtils: optimize_ticks
     stretch --> _default_stretch[]
     cmap    --> _default_cmap[]
 
-    # We currently use the AstroImages defaults. If unset, we could
-    # instead follow the plot theme.
     if T <: Colorant
         imgv = img
     else

@@ -2,7 +2,7 @@ module AstroImages
 
 using FITSIO
 using FileIO
-using Images
+using Images # TODO: maybe this can be ImagesCore
 using Interact
 using Reproject
 using WCS
@@ -12,6 +12,12 @@ using ColorSchemes
 using PlotUtils: zscale
 using DimensionalData
 using Tables
+using RecipesBase
+using AstroAngles
+using Printf
+using PlotUtils: optimize_ticks
+
+
 
 export load,
     save,
