@@ -39,10 +39,7 @@ Alter the default color map used to display images when using
 `imview` or displaying an AstroImageMat.
 """
 function set_cmap!(cmap)
-    if cmap ∉ keys(ColorSchemes.colorschemes)
-        throw(KeyError("$cmap not found in ColorSchemes.colorschemes"))
-    end
-    _default_cmap[] = cmap
+    _default_cmap[] = _lookup_cmap(cmap)
 end
 """
     set_clims!(clims::Tuple)
@@ -70,6 +67,13 @@ end
 Helper to iterate over data skipping missing and non-finite values.
 """ 
 skipmissingnan(itr) = Iterators.filter(el->!ismissing(el) && isfinite(el), itr)
+
+
+function _lookup_cmap(cmap)
+    if cmap ∉ keys(ColorSchemes.colorschemes)
+        error("$cmap not found in ColorSchemes.colorschemes. See: https://juliagraphics.github.io/ColorSchemes.jl/stable/catalogue/")
+    end
+end
 
 """
     imview(img; clims=extrema, stretch=identity, cmap=nothing)
@@ -159,7 +163,7 @@ function imview(
         imgmin, imgmax = clims(skipmissingnan(img))
     end
     normed = clampednormedview(img, (imgmin, imgmax))
-    return _imview(img, normed, stretch, cmap)
+    return _imview(img, normed, stretch, _lookup_cmap(cmap))
 end
 function _imview(img, normed::AbstractArray{T}, stretch, cmap) where T
     

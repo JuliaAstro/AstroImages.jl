@@ -523,7 +523,7 @@ include("imview.jl")
 include("showmime.jl")
 include("plot-recipes.jl")
 
-# include("ccd2rgb.jl")
+include("ccd2rgb.jl")
 # include("patches.jl")
 using UUIDs
 
