@@ -181,9 +181,9 @@ vcat(
 )
 ```
 """
-function imview(img::AbstractArray{T}; kwargs...) where {T<:Complex}
+function imview(img::AbstractMatrix{T}; kwargs...) where {T<:Complex}
     
-    mag_view = imview(abs.(img), kwargs...)
+    mag_view = imview(abs.(img); kwargs...)
     angle_view = imview(angle.(img), clims=(-pi, pi), cmap=:cyclic_mygbm_30_95_c78_n256_s25)
     vcat(mag_view,angle_view)
 end
