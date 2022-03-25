@@ -2,7 +2,11 @@ module AstroImages
 
 using FITSIO
 using FileIO
-using Images # TODO: maybe this can be ImagesCore
+# Rather than pulling in all of Images.jl, just grab the packages
+# we need to extend to our basic functionality.
+# We also need ImageShow so that user's images appear automatically.
+using ImageCore, ImageShow, ImageMetadata, ImageAxes, ImageTransformations # TODO: maybe this can be ImagesCore
+
 using Reproject
 using WCS
 using Statistics
@@ -109,9 +113,9 @@ export pix_to_world, pix_to_world!, world_to_pix, world!_to_pix
 
 # Accessors
 """
-    Images.arraydata(img::AstroImage)
+    ImageMetadata.arraydata(img::AstroImage)
 """
-Images.arraydata(img::AstroImage) = getfield(img, :data)
+ImageMetadata.arraydata(img::AstroImage) = getfield(img, :data)
 header(img::AstroImage) = getfield(img, :header)
 function wcs(img::AstroImage)
     if getfield(img, :wcs_stale)[]
@@ -489,8 +493,8 @@ maybe_copyheader(::AbstractArray, data) = data
 # Restrict downsizes images by roughly a factor of two.
 # We want to keep the wrapper but downsize the underlying array
 # TODO: correct dimensions after restrict.
-Images.restrict(img::AstroImage, ::Tuple{}) = img
-Images.restrict(img::AstroImage, region::Dims) = shareheader(img, restrict(arraydata(img), region))
+ImageTransformations.restrict(img::AstroImage, ::Tuple{}) = img
+ImageTransformations.restrict(img::AstroImage, region::Dims) = shareheader(img, restrict(arraydata(img), region))
 
 # TODO: use WCS info
 # ImageCore.pixelspacing(img::ImageMeta) = pixelspacing(arraydata(img))

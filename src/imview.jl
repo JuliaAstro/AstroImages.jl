@@ -166,6 +166,28 @@ function imview(
     normed = clampednormedview(img, (imgmin, imgmax))
     return _imview(img, normed, stretch, _lookup_cmap(cmap))
 end
+# Special handling for complex images
+"""
+    imview(img::AbstractArray{<:Complex}; ...)
+
+When applied to an image with complex values, display the magnitude
+of the pixels using `imview` and display the phase angle as a panel below
+using a cyclical color map.
+For more customatization, you can create a view like this yourself:
+```julia
+vcat(
+    imview(abs.(img)),
+    imview(angle.(img)),
+)
+```
+"""
+function imview(img::AbstractArray{T}; kwargs...) where {T<:Complex}
+    
+    mag_view = imview(abs.(img), kwargs...)
+    angle_view = imview(angle.(img), clims=(-pi, pi), cmap=:cyclic_mygbm_30_95_c78_n256_s25)
+    vcat(mag_view,angle_view)
+end
+
 function _imview(img, normed::AbstractArray{T}, stretch, cmap) where T
     
     if T <: Union{Missing,<:Number}
@@ -237,8 +259,8 @@ end
 # TODO: is this the correct function to extend?
 # Instead of using a datatype like N0f32 to interpret integers as fixed point values in [0,1],
 # we use a mappedarray to map the native data range (regardless of type) to [0,1]
-Images.normedview(img::AstroImageMat{<:FixedPoint}) = img
-function Images.normedview(img::AstroImageMat{T}) where T
+ImageCore.normedview(img::AstroImageMat{<:FixedPoint}) = img
+function ImageCore.normedview(img::AstroImageMat{T}) where T
     imgmin, imgmax = extrema(skipmissingnan(img))
     Δ = abs(imgmax - imgmin)
     normeddata = mappedarray(

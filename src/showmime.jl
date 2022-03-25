@@ -15,18 +15,18 @@ Base.show(io::IO, mime::MIME"image/png", img::AstroImageMat{T}; kwargs...) where
     show(io, mime, arraydata(img), kwargs...)
 
 # Otherwise, call imview with the default settings.
-Base.show(io::IO, mime::MIME"image/png", img::AstroImageMat{T}; kwargs...) where {T<:Union{Real,Missing}} =
+Base.show(io::IO, mime::MIME"image/png", img::AstroImageMat{T}; kwargs...) where {T<:Union{Number,Missing}} =
     show(io, mime, imview(img), kwargs...)
 
-# Special handling for complex images
-function Base.show(io::IO, mime::MIME"image/png", img::AstroImageMat{T}; kwargs...) where {T<:Complex}
-    # Not sure we really want to support this functionality, but we will allow it for
-    # now with a warning.
-    @warn "Displaying complex image as magnitude and phase (maxlog=1)" maxlog=1
-    mag_view = imview(abs.(img))
-    angle_view = imview(angle.(img), clims=(-pi, pi), cmap=:cyclic_mygbm_30_95_c78_n256_s25)
-    show(io, mime, vcat(mag_view,angle_view), kwargs...)
-end
+# # Special handling for complex images
+# function Base.show(io::IO, mime::MIME"image/png", img::AstroImageMat{T}; kwargs...) where {T<:Complex}
+#     # Not sure we really want to support this functionality, but we will allow it for
+#     # now with a warning.
+#     @warn "Displaying complex image as magnitude and phase (maxlog=1)" maxlog=1
+#     mag_view = imview(abs.(img))
+#     angle_view = imview(angle.(img), clims=(-pi, pi), cmap=:cyclic_mygbm_30_95_c78_n256_s25)
+#     show(io, mime, vcat(mag_view,angle_view), kwargs...)
+# end
 
 # const _autoshow = Base.RefValue{Bool}(true)
 # """
@@ -56,7 +56,7 @@ function render(img::AstroImageMat{T,N}) where {T,N}
     f = scaleminmax(_float(imgmin), _float(max(imgmax, imgmax + one(T))))
     return colorview(Gray, f.(_float.(img.data)))
 end
-Images.colorview(img::AstroImageMat) = render(img)
+ImageCore.colorview(img::AstroImageMat) = render(img)
 
 
 # using Base64
