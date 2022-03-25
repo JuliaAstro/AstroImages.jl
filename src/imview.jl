@@ -73,6 +73,7 @@ function _lookup_cmap(cmap)
     if cmap ∉ keys(ColorSchemes.colorschemes)
         error("$cmap not found in ColorSchemes.colorschemes. See: https://juliagraphics.github.io/ColorSchemes.jl/stable/catalogue/")
     end
+    return cmap
 end
 
 """
