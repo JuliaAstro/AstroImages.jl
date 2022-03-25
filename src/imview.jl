@@ -75,6 +75,7 @@ function _lookup_cmap(cmap)
     end
     return cmap
 end
+_lookup_cmap(cmap::Nothing) = nothing
 
 """
     imview(img; clims=extrema, stretch=identity, cmap=nothing)
