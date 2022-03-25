@@ -3,7 +3,6 @@ module AstroImages
 using FITSIO
 using FileIO
 using Images # TODO: maybe this can be ImagesCore
-using Interact
 using Reproject
 using WCS
 using Statistics

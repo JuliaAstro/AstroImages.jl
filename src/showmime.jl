@@ -59,57 +59,57 @@ end
 Images.colorview(img::AstroImageMat) = render(img)
 
 
-using Base64
+# using Base64
 
 
-"""
-    interact_cube(cube::AbstractArray, initial_slices=)
-If running in an interactive environment like IJulia, allow scrolling through
-the slices of a cube interactively using `imview`. 
-Accepts the same keyword arguments as `imview`, with one exception. Here,
-if `clims` is a function, it is applied once to all the finite pixels in the cube
-to determine the color limits rather than just the currently displayed slice.
-"""
-function interact_cube(
-    cube::Union{AbstractArray{T,3},AbstractArray{T,4},AbstractArray{T,5}},
-    initial_slices=first.(axes.(Ref(cube),3:ndims(cube)));
-    clims=_default_clims[],
-    imview_kwargs...
-) where T
-    # Create a single view that updates
-    buf = cube[:,:,initial_slices...]
+# """
+#     interact_cube(cube::AbstractArray, initial_slices=)
+# If running in an interactive environment like IJulia, allow scrolling through
+# the slices of a cube interactively using `imview`. 
+# Accepts the same keyword arguments as `imview`, with one exception. Here,
+# if `clims` is a function, it is applied once to all the finite pixels in the cube
+# to determine the color limits rather than just the currently displayed slice.
+# """
+# function interact_cube(
+#     cube::Union{AbstractArray{T,3},AbstractArray{T,4},AbstractArray{T,5}},
+#     initial_slices=first.(axes.(Ref(cube),3:ndims(cube)));
+#     clims=_default_clims[],
+#     imview_kwargs...
+# ) where T
+#     # Create a single view that updates
+#     buf = cube[:,:,initial_slices...]
 
-    # If not provided, calculate clims by applying to the whole cube
-    # rather than just one slice
-    # Users can pass clims as an array or tuple containing the minimum and maximum values
-    if typeof(clims) <: AbstractArray || typeof(clims) <: Tuple
-        if length(clims) != 2
-            error("clims must have exactly two values if provided.")
-        end
-        clims = (first(clims), last(clims))
-    # Or as a callable that computes them given an iterator
-    else
-        clims = clims(skipmissingnan(cube))
-    end
+#     # If not provided, calculate clims by applying to the whole cube
+#     # rather than just one slice
+#     # Users can pass clims as an array or tuple containing the minimum and maximum values
+#     if typeof(clims) <: AbstractArray || typeof(clims) <: Tuple
+#         if length(clims) != 2
+#             error("clims must have exactly two values if provided.")
+#         end
+#         clims = (first(clims), last(clims))
+#     # Or as a callable that computes them given an iterator
+#     else
+#         clims = clims(skipmissingnan(cube))
+#     end
 
-    v = imview(buf; clims, imview_kwargs...)
+#     v = imview(buf; clims, imview_kwargs...)
 
-    cubesliders = map(3:ndims(cube)) do ax_i
-        ax = axes(cube, ax_i)
-        return Interact.slider(ax, initial_slices[ax_i-2], label=string(dimnames[ax_i]));
-    end
+#     cubesliders = map(3:ndims(cube)) do ax_i
+#         ax = axes(cube, ax_i)
+#         return Interact.slider(ax, initial_slices[ax_i-2], label=string(dimnames[ax_i]));
+#     end
 
-    function viz(sliderindexes)
-        buf .= view(cube,:,:,sliderindexes...)
-        b64 = Base64.base64encode() do io
-            show(io, MIME("image/png"), v)
-        end
-        HTML("<div style='width:100vw; height: calc(100vh - 80px); image-rendering: pixelated; background-position: center; background-repeat: no-repeat; background-size: contain; background-image: url(\"data:image/png;base64,$(b64)\");' width=400/>")
-    end
+#     function viz(sliderindexes)
+#         buf .= view(cube,:,:,sliderindexes...)
+#         b64 = Base64.base64encode() do io
+#             show(io, MIME("image/png"), v)
+#         end
+#         HTML("<div style='width:100vw; height: calc(100vh - 80px); image-rendering: pixelated; background-position: center; background-repeat: no-repeat; background-size: contain; background-image: url(\"data:image/png;base64,$(b64)\");' width=400/>")
+#     end
 
-    return vbox(cubesliders..., map(viz, cubesliders...))
-end
+#     return vbox(cubesliders..., map(viz, cubesliders...))
+# end
 
-# This is used in Jupyter notebooks
-Base.show(io::IO, mime::MIME"text/html", cube::Union{AstroImage{T,3},AstroImage{T,4},AstroImage{T,5}}; kwargs...) where T =
-    show(io, mime, interact_cube(cube), kwargs...)
+# # This is used in Jupyter notebooks
+# Base.show(io::IO, mime::MIME"text/html", cube::Union{AstroImage{T,3},AstroImage{T,4},AstroImage{T,5}}; kwargs...) where T =
+#     show(io, mime, interact_cube(cube), kwargs...)
