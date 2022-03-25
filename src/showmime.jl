@@ -15,7 +15,7 @@ Base.show(io::IO, mime::MIME"image/png", img::AstroImageMat{T}; kwargs...) where
     show(io, mime, arraydata(img), kwargs...)
 
 # Otherwise, call imview with the default settings.
-Base.show(io::IO, mime::MIME"image/png", img::AstroImageMat{T}; kwargs...) where {T<:Real} =
+Base.show(io::IO, mime::MIME"image/png", img::AstroImageMat{T}; kwargs...) where {T<:Union{Real,Missing}} =
     show(io, mime, imview(img), kwargs...)
 
 # Special handling for complex images
