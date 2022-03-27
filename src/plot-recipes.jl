@@ -41,6 +41,7 @@
         cmap    = plotattributes[:cmap]
         if T <: Complex
             img = abs.(data)
+            img["UNIT"] = "magnitude"
         else
             img = data
         end
@@ -163,6 +164,7 @@
     # TODO: refactor to reduce duplication
     if T <: Complex
         img = angle.(data)
+        img["UNIT"] = "angle (rad)"
         imgv = imview(img, clims=(-1pi, 1pi),stretch=identity, cmap=:cyclic_mygbm_30_95_c78_n256_s25)
         layout := @layout [
               imgmag{0.95w, 0.5h}  colorbar{0.5h}
