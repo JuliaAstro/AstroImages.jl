@@ -1,24 +1,5 @@
 
-#=
-ImageContrastAdjustment
-=#
-function Images.ImageContrastAdjustment.adjust_histogram(::Type{T},
-    img::AstroImageMat,
-    f::Images.ImageContrastAdjustment.AbstractHistogramAdjustmentAlgorithm,
-    args...; kwargs...) where T
-    out = similar(img, axes(img))
-    adjust_histogram!(out, img, f, args...; kwargs...)
-    return out
-end
 
-
-#=
-ImageTransformations
-=#
-# function warp(img::AstroImageMat, args...; kwargs...)
-#     out = warp(arraydatat(img), args...; kwargs...)
-#     return copyheaders(img, out)
-# end
 
 #=
 Additional methods to allow Reproject to work.

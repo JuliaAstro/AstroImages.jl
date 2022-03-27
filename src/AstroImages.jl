@@ -25,6 +25,8 @@ using PlotUtils: optimize_ticks
 export load,
     save,
     AstroImage,
+    AstroImageVec,
+    AstroImageMat,
     WCSGrid,
     ccd2rgb,
     composechannels,
@@ -46,7 +48,13 @@ export load,
     header,
     wcs,
     Comment,
-    History
+    History,
+    pix_to_world,
+    pix_to_world!,
+    world_to_pix,
+    world_to_pix!,
+    x
+
 
 
 # Images.jl expects data to be either a float or a fixed-point number.  Here we define some
@@ -90,7 +98,6 @@ end
 # Provide type aliases for 1D and 2D versions of our data structure.
 const AstroImageVec{T,D,R,A} = AstroImage{T,1,D,R,A} where {T,D,R,A}
 const AstroImageMat{T,D,R,A} = AstroImage{T,2,D,R,A} where {T,D,R,A}
-export AstroImage, AstroImageVec, AstroImageMat
 
 # Re-export symbols from DimensionalData that users will need 
 # for indexing.
@@ -108,8 +115,6 @@ const dimnames = (
     (Dim{i} for i in 4:10)...
 )
 
-# Export WCS coordinate conversion functions
-export pix_to_world, pix_to_world!, world_to_pix, world!_to_pix
 
 # Accessors
 """
@@ -150,18 +155,6 @@ DimensionalData.metadata(::AstroImage) = DimensionalData.Dimensions.LookupArrays
 )
     return AstroImage(data, dims, refdims, header, Ref(wcs), Ref(wcs_stale))
 end
-# Stub for when a name or metadata are passed along (we don't implement that functionality)
-# @inline function DimensionalData.rebuild(
-#     img::AstroImage,
-#     data,
-#     dims::Tuple,
-#     refdims::Tuple,
-#     name::Union{Symbol,DimensionalData.AbstractName},
-#     metadata::Union{DimensionalData.LookupArrays.AbstractMetadata,Nothing},
-# )
-#     # name and metadata are dropped
-#     return DimensionalData.rebuild(img, data, dims, refdims, name, metadata)
-# end
 @inline DimensionalData.rebuildsliced(
     f::Function,
     img::AstroImage,
@@ -298,117 +291,7 @@ AstroImage(data::AbstractArray, wcs::WCSTransform) = AstroImage(data, emptyheade
 
 
 
-"""
-    load(fitsfile::String)
 
-Read and return the data from the first ImageHDU in a FITS file
-as an AstroImage. If no ImageHDUs are present, an error is returned.
-
-    load(fitsfile::String, ext::Int)
-
-Read and return the data from the HDU `ext`. If it is an ImageHDU,
-as AstroImage is returned. If it is a TableHDU, a plain Julia
-column table is returned.
-
-    load(fitsfile::String, :)
-
-Read and return the data from each HDU in an FITS file. ImageHDUs are
-returned as AstroImage, and TableHDUs are returned as column tables.
-
-    load(fitsfile::String, exts::Union{NTuple, AbstractArray})
-
-Read and return the data from the HDUs given by `exts`. ImageHDUs are
-returned as AstroImage, and TableHDUs are returned as column tables.
-
-!! Currently comments on TableHDUs are not supported and are ignored.
-"""
-function fileio_load(f::File{format"FITS"}, ext::Union{Int,Nothing}=nothing) where N
-    return FITS(f.filename, "r") do fits
-        if isnothing(ext)
-            ext = indexer(fits)
-        end
-        _loadhdu(fits[ext])
-    end
-end
-function fileio_load(f::File{format"FITS"}, exts::Union{NTuple{N, <:Integer},AbstractArray{<:Integer}}) where N
-    return FITS(f.filename, "r") do fits
-        map(exts) do ext
-            _loadhdu(fits[ext])
-        end
-    end
-end
-function fileio_load(f::File{format"FITS"}, exts::Colon) where N
-    return FITS(f.filename, "r") do fits
-        exts_resolved = 1:length(fits)
-        map(exts_resolved) do ext
-            _loadhdu(fits[ext])
-        end
-    end
-end
-
-_loadhdu(hdu::FITSIO.TableHDU) = Tables.columntable(hdu)
-function _loadhdu(hdu::FITSIO.ImageHDU)
-    if size(hdu) != ()
-        return AstroImage(hdu)
-    else
-        # Sometimes files have an empty data HDU that shows up as an image HDU but has headers.
-        # Fallback to creating an empty AstroImage with those headers.
-        emptydata = fill(0, (0,0))
-        return AstroImage(emptydata, (), (), read_header(hdu), Ref(emptywcs(emptydata)), Ref(false))
-    end
-end
-function indexer(fits::FITS)
-    ext = 0
-    for (i, hdu) in enumerate(fits)
-        if hdu isa ImageHDU && length(size(hdu)) >= 2	# check if Image is atleast 2D
-            ext = i
-            break
-        end
-    end
-    if ext > 1
-       	@info "Image was loaded from HDU $ext"
-    elseif ext == 0
-        error("There are no ImageHDU extensions in '$(fits.filename)'")
-    end
-    return ext
-end
-indexer(fits::NTuple{N, FITS}) where {N} = ntuple(i -> indexer(fits[i]), N)
-
-
-# Fallback for saving arbitrary arrays
-function fileio_save(f::File{format"FITS"}, args...)
-    FITS(f.filename, "w") do fits
-        for arg in args
-            writearg(fits, arg)
-        end
-    end
-end
-writearg(fits, img::AstroImage) = write(fits, arraydata(img), header=header(img))
-# Fallback for writing plain arrays
-writearg(fits, arr::AbstractArray) = write(fits, arr)
-# For table compatible data.
-# This allows users to round trip: dat = load("abc.fits", :); write("abc", dat) 
-# when it contains FITS tables.
-function writearg(fits, table)
-    if !Tables.istable(table)
-        error("Cannot save argument to FITS file. Value is not an AbstractArray or table.")
-    end
-    # FITSIO has fairly restrictive input types for writing tables (assertions for documentation only)
-    colname_strings = string.(collect(Tables.columnnames(table)))::Vector{String}
-    columns = collect(Tables.columns(table))::Vector
-    write(
-        fits,
-        colname_strings,
-        columns;
-        hdutype=TableHDU,
-        # TODO: In future, we want to be able to access and round-trip coments
-        # on table HDUs
-        # header=nothing
-    )
-end
-
-
-export load, save
 
 
 
@@ -490,15 +373,6 @@ maybe_copyheader(img::AstroImage, data) = copyheader(img, data)
 maybe_copyheader(::AbstractArray, data) = data
 
 
-# Restrict downsizes images by roughly a factor of two.
-# We want to keep the wrapper but downsize the underlying array
-# TODO: correct dimensions after restrict.
-ImageTransformations.restrict(img::AstroImage, ::Tuple{}) = img
-ImageTransformations.restrict(img::AstroImage, region::Dims) = shareheader(img, restrict(arraydata(img), region))
-
-# TODO: use WCS info
-# ImageCore.pixelspacing(img::ImageMeta) = pixelspacing(arraydata(img))
-
 Base.promote_rule(::Type{AstroImage{T}}, ::Type{AstroImage{V}}) where {T,V} = AstroImage{promote_type{T,V}}
 
 
@@ -510,6 +384,7 @@ Base.convert(::Type{AstroImage{T}}, A::AstroImage{T}) where {T} = A
 Base.convert(::Type{AstroImage{T}}, A::AstroImage) where {T} = shareheader(A, convert(AbstractArray{T}, arraydata(A)))
 Base.convert(::Type{AstroImage{T}}, A::AbstractArray{T}) where {T} = AstroImage(A)
 Base.convert(::Type{AstroImage{T}}, A::AbstractArray) where {T} = AstroImage(convert(AbstractArray{T}, A))
+Base.convert(::Type{AstroImage{T,N,D,R,AT}}, A::AbstractArray{T,N}) where {T,N,D,R,AT} = AstroImage(convert(AbstractArray{T}, A))
 
 # TODO: share headers in View. Needs support from DimensionalData.
 
@@ -522,9 +397,14 @@ emptyheader() = FITSHeader(String[],[],String[])
 
 
 include("wcs.jl")
+include("io.jl")
 include("imview.jl")
 include("showmime.jl")
 include("plot-recipes.jl")
+
+include("contrib/images.jl")
+include("contrib/abstract-ffts.jl")
+include("contrib/reproject.jl")
 
 include("ccd2rgb.jl")
 # include("patches.jl")

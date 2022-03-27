@@ -4,6 +4,7 @@ authors = ["Mosè Giordano", "Rohit Kumar"]
 version = "0.2.0"
 
 [deps]
+AbstractFFTs = "621f4979-c628-5d54-868e-fcf4e3e8185c"
 AstroAngles = "5c4adb95-c1fc-4c53-b4ea-2a94080c53d2"
 ColorSchemes = "35d6a980-a343-548e-a6ea-1d62b119f2f4"
 DimensionalData = "0703355e-b756-11e9-17c0-8b28908087d0"
