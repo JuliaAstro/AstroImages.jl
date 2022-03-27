@@ -3,28 +3,28 @@
     if length(h.args) != 1 || !(typeof(h.args[1]) <: AbstractArray)
         error("Image plots require an arugment that is a subtype of AbstractArray.  Got: $(typeof(h.args))")
     end
-    img = only(h.args)
-    if !(typeof(img) <: AstroImage)
-        img = AstroImage(only(h.args))
+    data = only(h.args)
+    if !(typeof(data) <: AstroImage)
+        data = AstroImage(only(h.args))
     end
-    T = eltype(img)
-    if ndims(img) != 2
+    T = eltype(data)
+    if ndims(data) != 2
         error("Image passed to `implot` must be two-dimensional.  Got ndims(img)=$(ndims(img))")
     end
 
 
     # Show WCS coordinates if wcsticks is true or unspecified, and has at least one WCS axis present.
     showwcsticks = (!haskey(plotattributes, :wcsticks) || plotattributes[:wcsticks]) &&
-        !all(==(""), wcs(img).ctype)
+        !all(==(""), wcs(data).ctype)
     if showwcsticks
 
-        minx = first(axes(img,2))
-        maxx = last(axes(img,2))
-        miny = first(axes(img,1))
-        maxy = last(axes(img,1))
+        minx = first(axes(data,2))
+        maxx = last(axes(data,2))
+        miny = first(axes(data,1))
+        maxy = last(axes(data,1))
         extent = (minx-0.5, maxx+0.5, miny-0.5, maxy+0.5)
 
-        wcsg = WCSGrid(img, extent)
+        wcsg = WCSGrid(data, extent)
         gridspec = wcsgridspec(wcsg)
     end
 
@@ -34,11 +34,16 @@
     cmap    --> _default_cmap[]
 
     if T <: Colorant
-        imgv = img
+        imgv = data
     else
         clims   = plotattributes[:clims]
         stretch = plotattributes[:stretch]
         cmap    = plotattributes[:cmap]
+        if T <: Complex
+            img = abs.(data)
+        else
+            img = data
+        end
         imgv = imview(img; clims, stretch, cmap)
     end
 
@@ -128,7 +133,7 @@
     # Plots.jl does not give us sufficient control to make sure the range and ticks
     # are correct after applying a non-linear stretch.
     # We attempt to make our own colorbar using a second plot.
-    showcolorbar = !(T <: Colorant) && get(plotattributes, :colorbar, true)
+    showcolorbar = !(T <: Colorant) && get(plotattributes, :colorbar, true) != :none
     if showcolorbar
         layout := @layout [
             img{0.95w} colorbar
@@ -154,6 +159,87 @@
         end    
     end
 
+
+    # TODO: refactor to reduce duplication
+    if T <: Complex
+        img = angle.(data)
+        imgv = imview(img, clims=(-1pi, 1pi),stretch=identity, cmap=:cyclic_mygbm_30_95_c78_n256_s25)
+        layout := @layout [
+              imgmag{0.95w, 0.5h}  colorbar{0.5h}
+            imgangle{0.95w, 0.5h}  _
+        ]
+        @series begin
+            subplot := 3
+            colorbar := false
+
+            # Disable equal aspect ratios if the scales are totally different
+            if max(size(imgv)...)/min(size(imgv)...) >= 7
+                aspect_ratio --> :none
+            end
+
+            # Note: if the axes are on unusual sides (e.g. y-axis at right, x-axis at top)
+            # then these coordinates are not correct. They are only correct exactly
+            # along the axis.
+            # In astropy, the ticks are actually tilted to reflect this, though in general
+            # the transformation from pixel to coordinates can be non-linear and curved.
+            
+            if showwcsticks
+                xticks --> (gridspec.tickpos1x, wcslabels(wcs(imgv), dimindex(img,1), gridspec.tickpos1w))
+                xguide --> ctype_label(wcs(imgv).ctype[dimindex(img,1)], wcs(imgv).radesys)
+
+                yticks --> (gridspec.tickpos2x, wcslabels(wcs(imgv), dimindex(img,2), gridspec.tickpos2w))
+                yguide --> ctype_label(wcs(imgv).ctype[dimindex(img,2)], wcs(imgv).radesys)
+            end
+
+            # Display a title giving our position along unplotted dimensions
+            if length(refdims(imgv)) > 0
+                if showwcsticks
+                    refdimslabel = join(map(refdims(imgv)) do d
+                        # match dimension with the wcs axis number
+                        i = findfirst(dimnames) do dim_candidate
+                            name(dim_candidate) == name(d)
+                        end
+                        label = ctype_label(wcs(imgv).ctype[i], wcs(imgv).radesys)
+                        value = pix_to_world(imgv, [1,1], all=true)[i]
+                        unit = wcs(imgv).cunit[i]
+                        return @sprintf("%s = %.5g %s", label, value, unit)
+                    end)
+                else
+                    refdimslabel = join(map(d->"$(name(d))= $(d[1])", refdims(imgv)))
+                end
+                title --> refdimslabel
+            end
+
+            view(arraydata(imgv), reverse(axes(imgv,1)),:)
+        end
+
+        if showcolorbar
+            layout := @layout [
+                imgmag{0.95w, 0.5h}       colorbar{0.5h}
+              imgangle{0.95w, 0.5h}  colorbarangle{0.5h}
+          ]
+            colorbartitle = get(plotattributes, :colorbartitle, "")
+            if !haskey(plotattributes, :colorbartitle) && haskey(header(img), "UNIT")
+                colorbartitle = string(img[:UNIT])
+            end
+    
+            @series begin
+                subplot := 4
+                aspect_ratio := :none
+                colorbar := false
+                cbimg, _ = imview_colorbar(img; stretch=identity, clims=(-pi, pi), cmap=:cyclic_mygbm_30_95_c78_n256_s25)
+                xticks := []
+                ymirror := true
+                ax = axes(cbimg,1)
+                yticks := ([first(ax), mean(ax), last(ax)], ["-π", "0", "π"])
+                ylabel := colorbartitle
+                xlabel := ""
+                xlims := Tuple(axes(cbimg, 2))
+                ylims := Tuple(axes(cbimg, 2))
+                view(cbimg, reverse(axes(cbimg,1)),:)
+            end    
+        end
+    end
 
 
     return

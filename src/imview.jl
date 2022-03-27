@@ -201,7 +201,7 @@ vcat(
 function imview(img::AbstractMatrix{T}; kwargs...) where {T<:Complex}
     
     mag_view = imview(abs.(img); kwargs...)
-    angle_view = imview(angle.(img), clims=(-pi, pi), cmap=:cyclic_mygbm_30_95_c78_n256_s25)
+    angle_view = imview(angle.(img), clims=(-pi, pi), stretch=identity, cmap=:cyclic_mygbm_30_95_c78_n256_s25)
     vcat(mag_view,angle_view)
 end
 
@@ -314,7 +314,7 @@ function imview_colorbar(
     # Construct the image to use as a colorbar
     cbimg = imview(data; clims=(imgmin,imgmax), stretch=identity, cmap)
     # And the colorbar tick locations & labels
-    ticks, cbmin, cbmax = optimize_ticks(imgmin, imgmax)
+    ticks, cbmin, cbmax = optimize_ticks(1imgmin, 1imgmax)
     # Now map these to pixel locations through streching and colorlimits:
     stretchmin = stretch(zero(eltype(data)))
     stretchmax = stretch(one(eltype(data)))
