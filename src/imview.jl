@@ -22,8 +22,8 @@ This will set the limits to be the 5th percentile to the 95th percentile.
 """
 function percent(perc::Number)
     trim = (1  - perc/100)/2
-    clims(data::AbstractVector) = quantile(data, (trim, 1-trim))
-    clims(data::AbstractArray) = clims(vec(data))
+    clims(data::AbstractMatrix) = quantile(vec(data), (trim, 1-trim))
+    clims(data) = quantile(data, (trim, 1-trim))
     return clims
 end
 
