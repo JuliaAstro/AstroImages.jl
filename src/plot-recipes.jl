@@ -26,7 +26,14 @@
         maxy = last(axes(data,1))
         extent = (minx-0.5, maxx+0.5, miny-0.5, maxy+0.5)
 
-        wcsg = WCSGrid(data, extent)
+        if haskey(plotattributes, :xlims)
+            extent = (plotattributes[:xlims]..., extent[3:4]...)
+        end
+        if haskey(plotattributes, :ylims)
+            extent = (extent[1:2]..., plotattributes[:ylims]...)
+        end
+
+        wcsg = WCSGrid(data, Float64.(extent))
         gridspec = wcsgridspec(wcsg)
     end
 
@@ -34,6 +41,7 @@
     clims   --> _default_clims[]
     stretch --> _default_stretch[]
     cmap    --> _default_cmap[]
+    grid := false
 
     if T <: Colorant
         imgv = data
@@ -127,8 +135,8 @@
             # tight to the image
             xl = first(axes(imgv,2))-0.5, last(axes(imgv,2))+0.5
             yl = first(axes(imgv,1))-0.5, last(axes(imgv,1))+0.5
-            ylims := yl
-            xlims := xl
+            ylims --> yl
+            xlims --> xl
 
             wcsg, gridspec
         end
