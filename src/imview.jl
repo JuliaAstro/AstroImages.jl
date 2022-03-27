@@ -22,8 +22,8 @@ This will set the limits to be the 5th percentile to the 95th percentile.
 """
 function percent(perc::Number)
     trim = (1  - perc/100)/2
-    clims(data) = quantile(data, (trim, 1-trim))
-    clims(data::AbstractMatrix) = quantile(vec(data), (trim, 1-trim))
+    clims(data::AbstractVector) = quantile(data, (trim, 1-trim))
+    clims(data::AbstractArray) = clims(vec(data))
     return clims
 end
 
@@ -76,6 +76,22 @@ function _lookup_cmap(cmap)
     return cmap
 end
 _lookup_cmap(cmap::Nothing) = nothing
+
+function _resolve_clims(img, clims)
+    # Tuple or abstract array
+    if typeof(clims) <: AbstractArray || typeof(clims) <: Tuple
+        if length(clims) != 2
+            error("clims must have exactly two values if provided.")
+        end
+        imgmin = first(clims)
+        imgmax = last(clims)
+    # Or as a callable that computes them given an iterator
+    else
+        imgmin, imgmax = clims(skipmissingnan(img))
+    end
+    return imgmin, imgmax
+end
+
 
 """
     imview(img; clims=extrema, stretch=identity, cmap=nothing)
@@ -256,56 +272,58 @@ function _imview(img, normed::AbstractArray{T}, stretch, cmap) where T
 end
 
 
-
-# TODO: is this the correct function to extend?
-# Instead of using a datatype like N0f32 to interpret integers as fixed point values in [0,1],
-# we use a mappedarray to map the native data range (regardless of type) to [0,1]
-ImageCore.normedview(img::AstroImageMat{<:FixedPoint}) = img
-function ImageCore.normedview(img::AstroImageMat{T}) where T
-    imgmin, imgmax = extrema(skipmissingnan(img))
-    Δ = abs(imgmax - imgmin)
-    normeddata = mappedarray(
-        pix -> (pix - imgmin)/Δ,
-        pix_norm -> convert(T, pix_norm*Δ + imgmin),
-        img
-    )
-    return shareheader(img, normeddata)
-end
-
 """
-    clampednormedview(arr, (min, max))
+    imview_colorbar(img; orientation=:vertical)
+Create a colorbar for a given image matching how it is displayed by 
+`imview`. Returns an image.
 
-Given an AbstractArray and limits `min,max` return a view of the array
-where data between [min, max] are scaled to [0, 1] and datat outside that
-range are clamped to [0, 1].
-
-See also: normedview
+`orientation` can be `:vertical` or `:horizontal`.
 """
-function clampednormedview(img::AbstractArray{T}, lims) where T
-    imgmin, imgmax = lims
-    Δ = abs(imgmax - imgmin)
-    normeddata = mappedarray(
-        pix -> clamp((pix - imgmin)/Δ, zero(T), one(T)),
-        pix_norm -> convert(T, pix_norm*Δ + imgmin),
-        img
-    )
-    return maybe_shareheader(img, normeddata)
-end
-function clampednormedview(img::AbstractArray{T}, lims) where T <: Normed
-    # If the data is in a Normed type and the limits are [0,1] then
-    # it already lies in that range.
-    if lims[1] == 0 && lims[2] == 1
-        return img
+function imview_colorbar(
+    img::AbstractMatrix;
+    orientation=:vertical,
+    clims=_default_clims[],
+    stretch=_default_stretch[],
+    cmap=_default_cmap[],
+)
+    imgmin, imgmax = _resolve_clims(img, clims)
+    cbpixlen = 100
+    data = repeat(range(imgmin, imgmax, length=cbpixlen), 1,10)
+    if orientation == :vertical
+        data = data'
+    elseif orientation == :horizontal
+        data = data
+    else
+        error("Unsupported orientation for colorbar \"$orientation\"")
     end
-    imgmin, imgmax = lims
-    Δ = abs(imgmax - imgmin)
-    normeddata = mappedarray(
-        pix -> clamp((pix - imgmin)/Δ, zero(T), one(T)),
-        pix_norm -> pix_norm*Δ + imgmin,
-        img
-    )
-    return maybe_shareheader(img, normeddata)
-end
-function clampednormedview(img::AbstractArray{Bool}, lims)
-    return img
+
+    # # Stretch the colors:
+    # # Construct the image to use as a colorbar
+    # cbimg =  imview(data; clims=(imgmin,imgmax), stretch, cmap)
+    # # And the colorbar tick locations & labels
+    # ticks, cbmin, cbmax = optimize_ticks(imgmin, imgmax)
+    # # Now map these to pixel locations through streching and colorlimits:
+    # stretchmin = stretch(zero(eltype(data)))
+    # stretchmax = stretch(one(eltype(data)))
+    # normedticks = clampednormedview(ticks, (imgmin, imgmax))
+    # ticksloc = map(ticks,normedticks) do tick, tickn
+    #     return cbpixlen * tickn
+    # end
+
+    # Strech the ticks
+    # Construct the image to use as a colorbar
+    cbimg = imview(data; clims=(imgmin,imgmax), stretch=identity, cmap)
+    # And the colorbar tick locations & labels
+    ticks, cbmin, cbmax = optimize_ticks(imgmin, imgmax)
+    # Now map these to pixel locations through streching and colorlimits:
+    stretchmin = stretch(zero(eltype(data)))
+    stretchmax = stretch(one(eltype(data)))
+    normedticks = clampednormedview(ticks, (imgmin, imgmax))
+    ticksloc = map(ticks,normedticks) do tick, tickn
+        stretched = stretch(tickn)
+        stretchednormed = (stretched - stretchmin) * (stretchmax - stretchmin)
+        return cbpixlen * stretchednormed
+    end
+
+    return cbimg, (ticksloc, string.(ticks))
 end

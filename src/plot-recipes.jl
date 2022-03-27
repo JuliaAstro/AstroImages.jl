@@ -13,14 +13,19 @@
     end
 
 
-    # We often plot an AstroImageMat{<:Number} which hasn't yet had
-    # its wcs cached (wcs_stale=true) and we make an image view here.
-    # That means we may have to keep recomputing the WCS on each plot call
-    # since the result is stored in the imview instead of original image.
-    # Call wcs(img) here if we are later  going to plot with wcs coordinates
-    # to ensure this gets cached beween calls.
-    if !haskey(plotattributes, :wcsticks) || plotattributes[:wcsticks]
-        wcs(img)
+    # Show WCS coordinates if wcsticks is true or unspecified, and has at least one WCS axis present.
+    showwcsticks = (!haskey(plotattributes, :wcsticks) || plotattributes[:wcsticks]) &&
+        !all(==(""), wcs(img).ctype)
+    if showwcsticks
+
+        minx = first(axes(img,2))
+        maxx = last(axes(img,2))
+        miny = first(axes(img,1))
+        maxy = last(axes(img,1))
+        extent = (minx-0.5, maxx+0.5, miny-0.5, maxy+0.5)
+
+        wcsg = WCSGrid(img, extent)
+        gridspec = wcsgridspec(wcsg)
     end
 
     # Use package defaults if not user provided.
@@ -37,122 +42,120 @@
         imgv = imview(img; clims, stretch, cmap)
     end
 
-    xgrid --> true
-    ygrid --> true
 
-    # Use a default grid color that shows up across more 
-    # color maps
-    if !haskey(plotattributes, :xforeground_color_grid) && !haskey(plotattributes, :yforeground_color_grid)
-        gridcolor --> :lightgray
-    end
-
-    # By default, disable the colorbar.
-    # Plots.jl does no give us sufficient control to make sure the range and ticks
-    # are correct after applying a non-linear stretch.
-    colorbar := false
-    # We may be able to make our own colorbar in future using a second image plot
-    # off to the side using something like:
-        # if typeof(clims) <: AbstractArray || typeof(clims) <: Tuple
-        #     if length(clims) != 2
-        #         error("clims must have exactly two values if provided.")
-        #     end
-        #     imgmin = first(clims)
-        #     imgmax = last(clims)
-        # # Or as a callable that computes them given an iterator
-        # else
-        #     imgmin, imgmax = clims(skipmissingnan(img))
-        # end
-        # imview(repeat(range(imgmin, imgmax,length=100), 1,10)'; clims=(imgmin,imgmax), stretch, cmap)
+    # We have to do a lot of flipping to keep the orientation corect 
+    yflip := false
+    xflip := false
 
     # we have a wcs flag (from the image by default) so that users can skip over 
     # plotting in physical coordinates. This is especially important
     # if the WCS headers are mallformed in some way.
-    if !haskey(plotattributes, :wcsticks) || plotattributes[:wcsticks]
+    showgrid = (!haskey(plotattributes, :xgrid) || haskey(plotattributes, :xgrid)) &&
+               (!haskey(plotattributes, :ygrid) || haskey(plotattributes, :ygrid))
+
+    # Actual image series (RGB pixels by this point)
+    @series begin
+        subplot := 1
+        colorbar := false
+
+
+        # Disable equal aspect ratios if the scales are totally different
+        if max(size(imgv)...)/min(size(imgv)...) >= 7
+            aspect_ratio --> :none
+        end
 
         # Note: if the axes are on unusual sides (e.g. y-axis at right, x-axis at top)
         # then these coordinates are not correct. They are only correct exactly
         # along the axis.
         # In astropy, the ticks are actually tilted to reflect this, though in general
         # the transformation from pixel to coordinates can be non-linear and curved.
-
-        minx = first(axes(imgv,2))
-        maxx = last(axes(imgv,2))
-        miny = first(axes(imgv,1))
-        maxy = last(axes(imgv,1))
-        extent = (minx-0.5, maxx+0.5, miny-0.5, maxy+0.5)
-
-
-        wcsg = WCSGrid(imgv, extent)
-        gridspec = wcsgridspec(wcsg)
         
-        xticks --> (gridspec.tickpos1x, wcslabels(wcs(imgv), dimindex(img,1), gridspec.tickpos1w))
-        xguide --> ctype_label(wcs(imgv).ctype[dimindex(img,1)], wcs(imgv).radesys)
+        if showwcsticks
+            xticks --> (gridspec.tickpos1x, wcslabels(wcs(imgv), dimindex(img,1), gridspec.tickpos1w))
+            xguide --> ctype_label(wcs(imgv).ctype[dimindex(img,1)], wcs(imgv).radesys)
 
-        yticks --> (gridspec.tickpos2x, wcslabels(wcs(imgv), dimindex(img,2), gridspec.tickpos2w))
-        yguide --> ctype_label(wcs(imgv).ctype[dimindex(img,2)], wcs(imgv).radesys)
-
-        # To ensure the physical axis tick labels are correct the axes must be
-        # tight to the image
-        xl = first(axes(imgv,2))-0.5, last(axes(imgv,2))+0.5
-        yl = first(axes(imgv,1))-0.5, last(axes(imgv,1))+0.5
-        ylims --> yl
-        xlims --> xl
-    end
-
-    # Disable equal aspect ratios if the scales are totally different
-    if max(size(imgv)...)/min(size(imgv)...) >= 7
-        aspect_ratio --> :none
-    end
-
-    # We have to do a lot of flipping to keep the orientation corect 
-    yflip := false
-    xflip := false
-
-    if length(refdims(imgv)) > 0
-        if !haskey(plotattributes, :wcsticks) || plotattributes[:wcsticks]
-            refdimslabel = join(map(refdims(imgv)) do d
-                # match dimension with the wcs axis number
-                i = findfirst(dimnames) do dim_candidate
-                    name(dim_candidate) == name(d)
-                end
-                label = ctype_label(wcs(imgv).ctype[i], wcs(imgv).radesys)
-                value = pix_to_world(imgv, [1,1], all=true)[i]
-                unit = wcs(imgv).cunit[i]
-                return @sprintf("%s = %.5g %s", label, value, unit)
-            end)
-        else
-            refdimslabel = join(map(d->"$(name(d))= $(d[1])", refdims(imgv)))
+            yticks --> (gridspec.tickpos2x, wcslabels(wcs(imgv), dimindex(img,2), gridspec.tickpos2w))
+            yguide --> ctype_label(wcs(imgv).ctype[dimindex(img,2)], wcs(imgv).radesys)
         end
-        title --> refdimslabel
-    end
 
-    @series begin
+        # Display a title giving our position along unplotted dimensions
+        if length(refdims(imgv)) > 0
+            if showwcsticks
+                refdimslabel = join(map(refdims(imgv)) do d
+                    # match dimension with the wcs axis number
+                    i = findfirst(dimnames) do dim_candidate
+                        name(dim_candidate) == name(d)
+                    end
+                    label = ctype_label(wcs(imgv).ctype[i], wcs(imgv).radesys)
+                    value = pix_to_world(imgv, [1,1], all=true)[i]
+                    unit = wcs(imgv).cunit[i]
+                    return @sprintf("%s = %.5g %s", label, value, unit)
+                end)
+            else
+                refdimslabel = join(map(d->"$(name(d))= $(d[1])", refdims(imgv)))
+            end
+            title --> refdimslabel
+        end
 
         view(arraydata(imgv), reverse(axes(imgv,1)),:)
-        
-        # imgv = permutedims(imgv, DimensionalData.commondims(>:, (DimensionalData.ZDim, DimensionalData.YDim, DimensionalData.XDim, DimensionalData.TimeDim, DimensionalData.Dimension, DimensionalData.Dimension), dims(imgv)))
-        # y, x = dims(imgv)
-        # :xguide --> DimensionalData.label(x)
-        # :yguide --> DimensionalData.label(y)
-        # :zguide --> DimensionalData.label(imgv)
-        # :colorbar_title --> DimensionalData.label(imgv)
-        # DimensionalData._xticks!(plotattributes, s, x)
-        # DimensionalData._yticks!(plotattributes, s, y)
-        # DimensionalData._withaxes(x, y, imgv)
-        # arraydata(imgv)
     end
 
     # If wcs=true (default) and grid=true (not default), overplot a WCS 
     # grid.
-    if (!haskey(plotattributes, :wcsticks) || plotattributes[:wcsticks]) &&
-        haskey(plotattributes, :xgrid) && plotattributes[:xgrid] &&
-        haskey(plotattributes, :ygrid) && plotattributes[:ygrid]
+    if showgrid && showwcsticks
 
         # Plot the WCSGrid as a second series (actually just lines)
         @series begin
+            subplot := 1
+            # Use a default grid color that shows up across more 
+            # color maps
+            if !haskey(plotattributes, :xforeground_color_grid) && !haskey(plotattributes, :yforeground_color_grid)
+                gridcolor --> :lightgray
+            end
+
+            # To ensure the physical axis tick labels are correct the axes must be
+            # tight to the image
+            xl = first(axes(imgv,2))-0.5, last(axes(imgv,2))+0.5
+            yl = first(axes(imgv,1))-0.5, last(axes(imgv,1))+0.5
+            ylims := yl
+            xlims := xl
+
             wcsg, gridspec
         end
     end
+
+    # Disable the colorbar.
+    # Plots.jl does not give us sufficient control to make sure the range and ticks
+    # are correct after applying a non-linear stretch.
+    # We attempt to make our own colorbar using a second plot.
+    showcolorbar = !(T <: Colorant) && get(plotattributes, :colorbar, true)
+    if showcolorbar
+        layout := @layout [
+            img{0.95w} colorbar
+        ]
+        colorbartitle = get(plotattributes, :colorbartitle, "")
+        if !haskey(plotattributes, :colorbartitle) && haskey(header(img), "UNIT")
+            colorbartitle = string(img[:UNIT])
+        end
+
+        @series begin
+            subplot := 2
+            aspect_ratio := :none
+            colorbar := false
+            cbimg, cbticks = imview_colorbar(img; clims, stretch, cmap)
+            xticks := []
+            ymirror := true
+            yticks := cbticks
+            ylabel := colorbartitle
+            xlabel := ""
+            xlims := Tuple(axes(cbimg, 2))
+            ylims := Tuple(axes(cbimg, 2))
+            view(cbimg, reverse(axes(cbimg,1)),:)
+        end    
+    end
+
+
+
     return
 end
 
