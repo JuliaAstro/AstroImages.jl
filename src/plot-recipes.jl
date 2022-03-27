@@ -43,7 +43,6 @@
         cmap    = plotattributes[:cmap]
         if T <: Complex
             img = abs.(data)
-            showwcsticks = false
             img["UNIT"] = "magnitude"
         else
             img = data
@@ -158,9 +157,9 @@
                 img{0.95w} colorbar
             ]
         end
-        colorbartitle = get(plotattributes, :colorbartitle, "")
-        if !haskey(plotattributes, :colorbartitle) && haskey(header(img), "UNIT")
-            colorbartitle = string(img[:UNIT])
+        colorbar_title = get(plotattributes, :colorbar_title, "")
+        if !haskey(plotattributes, :colorbar_title) && haskey(header(img), "UNIT")
+            colorbar_title = string(img[:UNIT])
         end
 
         subplot_i += 1
@@ -172,7 +171,7 @@
             xticks := []
             ymirror := true
             yticks := cbticks
-            ylabel := colorbartitle
+            ylabel := colorbar_title
             xlabel := ""
             xlims := Tuple(axes(cbimg, 2))
             ylims := Tuple(axes(cbimg, 2))
@@ -215,9 +214,9 @@
         end
 
         if showcolorbar
-            colorbartitle = get(plotattributes, :colorbartitle, "")
-            if !haskey(plotattributes, :colorbartitle) && haskey(header(img), "UNIT")
-                colorbartitle = string(img[:UNIT])
+            colorbar_title = get(plotattributes, :colorbar_title, "")
+            if !haskey(plotattributes, :colorbar_title) && haskey(header(img), "UNIT")
+                colorbar_title = string(img[:UNIT])
             end
     
             @series begin
@@ -230,7 +229,7 @@
                 ymirror := true
                 ax = axes(cbimg,1)
                 yticks := ([first(ax), mean(ax), last(ax)], ["-π", "0", "π"])
-                ylabel := colorbartitle
+                ylabel := colorbar_title
                 xlabel := ""
                 xlims := Tuple(axes(cbimg, 2))
                 ylims := Tuple(axes(cbimg, 2))
@@ -238,6 +237,7 @@
                 view(cbimg, reverse(axes(cbimg,1)),:)
             end    
         end
+
     end
 
 
