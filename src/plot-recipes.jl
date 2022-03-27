@@ -16,6 +16,8 @@
     # Show WCS coordinates if wcsticks is true or unspecified, and has at least one WCS axis present.
     showwcsticks = (!haskey(plotattributes, :wcsticks) || plotattributes[:wcsticks]) &&
         !all(==(""), wcs(data).ctype)
+    showwcstitle = (!haskey(plotattributes, :wcstitle) || plotattributes[:wcstitle]) &&
+        !all(==(""), wcs(data).ctype)
     if showwcsticks
 
         minx = first(axes(data,2))
@@ -41,6 +43,7 @@
         cmap    = plotattributes[:cmap]
         if T <: Complex
             img = abs.(data)
+            showwcsticks = false
             img["UNIT"] = "magnitude"
         else
             img = data
@@ -59,9 +62,30 @@
     showgrid = (!haskey(plotattributes, :xgrid) || haskey(plotattributes, :xgrid)) &&
                (!haskey(plotattributes, :ygrid) || haskey(plotattributes, :ygrid))
 
+    # Display a title giving our position along unplotted dimensions
+    if length(refdims(imgv)) > 0
+        if showwcstitle
+            refdimslabel = join(map(refdims(imgv)) do d
+                # match dimension with the wcs axis number
+                i = findfirst(dimnames) do dim_candidate
+                    name(dim_candidate) == name(d)
+                end
+                label = ctype_label(wcs(imgv).ctype[i], wcs(imgv).radesys)
+                value = pix_to_world(imgv, [1,1], all=true)[i]
+                unit = wcs(imgv).cunit[i]
+                return @sprintf("%s = %.5g %s", label, value, unit)
+            end)
+        else
+            refdimslabel = join(map(d->"$(name(d))= $(d[1])", refdims(imgv)))
+        end
+        title --> refdimslabel
+    end
+
+    subplot_i = 0
     # Actual image series (RGB pixels by this point)
     @series begin
-        subplot := 1
+        subplot_i += 1
+        subplot := subplot_i
         colorbar := false
 
 
@@ -82,25 +106,6 @@
 
             yticks --> (gridspec.tickpos2x, wcslabels(wcs(imgv), dimindex(img,2), gridspec.tickpos2w))
             yguide --> ctype_label(wcs(imgv).ctype[dimindex(img,2)], wcs(imgv).radesys)
-        end
-
-        # Display a title giving our position along unplotted dimensions
-        if length(refdims(imgv)) > 0
-            if showwcsticks
-                refdimslabel = join(map(refdims(imgv)) do d
-                    # match dimension with the wcs axis number
-                    i = findfirst(dimnames) do dim_candidate
-                        name(dim_candidate) == name(d)
-                    end
-                    label = ctype_label(wcs(imgv).ctype[i], wcs(imgv).radesys)
-                    value = pix_to_world(imgv, [1,1], all=true)[i]
-                    unit = wcs(imgv).cunit[i]
-                    return @sprintf("%s = %.5g %s", label, value, unit)
-                end)
-            else
-                refdimslabel = join(map(d->"$(name(d))= $(d[1])", refdims(imgv)))
-            end
-            title --> refdimslabel
         end
 
         view(arraydata(imgv), reverse(axes(imgv,1)),:)
@@ -129,23 +134,38 @@
             wcsg, gridspec
         end
     end
+    
 
     # Disable the colorbar.
     # Plots.jl does not give us sufficient control to make sure the range and ticks
     # are correct after applying a non-linear stretch.
     # We attempt to make our own colorbar using a second plot.
     showcolorbar = !(T <: Colorant) && get(plotattributes, :colorbar, true) != :none
-    if showcolorbar
+    if T <: Complex
         layout := @layout [
-            img{0.95w} colorbar
+            imgmag{0.5h}
+          imgangle{0.5h}
         ]
+    end
+    if showcolorbar
+        if T <: Complex
+            layout := @layout [
+                imgmag{0.95w, 0.5h}       colorbar{0.5h}
+              imgangle{0.95w, 0.5h}  colorbarangle{0.5h}
+            ]
+        else
+            layout := @layout [
+                img{0.95w} colorbar
+            ]
+        end
         colorbartitle = get(plotattributes, :colorbartitle, "")
         if !haskey(plotattributes, :colorbartitle) && haskey(header(img), "UNIT")
             colorbartitle = string(img[:UNIT])
         end
 
+        subplot_i += 1
         @series begin
-            subplot := 2
+            subplot := subplot_i
             aspect_ratio := :none
             colorbar := false
             cbimg, cbticks = imview_colorbar(img; clims, stretch, cmap)
@@ -156,6 +176,7 @@
             xlabel := ""
             xlims := Tuple(axes(cbimg, 2))
             ylims := Tuple(axes(cbimg, 2))
+            title := ""
             view(cbimg, reverse(axes(cbimg,1)),:)
         end    
     end
@@ -166,13 +187,11 @@
         img = angle.(data)
         img["UNIT"] = "angle (rad)"
         imgv = imview(img, clims=(-1pi, 1pi),stretch=identity, cmap=:cyclic_mygbm_30_95_c78_n256_s25)
-        layout := @layout [
-              imgmag{0.95w, 0.5h}  colorbar{0.5h}
-            imgangle{0.95w, 0.5h}  _
-        ]
         @series begin
-            subplot := 3
+            subplot_i += 1
+            subplot := subplot_i
             colorbar := false
+            title := ""
 
             # Disable equal aspect ratios if the scales are totally different
             if max(size(imgv)...)/min(size(imgv)...) >= 7
@@ -192,41 +211,18 @@
                 yticks --> (gridspec.tickpos2x, wcslabels(wcs(imgv), dimindex(img,2), gridspec.tickpos2w))
                 yguide --> ctype_label(wcs(imgv).ctype[dimindex(img,2)], wcs(imgv).radesys)
             end
-
-            # Display a title giving our position along unplotted dimensions
-            if length(refdims(imgv)) > 0
-                if showwcsticks
-                    refdimslabel = join(map(refdims(imgv)) do d
-                        # match dimension with the wcs axis number
-                        i = findfirst(dimnames) do dim_candidate
-                            name(dim_candidate) == name(d)
-                        end
-                        label = ctype_label(wcs(imgv).ctype[i], wcs(imgv).radesys)
-                        value = pix_to_world(imgv, [1,1], all=true)[i]
-                        unit = wcs(imgv).cunit[i]
-                        return @sprintf("%s = %.5g %s", label, value, unit)
-                    end)
-                else
-                    refdimslabel = join(map(d->"$(name(d))= $(d[1])", refdims(imgv)))
-                end
-                title --> refdimslabel
-            end
-
             view(arraydata(imgv), reverse(axes(imgv,1)),:)
         end
 
         if showcolorbar
-            layout := @layout [
-                imgmag{0.95w, 0.5h}       colorbar{0.5h}
-              imgangle{0.95w, 0.5h}  colorbarangle{0.5h}
-          ]
             colorbartitle = get(plotattributes, :colorbartitle, "")
             if !haskey(plotattributes, :colorbartitle) && haskey(header(img), "UNIT")
                 colorbartitle = string(img[:UNIT])
             end
     
             @series begin
-                subplot := 4
+                subplot_i += 1
+                subplot := subplot_i
                 aspect_ratio := :none
                 colorbar := false
                 cbimg, _ = imview_colorbar(img; stretch=identity, clims=(-pi, pi), cmap=:cyclic_mygbm_30_95_c78_n256_s25)
@@ -238,6 +234,7 @@
                 xlabel := ""
                 xlims := Tuple(axes(cbimg, 2))
                 ylims := Tuple(axes(cbimg, 2))
+                title := ""
                 view(cbimg, reverse(axes(cbimg,1)),:)
             end    
         end
