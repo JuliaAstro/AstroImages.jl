@@ -18,21 +18,20 @@
         !all(==(""), wcs(data).ctype)
     showwcstitle = (!haskey(plotattributes, :wcstitle) || plotattributes[:wcstitle]) &&
         !all(==(""), wcs(data).ctype)
+
+
+    minx = first(axes(data,2))
+    maxx = last(axes(data,2))
+    miny = first(axes(data,1))
+    maxy = last(axes(data,1))
+    extent = (minx-0.5, maxx+0.5, miny-0.5, maxy+0.5)
+    if haskey(plotattributes, :xlims)
+        extent = (plotattributes[:xlims]..., extent[3:4]...)
+    end
+    if haskey(plotattributes, :ylims)
+        extent = (extent[1:2]..., plotattributes[:ylims]...)
+    end
     if showwcsticks
-
-        minx = first(axes(data,2))
-        maxx = last(axes(data,2))
-        miny = first(axes(data,1))
-        maxy = last(axes(data,1))
-        extent = (minx-0.5, maxx+0.5, miny-0.5, maxy+0.5)
-
-        if haskey(plotattributes, :xlims)
-            extent = (plotattributes[:xlims]..., extent[3:4]...)
-        end
-        if haskey(plotattributes, :ylims)
-            extent = (extent[1:2]..., plotattributes[:ylims]...)
-        end
-
         wcsg = WCSGrid(data, Float64.(extent))
         gridspec = wcsgridspec(wcsg)
     end
@@ -62,6 +61,14 @@
     # We have to do a lot of flipping to keep the orientation corect 
     yflip := false
     xflip := false
+
+    
+    # Disable equal aspect ratios if the scales are totally different
+    displayed_data_ratio = (extent[2]-extent[1])/(extent[4]-extent[3])
+    if displayed_data_ratio >= 7
+        aspect_ratio --> :none
+    end
+
 
     # we have a wcs flag (from the image by default) so that users can skip over 
     # plotting in physical coordinates. This is especially important
@@ -96,10 +103,7 @@
         colorbar := false
 
 
-        # Disable equal aspect ratios if the scales are totally different
-        if max(size(imgv)...)/min(size(imgv)...) >= 7
-            aspect_ratio --> :none
-        end
+
 
         # Note: if the axes are on unusual sides (e.g. y-axis at right, x-axis at top)
         # then these coordinates are not correct. They are only correct exactly
@@ -200,10 +204,6 @@
             colorbar := false
             title := ""
 
-            # Disable equal aspect ratios if the scales are totally different
-            if max(size(imgv)...)/min(size(imgv)...) >= 7
-                aspect_ratio --> :none
-            end
 
             # Note: if the axes are on unusual sides (e.g. y-axis at right, x-axis at top)
             # then these coordinates are not correct. They are only correct exactly
