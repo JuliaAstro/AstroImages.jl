@@ -27,6 +27,7 @@ export load,
     AstroImage,
     AstroImageVec,
     AstroImageMat,
+    Wcs,
     WCSGrid,
     ccd2rgb,
     composechannels,
@@ -115,13 +116,24 @@ const dimnames = (
     (Dim{i} for i in 4:10)...
 )
 
+const Spec = Dim{:Spec}
+const Pol = Dim{:Pol}
+struct Wcs{N,T} <: DimensionalData.Dimension{T} 
+    val::T
+end
+Wcs{N}(val::T) where {N,T} = Wcs{N,T}(val)
+Wcs{N}() where N = Wcs{N}(:)
+DimensionalData.name(::Type{<:Wcs{N}}) where N = Symbol("Wcs$N")
+DimensionalData.basetypeof(::Type{<:Wcs{N}}) where N = Wcs{N}
+# DimensionalData.key2dim(::Val{N}) where N<:Integer = Wcs{N}()
+DimensionalData.dim2key(::Type{D}) where D<:Wcs{N} where N = Symbol("Wcs$N")
+wcsax(::Wcs{N}) where N = N
+export Spec, Pol, Wcs
+# TODO: Sep?
 
 # Accessors
-"""
-    ImageMetadata.arraydata(img::AstroImage)
-"""
-ImageMetadata.arraydata(img::AstroImage) = getfield(img, :data)
 header(img::AstroImage) = getfield(img, :header)
+header(::AbstractArray) = emptyheader()
 function wcs(img::AstroImage)
     if getfield(img, :wcs_stale)[]
         getfield(img, :wcs)[] = wcsfromheader(img)
@@ -129,9 +141,16 @@ function wcs(img::AstroImage)
     end
     return getfield(img, :wcs)[]
 end
+wcs(arr::AbstractArray) = emptywcs(arr)
+"""
+    ImageMetadata.arraydata(img::AstroImage)
+
+Returns the underlying wrapped array of `img`.
+"""
+ImageMetadata.arraydata(img::AstroImage) = getfield(img, :data)
 
 
-# Implement DimensionalData interface
+# Implement DimensionalData interface 
 Base.parent(img::AstroImage) = arraydata(img)
 DimensionalData.dims(A::AstroImage) = getfield(A, :dims)
 DimensionalData.refdims(A::AstroImage) = getfield(A, :refdims)
@@ -177,60 +196,6 @@ for f in [
     @eval ($f)(img::AstroImage) = shareheader(img, $f(arraydata(img)))
 end
 
-"""
-    AstroImage(fits::FITS, ext::Int=1)
-
-Given an open FITS file from the FITSIO library,
-load the HDU number `ext` as an AstroImage.
-"""
-AstroImage(fits::FITS, ext::Int=1) = AstroImage(fits[ext])
-
-"""
-    AstroImage(hdu::HDU)
-
-Given an open FITS HDU, load it as an AstroImage.
-"""
-AstroImage(hdu::HDU) = AstroImage(read(hdu), read_header(hdu))
-
-"""
-    img = AstroImage(filename::AbstractString, ext::Integer=1)
-
-Load an image HDU `ext` from the  FITS file at `filename` as an AstroImage.
-"""
-function AstroImage(filename::AbstractString, ext::Integer=1)
-    return FITS(filename,"r") do fits
-        return AstroImage(fits[ext])
-    end
-end
-"""
-    img1, img2 = AstroImage(filename::AbstractString, exts)
-
-Load multiple image HDUs `exts` from an FITS file at `filename` as an AstroImage.
-`exts` must be a tuple, range, :, or array of Integers.
-All listed HDUs in `exts` must be image HDUs or an error will occur.
-
-Example:
-```julia
-img1, img2 = AstroImage("abc.fits", (1,3)) # loads the first and third HDU as images.
-imgs = AstroImage("abc.fits", 1:3) # loads the first three HDUs as images.
-imgs = AstroImage("abc.fits", :) # loads all HDUs as images.
-```
-"""
-function AstroImage(filename::AbstractString, exts::Union{NTuple{N, <:Integer},AbstractArray{<:Integer}}) where {N}
-    return FITS(filename,"r") do fits
-        return map(exts) do ext
-            return AstroImage(fits[ext])
-        end
-    end
-end
-function AstroImage(filename::AbstractString, ::Colon) where {N}
-    return FITS(filename,"r") do fits
-        return map(fits) do hdu
-            return AstroImage(hdu)
-        end
-    end
-end
-
 
 """
     AstroImage(img::AstroImage)
@@ -241,6 +206,53 @@ AstroImage before proceeding.
 AstroImage(img::AstroImage) = img
 
 
+# """
+#     AstroImage(data::AbstractArray, [header::FITSHeader,] [wcs::WCSTransform,])
+
+# Create an AstroImage from an array, and optionally header or header and a 
+# WCSTransform.
+# """
+# function AstroImage(
+#     data::AbstractArray{T,N},
+#     header::FITSHeader=emptyheader(),
+#     wcs::Union{WCSTransform,Nothing}=nothing
+# ) where {T, N}
+#     wcs_stale = isnothing(wcs)
+#     if isnothing(wcs)
+#         wcs = emptywcs(data)
+#     end
+#     # If the user passes in a WCSTransform of their own, we use it and mark
+#     # wcs_stale=false. It will be kept unless they manually change a WCS header.
+#     # If they don't pass anything, we start with empty WCS information regardless
+#     # of what's in the header but we mark it as stale.
+#     # If/when the WCS info is accessed via `wcs(img)` it will be computed and cached.
+#     # This avoids those computations if the WCS transform is not needed.
+#     # It also allows us to create images with invalid WCS header,
+#     # only erroring when/if they are used.
+
+#     # Fields for DimensionalData.
+#     # Name dimensions always as X,Y,Z, then Dim{4}, Dim{5}, etc.
+#     # If we wanted to do something smarter e.g. time axes we would have
+#     # to look at the WCSTransform, and we want to avoid doing this on construction
+#     # for the reasons described above.
+#     dimnames = (
+#         X, Y, Z
+#     )[1:min(3,N)]
+#     if N > 3
+#         dimnames = (
+#             dimnames...,
+#             (Dim{i} for i in 4:N)...
+#         )
+#     end
+#     dimaxes = map(dimnames, axes(data)) do dim, ax
+#         dim(ax)
+#     end
+#     dims = DimensionalData.format(dimaxes, data)
+#     refdims = ()
+
+#     return AstroImage(data, dims, refdims, header, Ref(wcs), Ref(wcs_stale))
+# end
+
 """
     AstroImage(data::AbstractArray, [header::FITSHeader,] [wcs::WCSTransform,])
 
@@ -249,8 +261,11 @@ WCSTransform.
 """
 function AstroImage(
     data::AbstractArray{T,N},
+    dims::Union{Tuple,NamedTuple}=(),
+    refdims::Union{Tuple,NamedTuple}=(),
     header::FITSHeader=emptyheader(),
-    wcs::Union{WCSTransform,Nothing}=nothing
+    wcs::Union{WCSTransform,Nothing}=nothing;
+    wcsdims=false
 ) where {T, N}
     wcs_stale = isnothing(wcs)
     if isnothing(wcs)
@@ -266,27 +281,71 @@ function AstroImage(
     # only erroring when/if they are used.
 
     # Fields for DimensionalData.
+    if dims == ()
+        if wcsdims
+            ourdims = Tuple(Wcs{i} for i in 1:ndims(data))
+        else
+            ourdims = dimnames[1:ndims(data)]
+        end
+        dimaxes = map(ourdims, axes(data)) do dim, ax
+            dim(ax)
+        end
+        dims = DimensionalData.format(dimaxes, data)
+    else
+        dims = DimensionalData.format(dims, data)
+    end
+
+
+    if length(dims) != ndims(data)
+        error("Number of dims does not match the shape of the data")
+    end
+
     # Name dimensions always as X,Y,Z, then Dim{4}, Dim{5}, etc.
     # If we wanted to do something smarter e.g. time axes we would have
     # to look at the WCSTransform, and we want to avoid doing this on construction
     # for the reasons described above.
-    dimnames = (
-        X, Y, Z
-    )[1:min(3,N)]
-    if N > 3
-        dimnames = (
-            dimnames...,
-            (Dim{i} for i in 4:N)...
-        )
-    end
-    dimaxes = map(dimnames, axes(data)) do dim, ax
-        dim(ax)
-    end
-    dims = DimensionalData.format(dimaxes, data)
-    refdims = ()
+    # dimnames = (
+    #     X, Y, Z
+    # )[1:min(3,N)]
+    # if N > 3
+    #     dimnames = (
+    #         dimnames...,
+    #         (Dim{i} for i in 4:N)...
+    #     )
+    # end
+    # dimaxes = map(dimnames, axes(data)) do dim, ax
+    #     dim(ax)
+    # end
+    # dims = DimensionalData.format(dimaxes, data)
+    # refdims = ()
 
     return AstroImage(data, dims, refdims, header, Ref(wcs), Ref(wcs_stale))
 end
+function AstroImage(
+    darr::AbstractDimArray,
+    header::FITSHeader=emptyheader(),
+    wcs::Union{WCSTransform,Nothing}=nothing;
+    wcsdims=false
+)
+    wcs_stale = isnothing(wcs)
+    if isnothing(wcs)
+        wcs = emptywcs(darr)
+    end
+    return AstroImage(parent(darr), dims(darr), refdims(darr), header, Ref(wcs), Ref(wcs_stale))
+end
+AstroImage(
+    data::AbstractArray,
+    header::FITSHeader,
+    wcs::Union{WCSTransform,Nothing}=nothing;
+    wcsdims=false
+) = AstroImage(data, (), (), header, wcs; wcsdims)
+# AstroImage(
+#     data::AbstractArray,
+#     header::FITSHeader=emptyheader(),
+#     wcs::Union{WCSTransform,Nothing}=nothing;
+#     wcsdims=false
+# ) = AstroImage(data, dimnames[begin:begin+ndims(data)], (), header, wcs; wcsdims)
+# TODO: ensure this gets WCS dims.
 AstroImage(data::AbstractArray, wcs::WCSTransform) = AstroImage(data, emptyheader(), wcs)
 
 

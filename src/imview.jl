@@ -324,6 +324,8 @@ function imview_colorbar(
         stretchednormed = (stretched - stretchmin) * (stretchmax - stretchmin)
         return cbpixlen * stretchednormed
     end
-
-    return cbimg, (ticksloc, string.(ticks))
+    ticklabels = map(ticks) do t
+        @sprintf("%4g", t)
+    end
+    return cbimg, (ticksloc, ticklabels)
 end

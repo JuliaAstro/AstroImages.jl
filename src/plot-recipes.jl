@@ -9,14 +9,16 @@
     end
     T = eltype(data)
     if ndims(data) != 2
-        error("Image passed to `implot` must be two-dimensional.  Got ndims(img)=$(ndims(img))")
+        error("Image passed to `implot` must be two-dimensional.  Got ndims(img)=$(ndims(data))")
     end
-
 
     # Show WCS coordinates if wcsticks is true or unspecified, and has at least one WCS axis present.
     showwcsticks = (!haskey(plotattributes, :wcsticks) || plotattributes[:wcsticks]) &&
+        any(d->typeof(d) <: Wcs, dims(data)) && 
         !all(==(""), wcs(data).ctype)
     showwcstitle = (!haskey(plotattributes, :wcstitle) || plotattributes[:wcstitle]) &&
+        length(refdims(data)) > 0 && 
+        any(d->typeof(d) <: Wcs, dims(data)) && 
         !all(==(""), wcs(data).ctype)
 
 
@@ -40,7 +42,12 @@
     clims   --> _default_clims[]
     stretch --> _default_stretch[]
     cmap    --> _default_cmap[]
+
     grid := false
+    # In most cases, a grid framestyle is a nicer looking default for images
+    # but the user can override.
+    framestyle --> :box
+
 
     if T <: Colorant
         imgv = data
@@ -81,16 +88,14 @@
         if showwcstitle
             refdimslabel = join(map(refdims(imgv)) do d
                 # match dimension with the wcs axis number
-                i = findfirst(dimnames) do dim_candidate
-                    name(dim_candidate) == name(d)
-                end
+                i = wcsax(d)
                 label = ctype_label(wcs(imgv).ctype[i], wcs(imgv).radesys)
                 value = pix_to_world(imgv, [1,1], all=true)[i]
                 unit = wcs(imgv).cunit[i]
                 return @sprintf("%s = %.5g %s", label, value, unit)
-            end)
+            end, ", ")
         else
-            refdimslabel = join(map(d->"$(name(d))= $(d[1])", refdims(imgv)))
+            refdimslabel = join(map(d->"$(name(d))= $(d[1])", refdims(imgv)), ", ")
         end
         title --> refdimslabel
     end
@@ -112,14 +117,19 @@
         # the transformation from pixel to coordinates can be non-linear and curved.
         
         if showwcsticks
-            xticks --> (gridspec.tickpos1x, wcslabels(wcs(imgv), dimindex(img,1), gridspec.tickpos1w))
-            xguide --> ctype_label(wcs(imgv).ctype[dimindex(img,1)], wcs(imgv).radesys)
+            xticks --> (gridspec.tickpos1x, wcslabels(wcs(imgv), wcsax(dims(img,1)), gridspec.tickpos1w))
+            xguide --> ctype_label(wcs(imgv).ctype[wcsax(dims(img,1))], wcs(imgv).radesys)
 
-            yticks --> (gridspec.tickpos2x, wcslabels(wcs(imgv), dimindex(img,2), gridspec.tickpos2w))
-            yguide --> ctype_label(wcs(imgv).ctype[dimindex(img,2)], wcs(imgv).radesys)
+            yticks --> (gridspec.tickpos2x, wcslabels(wcs(imgv), wcsax(dims(img,2)), gridspec.tickpos2w))
+            yguide --> ctype_label(wcs(imgv).ctype[wcsax(dims(img,2))], wcs(imgv).radesys)
+            
+            view(parent(imgv), reverse(axes(imgv,1)),:)
         end
 
-        view(arraydata(imgv), reverse(axes(imgv,1)),:)
+        ax1 = collect(parent(dims(imgv,1)))
+        ax2 = collect(parent(dims(imgv,2)))
+
+        ax1, ax2, view(parent(imgv), reverse(axes(imgv,1)),:)
     end
 
     # If wcs=true (default) and grid=true (not default), overplot a WCS 
@@ -183,8 +193,8 @@
             xticks := []
             ymirror := true
             yticks := cbticks
-            ylabel := colorbar_title
-            xlabel := ""
+            yguide := colorbar_title
+            xguide := ""
             xlims := Tuple(axes(cbimg, 2))
             ylims := Tuple(axes(cbimg, 2))
             title := ""
@@ -212,13 +222,13 @@
             # the transformation from pixel to coordinates can be non-linear and curved.
             
             if showwcsticks
-                xticks --> (gridspec.tickpos1x, wcslabels(wcs(imgv), dimindex(img,1), gridspec.tickpos1w))
-                xguide --> ctype_label(wcs(imgv).ctype[dimindex(img,1)], wcs(imgv).radesys)
+                xticks --> (gridspec.tickpos1x, wcslabels(wcs(imgv), wcsax(dims(img,1)), gridspec.tickpos1w))
+                xguide --> ctype_label(wcs(imgv).ctype[wcsax(dims(img,1))], wcs(imgv).radesys)
 
-                yticks --> (gridspec.tickpos2x, wcslabels(wcs(imgv), dimindex(img,2), gridspec.tickpos2w))
-                yguide --> ctype_label(wcs(imgv).ctype[dimindex(img,2)], wcs(imgv).radesys)
+                yticks --> (gridspec.tickpos2x, wcslabels(wcs(imgv), wcsax(dims(img,2)), gridspec.tickpos2w))
+                yguide --> ctype_label(wcs(imgv).ctype[wcsax(dims(img,2))], wcs(imgv).radesys)
             end
-            view(arraydata(imgv), reverse(axes(imgv,1)),:)
+            view(parent(imgv), reverse(axes(imgv,1)),:)
         end
 
         if showcolorbar
@@ -227,6 +237,7 @@
                 colorbar_title = string(img[:UNIT])
             end
     
+
             @series begin
                 subplot_i += 1
                 subplot := subplot_i
@@ -237,8 +248,8 @@
                 ymirror := true
                 ax = axes(cbimg,1)
                 yticks := ([first(ax), mean(ax), last(ax)], ["-π", "0", "π"])
-                ylabel := colorbar_title
-                xlabel := ""
+                yguide := colorbar_title
+                xguide := ""
                 xlims := Tuple(axes(cbimg, 2))
                 ylims := Tuple(axes(cbimg, 2))
                 title := ""
@@ -496,8 +507,8 @@ end
     end
     annotate = haskey(plotattributes, :gridlabels) && plotattributes[:gridlabels]
 
-    xguide --> ctype_label(wcs(wcsg.img).ctype[dimindex(wcsg.img,1)], wcs(wcsg.img).radesys)
-    yguide --> ctype_label(wcs(wcsg.img).ctype[dimindex(wcsg.img,2)], wcs(wcsg.img).radesys)
+    xguide --> ctype_label(wcs(wcsg.img).ctype[wcsax(dims(wcsg.img,1))], wcs(wcsg.img).radesys)
+    yguide --> ctype_label(wcs(wcsg.img).ctype[wcsax(dims(wcsg.img,2))], wcs(wcsg.img).radesys)
 
     xlims --> wcsg.extent[1], wcsg.extent[2]
     ylims --> wcsg.extent[3], wcsg.extent[4]
@@ -1008,30 +1019,44 @@ end
 
 
 
-function wcsvecticks(w,coords,ax,minx,maxx)
-    # x and y denote pixel coordinates (along `ax`), u and v are world coordinates roughly along same.
-    coordsx = convert(Vector{Float64}, collect(coords))
 
-    # Find the extent of this slice in world coordinates
-    posxy = repeat(coordsx, 1, 2)
-    posxy[ax,1] = minx
-    posxy[ax,2] = maxx
-    posuv = pix_to_world(w, posxy)
-    minu, maxu = extrema(posuv[ax,:])
+@userplot PolQuiver
+@recipe function f(h::PolQuiver)
+    cube = only(h.args)
+    bin = get(plotattributes, :bin, 4)
+    polintenfrac = get(plotattributes, :polintenfrac, 0.1)
 
-    # Find nice grid spacings using PlotUtils.optimize_ticks
-    # These heuristics can probably be improved
-    # TODO: this does not handle coordinates that wrap around
-    Q=[(1.0,1.0), (3.0, 0.8), (2.0, 0.7), (5.0, 0.5)] 
-    k_min = 3
-    k_ideal = 5
-    k_max = 10
+    i = cube[Pol=At(:I)]
+    q = cube[Pol=At(:Q)]
+    u = cube[Pol=At(:U)]
+    polinten = @. sqrt(q^2 + u^2)
+    linpolfrac = polinten ./ i
 
-    tickpos2x = Float64[]
-    tickpos2w = Float64[]
-    tickposv = optimize_ticks(6minv, 6maxv; Q, k_min, k_ideal, k_max)[1]./6
-    griduv = posuv[:,1]
-    griduv[ax,:] .= urange
-    posxy = world_to_pix(wsg.w, griduv)
+    binratio=1/bin
+    xs = imresize([x for x in dims(cube,1), y in dims(cube,2)], ratio=binratio)
+    ys = imresize([y for x in dims(cube,1), y in dims(cube,2)], ratio=binratio)
+    qx = imresize(q, ratio=binratio)
+    qy = imresize(u, ratio=binratio)
+    qlinpolfrac = imresize(linpolfrac, ratio=binratio)
+    qpolintenr = imresize(polinten, ratio=binratio)
 
+    mask = isfinite.(qpolintenr) .&& qpolintenr .> polintenfrac * maximum(filter(isfinite,qpolintenr))
+    a = 20 / maximum(filter(isfinite,qpolintenr))
+    pointstmp = map(xs[mask],ys[mask],qx[mask],qy[mask]) do x,y,qxi,qyi
+        return ([x, x+a*qxi, NaN], [y, y+a*qyi, NaN])
+    end
+    xs = reduce(vcat, getindex.(pointstmp, 1))
+    ys = reduce(vcat, getindex.(pointstmp, 2))
+
+    colors = qlinpolfrac[mask]
+    if !isnothing(colors)
+        line_z := repeat(colors, inner=3)
+    end
+
+    label --> ""
+    color --> :turbo
+
+    @series begin
+        xs, ys
+    end
 end

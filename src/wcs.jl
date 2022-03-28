@@ -384,15 +384,11 @@ function WCS.pix_to_world(img::AstroImage, pixcoords; all=false)
     # output to only include the dims of the current slice?
     # out = zeros(Float64, length(dims(img))+length(refdims(img)), size(pixcoords,2))
     for (i, dim) in enumerate(dims(img))
-        j = findfirst(dimnames) do dim_candidate
-            name(dim_candidate) == name(dim)
-        end
+        j = wcsax(dim)
         parentcoords_prepared[j,:] .= parentcoords[i,:]
     end
     for dim in refdims(img)
-        j = findfirst(dimnames) do dim_candidate
-            name(dim_candidate) == name(dim)
-        end
+        j = wcsax(dim)
         parentcoords_prepared[j,:] .= dim[1]
     end
 
@@ -412,9 +408,7 @@ function WCS.pix_to_world(img::AstroImage, pixcoords; all=false)
         world_coords_of_these_axes = zeros(length(dims(img)))
     end
     for (i, dim) in enumerate(dims(img))
-        j = findfirst(dimnames) do dim_candidate
-            name(dim_candidate) == name(dim)
-        end
+        j = wcsax(dim)
         world_coords_of_these_axes[i,:] .= worldcoords_out[j,:]
     end
 
@@ -455,15 +449,11 @@ function WCS.world_to_pix!(pixcoords_out, img::AstroImage, worldcoords)
     # output to only include the dims of the current slice?
     # out = zeros(Float64, length(dims(img))+length(refdims(img)), size(worldcoords,2))
     for (i, dim) in enumerate(dims(img))
-        j = findfirst(dimnames) do dim_candidate
-            name(dim_candidate) == name(dim)
-        end
+        j = wcsax(dim)
         worldcoords_prepared[j,:] = worldcoords[i,:]
     end
     for dim in refdims(img)
-        j = findfirst(dimnames) do dim_candidate
-            name(dim_candidate) == name(dim)
-        end
+        j = wcsax(dim)
         worldcoords_prepared[j,:] .= dim[1]
     end
 
@@ -475,16 +465,12 @@ function WCS.world_to_pix!(pixcoords_out, img::AstroImage, worldcoords)
     coordoffsets = zeros(length(dims(img))+length(refdims(img)))
     coordsteps = zeros(length(dims(img))+length(refdims(img)))
     for (i, dim) in enumerate(dims(img))
-        j = findfirst(dimnames) do dim_candidate
-            name(dim_candidate) == name(dim)
-        end
+        j = wcsax(dim)
         coordoffsets[j] = first(dims(img)[i])
         coordsteps[j] = step(dims(img)[i])
     end
     for dim in refdims(img)
-        j = findfirst(dimnames) do dim_candidate
-            name(dim_candidate) == name(dim)
-        end
+        j = wcsax(dim)
         coordoffsets[j] = first(dim)
         coordsteps[j] = step(dim)
     end
@@ -494,17 +480,6 @@ function WCS.world_to_pix!(pixcoords_out, img::AstroImage, worldcoords)
 end
 
 
-
-
-## Helpers
-function dimindex(img::AstroImage, ind::Int)
-    return dimindex(dims(img), ind)
-end
-function dimindex(imgdims, ind::Int)
-    findfirst(dimnames) do dim_candidate
-        name(dim_candidate) == name(imgdims[ind])
-    end
-end
 
 
 
