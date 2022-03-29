@@ -171,12 +171,12 @@
     if showcolorbar
         if T <: Complex
             layout := @layout [
-                imgmag{0.95w, 0.5h}       colorbar{0.5h}
-              imgangle{0.95w, 0.5h}  colorbarangle{0.5h}
+                imgmag{0.97w, 0.5h}       colorbar{0.5h}
+              imgangle{0.97w, 0.5h}  colorbarangle{0.5h}
             ]
         else
             layout := @layout [
-                img{0.95w} colorbar
+                img{0.97w} colorbar
             ]
         end
         colorbar_title = get(plotattributes, :colorbar_title, "")
@@ -1023,8 +1023,7 @@ end
 @userplot PolQuiver
 @recipe function f(h::PolQuiver)
     cube = only(h.args)
-    bin = get(plotattributes, :bin, 4)
-    polintenfrac = get(plotattributes, :polintenfrac, 0.1)
+    bins = get(plotattributes, :bins, 4)
 
     i = cube[Pol=At(:I)]
     q = cube[Pol=At(:Q)]
@@ -1032,7 +1031,7 @@ end
     polinten = @. sqrt(q^2 + u^2)
     linpolfrac = polinten ./ i
 
-    binratio=1/bin
+    binratio=1/bins
     xs = imresize([x for x in dims(cube,1), y in dims(cube,2)], ratio=binratio)
     ys = imresize([y for x in dims(cube,1), y in dims(cube,2)], ratio=binratio)
     qx = imresize(q, ratio=binratio)
@@ -1040,8 +1039,13 @@ end
     qlinpolfrac = imresize(linpolfrac, ratio=binratio)
     qpolintenr = imresize(polinten, ratio=binratio)
 
-    mask = isfinite.(qpolintenr) .&& qpolintenr .> polintenfrac * maximum(filter(isfinite,qpolintenr))
-    a = 20 / maximum(filter(isfinite,qpolintenr))
+
+    # We want the longest ticks to be around 1 bin long.
+    qmaxlen = quantile(filter(isfinite,qpolintenr), 0.98)
+    a = bins / qmaxlen
+    # Only show arrows where the data is finite, and more than a couple pixels
+    # long.
+    mask = isfinite.(qpolintenr) 
     pointstmp = map(xs[mask],ys[mask],qx[mask],qy[mask]) do x,y,qxi,qyi
         return ([x, x+a*qxi, NaN], [y, y+a*qyi, NaN])
     end
@@ -1055,6 +1059,16 @@ end
 
     label --> ""
     color --> :turbo
+    framestyle --> :box
+    aspect_ratio --> 1
+    linewidth --> 1.5
+    colorbar --> true
+    colorbar_title --> "Linear polarization fraction"
+
+    xl = first(dims(i,2)), last(dims(i,2))
+    yl = first(dims(i,1)), last(dims(i,1))
+    ylims --> yl
+    xlims --> xl
 
     @series begin
         xs, ys
