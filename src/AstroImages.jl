@@ -50,6 +50,7 @@ export load,
     wcs,
     Comment,
     History,
+    Centered,
     pix_to_world,
     pix_to_world!,
     world_to_pix,
@@ -106,11 +107,23 @@ export X, Y, Z, Dim
 export At, Near, Between, ..
 export dims, refdims
 
-# We need to keep a canonical order of dimensions to match back with WCS
-# dimension numbers. E.g. if we see Z(), we need to know this is WCSTransform(..).ctype[3].
-# Currently this is supported up to dimension 10, but this feels arbitrary.
-# In future, let's just hardcode X,Y,Z and then use the dimension number itself
-# after that.
+"""
+    Centered()
+
+Pass centered as a dimesion range to automatically center a dimension
+along that axis.
+
+Example:
+```julia
+cube = load("abc.fits", (X=Centered(), Y=Centered(), Pol=[:I, :Q, :U]))
+```
+
+In that case, cube will have dimsions with the centre of the image at 0
+in both the X and Y axes.
+"""
+struct Centered end
+
+# Default dimension names if none are provided
 const dimnames = (
     X, Y, Z,
     (Dim{i} for i in 4:10)...
@@ -206,53 +219,6 @@ AstroImage before proceeding.
 AstroImage(img::AstroImage) = img
 
 
-# """
-#     AstroImage(data::AbstractArray, [header::FITSHeader,] [wcs::WCSTransform,])
-
-# Create an AstroImage from an array, and optionally header or header and a 
-# WCSTransform.
-# """
-# function AstroImage(
-#     data::AbstractArray{T,N},
-#     header::FITSHeader=emptyheader(),
-#     wcs::Union{WCSTransform,Nothing}=nothing
-# ) where {T, N}
-#     wcs_stale = isnothing(wcs)
-#     if isnothing(wcs)
-#         wcs = emptywcs(data)
-#     end
-#     # If the user passes in a WCSTransform of their own, we use it and mark
-#     # wcs_stale=false. It will be kept unless they manually change a WCS header.
-#     # If they don't pass anything, we start with empty WCS information regardless
-#     # of what's in the header but we mark it as stale.
-#     # If/when the WCS info is accessed via `wcs(img)` it will be computed and cached.
-#     # This avoids those computations if the WCS transform is not needed.
-#     # It also allows us to create images with invalid WCS header,
-#     # only erroring when/if they are used.
-
-#     # Fields for DimensionalData.
-#     # Name dimensions always as X,Y,Z, then Dim{4}, Dim{5}, etc.
-#     # If we wanted to do something smarter e.g. time axes we would have
-#     # to look at the WCSTransform, and we want to avoid doing this on construction
-#     # for the reasons described above.
-#     dimnames = (
-#         X, Y, Z
-#     )[1:min(3,N)]
-#     if N > 3
-#         dimnames = (
-#             dimnames...,
-#             (Dim{i} for i in 4:N)...
-#         )
-#     end
-#     dimaxes = map(dimnames, axes(data)) do dim, ax
-#         dim(ax)
-#     end
-#     dims = DimensionalData.format(dimaxes, data)
-#     refdims = ()
-
-#     return AstroImage(data, dims, refdims, header, Ref(wcs), Ref(wcs_stale))
-# end
-
 """
     AstroImage(data::AbstractArray, [header::FITSHeader,] [wcs::WCSTransform,])
 
@@ -281,43 +247,37 @@ function AstroImage(
     # only erroring when/if they are used.
 
     # Fields for DimensionalData.
+    # TODO: cleanup logic
     if dims == ()
         if wcsdims
             ourdims = Tuple(Wcs{i} for i in 1:ndims(data))
         else
             ourdims = dimnames[1:ndims(data)]
         end
-        dimaxes = map(ourdims, axes(data)) do dim, ax
+        dims = map(ourdims, axes(data)) do dim, ax
             dim(ax)
         end
-        dims = DimensionalData.format(dimaxes, data)
-    else
-        dims = DimensionalData.format(dims, data)
     end
-
-
+    # Replace any occurences of Centered() with an automatic range
+    # from the data.
+    dimvals = map(dims, axes(data)) do dim, ax
+        if dim isa Centered
+            ax .- mean(ax)
+        else
+            dim
+        end
+    end
+    if dims isa NamedTuple
+        dims = NamedTuple{keys(dims)}(dimvals)
+    elseif !(dims isa NTuple{N,Dimensions.Dimension} where N) &&
+        !(all(d-> d isa Union{UnionAll,DataType} && d <: Dimensions.Dimension, dims))
+        k = name.(dimnames[1:ndims(data)])
+        dims = NamedTuple{k}(dimvals)
+    end
+    dims = DimensionalData.format(dims, data)
     if length(dims) != ndims(data)
         error("Number of dims does not match the shape of the data")
     end
-
-    # Name dimensions always as X,Y,Z, then Dim{4}, Dim{5}, etc.
-    # If we wanted to do something smarter e.g. time axes we would have
-    # to look at the WCSTransform, and we want to avoid doing this on construction
-    # for the reasons described above.
-    # dimnames = (
-    #     X, Y, Z
-    # )[1:min(3,N)]
-    # if N > 3
-    #     dimnames = (
-    #         dimnames...,
-    #         (Dim{i} for i in 4:N)...
-    #     )
-    # end
-    # dimaxes = map(dimnames, axes(data)) do dim, ax
-    #     dim(ax)
-    # end
-    # dims = DimensionalData.format(dimaxes, data)
-    # refdims = ()
 
     return AstroImage(data, dims, refdims, header, Ref(wcs), Ref(wcs_stale))
 end
@@ -335,16 +295,19 @@ function AstroImage(
 end
 AstroImage(
     data::AbstractArray,
+    dims::Union{Tuple,NamedTuple},
+    header::FITSHeader,
+    wcs::Union{WCSTransform,Nothing}=nothing;
+    wcsdims=false
+) = AstroImage(data, dims, (), header, wcs; wcsdims)
+AstroImage(
+    data::AbstractArray,
     header::FITSHeader,
     wcs::Union{WCSTransform,Nothing}=nothing;
     wcsdims=false
 ) = AstroImage(data, (), (), header, wcs; wcsdims)
-# AstroImage(
-#     data::AbstractArray,
-#     header::FITSHeader=emptyheader(),
-#     wcs::Union{WCSTransform,Nothing}=nothing;
-#     wcsdims=false
-# ) = AstroImage(data, dimnames[begin:begin+ndims(data)], (), header, wcs; wcsdims)
+
+
 # TODO: ensure this gets WCS dims.
 AstroImage(data::AbstractArray, wcs::WCSTransform) = AstroImage(data, emptyheader(), wcs)
 
