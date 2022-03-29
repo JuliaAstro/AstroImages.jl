@@ -171,12 +171,12 @@
     if showcolorbar
         if T <: Complex
             layout := @layout [
-                imgmag{0.97w, 0.5h}       colorbar{0.5h}
-              imgangle{0.97w, 0.5h}  colorbarangle{0.5h}
+                imgmag{0.95w, 0.5h}       colorbar{0.5h}
+              imgangle{0.95w, 0.5h}  colorbarangle{0.5h}
             ]
         else
             layout := @layout [
-                img{0.97w} colorbar
+                img{0.95w} colorbar
             ]
         end
         colorbar_title = get(plotattributes, :colorbar_title, "")
@@ -1024,6 +1024,8 @@ end
 @recipe function f(h::PolQuiver)
     cube = only(h.args)
     bins = get(plotattributes, :bins, 4)
+    ticklen = get(plotattributes, :ticklen, nothing)
+    minpol = get(plotattributes, :minpol, 0.1)
 
     i = cube[Pol=At(:I)]
     q = cube[Pol=At(:Q)]
@@ -1040,12 +1042,16 @@ end
     qpolintenr = imresize(polinten, ratio=binratio)
 
 
-    # We want the longest ticks to be around 1 bin long.
+    # We want the longest ticks to be around 1 bin long by default.
     qmaxlen = quantile(filter(isfinite,qpolintenr), 0.98)
-    a = bins / qmaxlen
+    if isnothing(ticklen)
+        a = bins / qmaxlen
+    else
+        a = ticklen / qmaxlen
+    end
     # Only show arrows where the data is finite, and more than a couple pixels
     # long.
-    mask = isfinite.(qpolintenr) 
+    mask = isfinite.(qpolintenr) .&& qpolintenr .>= minpol.*qmaxlen
     pointstmp = map(xs[mask],ys[mask],qx[mask],qy[mask]) do x,y,qxi,qyi
         return ([x, x+a*qxi, NaN], [y, y+a*qyi, NaN])
     end
@@ -1074,3 +1080,21 @@ end
         xs, ys
     end
 end
+
+"""
+    polquiver(polqube::AstroImage)
+
+Given a data cube (of at least 2 spatial dimensions, plus a polarization axis),
+plot a vector field of polarization data. 
+The tick length represents the polarization intensity, sqrt(q^2 + u^2), 
+and the color represents the linear polarization fraction, sqrt(q^2 + u^2) / i.
+
+There are several ways you can adjust the appearance of the plot using keyword arguments:
+* `bins` (default = 1) By how much should we bin down the polarization data before drawing the ticks? This reduced clutter from higher resolution datasets. Can be fractional.
+* `ticklen` (default = bins) How long the 98th percentile arrow should be. By default, 1 bin long. Make this larger to draw longer arrows.
+* `color` (default = :turbo) What colorscheme should be used for linear polarization fraction.
+* `minpol` (default = 0.2) Hides arrows that are shorter than `minpol` times the 98th percentile arrow to make a cleaner image. Set to 0 to display all data.
+
+Use `implot` and `polquiver!` to overplot polarization data over an image.
+"""
+polquiver
