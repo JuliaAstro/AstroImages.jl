@@ -11,7 +11,7 @@ powerdiststretch(x, a=1000) = (a^x - 1) / (a - 1)
 """
     percent(99.5)
 
-Returns a function that calculates display limits that include the given 
+Returns a callable that calculates display limits that include the given 
 percent of the image data.
 
 Example:
@@ -20,12 +20,14 @@ julia> imview(img, clims=percent(90))
 ```
 This will set the limits to be the 5th percentile to the 95th percentile.
 """
-function percent(perc::Number)
-    trim = (1  - perc/100)/2
-    clims(data::AbstractMatrix) = quantile(vec(data), (trim, 1-trim))
-    clims(data) = quantile(data, (trim, 1-trim))
-    return clims
+struct percent
+    perc::Float64
+    trim::Float64
+    percent(percentage::Number) = new(Float64(percentage), (1 - percentage/100)/2)
 end
+(p::percent)(data::AbstractMatrix) = quantile(vec(data), (p.trim, 1-p.trim))
+(p::percent)(data) = quantile(data, (p.trim, 1-p.trim))
+Base.show(io::IO, p::percent; kwargs...) = print(io, "percent($(p.perc))", kwargs...)
 
 const _default_cmap  = Base.RefValue{Union{Symbol,Nothing}}(:magma)#nothing)
 const _default_clims = Base.RefValue{Any}(percent(99.5))
