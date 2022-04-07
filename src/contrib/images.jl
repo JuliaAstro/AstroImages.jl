@@ -51,13 +51,10 @@ function clampednormedview(img::AbstractArray{T}, lims) where T <: Normed
     Δ = abs(imgmax - imgmin)
     normeddata = mappedarray(
         pix -> clamp((pix - imgmin)/Δ, zero(T), one(T)),
-        pix_norm -> pix_norm*Δ + imgmin,
+        # pix_norm -> pix_norm*Δ + imgmin, # TODO
         img
     )
     return maybe_shareheader(img, normeddata)
-end
-function clampednormedview(img::AbstractArray{Bool}, lims)
-    return img
 end
 
 

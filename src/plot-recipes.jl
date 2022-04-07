@@ -42,6 +42,10 @@
     clims   --> _default_clims[]
     stretch --> _default_stretch[]
     cmap    --> _default_cmap[]
+    bias    --> 0.5
+    contrast--> 1
+    bias = plotattributes[:bias]
+    contrast = plotattributes[:contrast]
 
     grid := false
     # In most cases, a grid framestyle is a nicer looking default for images
@@ -61,7 +65,7 @@
         else
             img = data
         end
-        imgv = imview(img; clims, stretch, cmap)
+        imgv = imview(img; clims, stretch, cmap, contrast, bias)
     end
 
 
@@ -89,10 +93,16 @@
             refdimslabel = join(map(refdims(imgv)) do d
                 # match dimension with the wcs axis number
                 i = wcsax(d)
-                label = ctype_label(wcs(imgv).ctype[i], wcs(imgv).radesys)
+                ct = wcs(imgv).ctype[i]
+                label = ctype_label(ct, wcs(imgv).radesys)
                 value = pix_to_world(imgv, [1,1], all=true)[i]
+                @show value
                 unit = wcs(imgv).cunit[i]
-                return @sprintf("%s = %.5g %s", label, value, unit)
+                if ct == "STOKES"
+                    return _stokes_name(_stokes_symbol(value))
+                else
+                    return @sprintf("%s = %.5g %s", label, value, unit)
+                end
             end, ", ")
         else
             refdimslabel = join(map(d->"$(name(d))= $(d[1])", refdims(imgv)), ", ")
@@ -189,7 +199,7 @@
             subplot := subplot_i
             aspect_ratio := :none
             colorbar := false
-            cbimg, cbticks = imview_colorbar(img; clims, stretch, cmap)
+            cbimg, cbticks = imview_colorbar(img; clims, stretch, cmap, contrast, bias)
             xticks := []
             ymirror := true
             yticks := cbticks
@@ -456,6 +466,8 @@ function ctype_label(ctype,radesys)
     elseif startswith(ctype, "GLAT")
         return "Galactic Latitude"
     # elseif startswith(ctype, "TLAT")
+    elseif ctype == "STOKES"
+        return "Polarization"
     else
         return ctype
     end

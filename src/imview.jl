@@ -94,7 +94,7 @@ end
 
 
 """
-    imview(img; clims=extrema, stretch=identity, cmap=nothing)
+    imview(img; clims=extrema, stretch=identity, cmap=:magma, contrast=1.0, bias=0.5)
 
 Create a read only view of an array or AstroImageMat mapping its data values
 to Colors according to `clims`, `stretch`, and `cmap`.
@@ -150,6 +150,8 @@ function imview(
     clims=_default_clims[],
     stretch=_default_stretch[],
     cmap=_default_cmap[],
+    contrast=1.0,
+    bias=0.5
 ) where {T}
 
     isempt = isempty(img)
@@ -181,7 +183,7 @@ function imview(
         imgmin, imgmax = clims(skipmissingnan(img))
     end
     normed = clampednormedview(img, (imgmin, imgmax))
-    return _imview(img, normed, stretch, _lookup_cmap(cmap))
+    return _imview(img, normed, stretch, _lookup_cmap(cmap), contrast, bias)
 end
 # Special handling for complex images
 """
@@ -205,7 +207,7 @@ function imview(img::AbstractMatrix{T}; kwargs...) where {T<:Complex}
     vcat(mag_view,angle_view)
 end
 
-function _imview(img, normed::AbstractArray{T}, stretch, cmap) where T
+function _imview(img, normed::AbstractArray{T}, stretch, cmap, contrast, bias) where T
     
     if T <: Union{Missing,<:Number}
         TT = typeof(first(skipmissing(normed)))
@@ -232,8 +234,9 @@ function _imview(img, normed::AbstractArray{T}, stretch, cmap) where T
             # are +-Inf
             stretched = pixr
         else
-            stretched = stretch(pixn)
+            stretched = (stretch(pixn) - bias)*contrast+0.5
         end
+
         # We treat NaN/missing values as transparent
         return if ismissing(stretched) || isnan(stretched)
             RGBA{TT}(0,0,0,0)
@@ -285,6 +288,8 @@ function imview_colorbar(
     clims=_default_clims[],
     stretch=_default_stretch[],
     cmap=_default_cmap[],
+    contrast=1,
+    bias=0.5
 )
     imgmin, imgmax = _resolve_clims(img, clims)
     cbpixlen = 100
@@ -312,7 +317,7 @@ function imview_colorbar(
 
     # Strech the ticks
     # Construct the image to use as a colorbar
-    cbimg = imview(data; clims=(imgmin,imgmax), stretch=identity, cmap)
+    cbimg = imview(data; clims=(imgmin,imgmax), stretch=identity, cmap, contrast, bias)
     # And the colorbar tick locations & labels
     ticks, _, _ = optimize_ticks(Float64(imgmin), Float64(imgmax), k_min=3)
     # Now map these to pixel locations through streching and colorlimits:
