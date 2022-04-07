@@ -18,7 +18,7 @@ using Tables
 using RecipesBase
 using AstroAngles
 using Printf
-using PlotUtils: optimize_ticks
+using PlotUtils: optimize_ticks, AbstractColorList
 
 
 

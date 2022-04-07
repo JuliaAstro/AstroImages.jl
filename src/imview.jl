@@ -71,13 +71,14 @@ Helper to iterate over data skipping missing and non-finite values.
 skipmissingnan(itr) = Iterators.filter(el->!ismissing(el) && isfinite(el), itr)
 
 
-function _lookup_cmap(cmap)
+function _lookup_cmap(cmap::Symbol)
     if cmap ∉ keys(ColorSchemes.colorschemes)
         error("$cmap not found in ColorSchemes.colorschemes. See: https://juliagraphics.github.io/ColorSchemes.jl/stable/catalogue/")
     end
-    return cmap
+    return ColorSchemes.colorschemes[cmap]
 end
-_lookup_cmap(cmap::Nothing) = nothing
+_lookup_cmap(::Nothing) = ColorSchemes.colorschemes[:grays]
+_lookup_cmap(acl::AbstractColorList) = acl
 
 function _resolve_clims(img, clims)
     # Tuple or abstract array
@@ -223,13 +224,6 @@ function _imview(img, normed::AbstractArray{T}, stretch, cmap, contrast, bias) w
     stretchmin = stretch(zero(TT))
     stretchmax = stretch(one(TT))
 
-    # Peviously no colormap would fall back to Gray, but
-    # it's simpler to keep a single codepath and use the :grays 
-    # color scheme.
-    if isnothing(cmap)
-        cmap = :grays
-    end
-    cscheme = ColorSchemes.colorschemes[cmap]
     mapper = mappedarray(img, normed) do pixr, pixn
         if ismissing(pixr) || !isfinite(pixr) || ismissing(pixn) || !isfinite(pixn)
             # We check pixr in addition to pixn because we want to preserve if the pixels
@@ -250,23 +244,11 @@ function _imview(img, normed::AbstractArray{T}, stretch, cmap, contrast, bias) w
                 RGBA{TT}(0,0,0,1)
             end
         else
-            RGBA{TT}(get(cscheme::ColorScheme, stretched, (stretchmin, stretchmax)))
-        end
+            RGBA{TT}(get(cmap, stretched, (stretchmin, stretchmax)))
+        end::RGBA{TT}
     end
 
     # Flip image to match conventions of other programs
-    # flipped_view = view(mapper', reverse(axes(mapper,2)),:)
-    # return maybe_copyheader(img, flipped_view)
-    # return maybe_copyheader(img, mapper)
-
-    # flipped_view = OffsetArray(
-    #     view(
-    #         mapper',
-    #         reverse(axes(mapper,1)),
-    #         :,
-    #     ),
-    #     axes(img)...
-    # )
     flipped_view = view(
         mapper',
         reverse(axes(mapper,2)),
