@@ -403,7 +403,7 @@ julia> world_coords = pix_to_world(img, [1, 1], all=true)
 !! Coordinates must be provided in the order of `dims(img)`. If you transpose 
 an image, the order you pass the coordinates should not change.
 """
-function WCS.pix_to_world(img::AstroImage, pixcoords; all=false)
+function WCS.pix_to_world(img::AstroImage, pixcoords; all=false, parent=false)
     if pixcoords isa Array{Float64}
         pixcoords_prepared = pixcoords
     else
@@ -421,7 +421,11 @@ function WCS.pix_to_world(img::AstroImage, pixcoords; all=false)
     # pixcoords_floored = floor.(Int, pixcoords)
     # pixcoords_frac = (pixcoords .- pixcoords_floored) .* step.(dims(img))
     # parentcoords = getindex.(dims(img), pixcoords_floored) .+ pixcoords_frac
-    parentcoords = pixcoords .* step.(dims(img)) .+ first.(dims(img))
+    if parent
+        parentcoords = pixcoords
+    else
+        parentcoords = pixcoords .* step.(dims(img)) .+ first.(dims(img))
+    end
     # WCS.jl is very restrictive. We need to supply a Vector{Float64}
     # as input, not any other kind of collection.
     # TODO: avoid allocation in case where refdims=() and pixcoords isa Array{Float64}
@@ -430,9 +434,6 @@ function WCS.pix_to_world(img::AstroImage, pixcoords; all=false)
     else
         parentcoords_prepared = zeros(length(dims(img))+length(refdims(img)))
     end
-
-    # TODO: we need to pass in ref dims locations as well, and then filter the
-    # output to only include the dims of the current slice?
     # out = zeros(Float64, length(dims(img))+length(refdims(img)), size(pixcoords,2))
     for (i, dim) in enumerate(dims(img))
         j = wcsax(dim)
@@ -468,7 +469,7 @@ end
 
 
 ##
-function WCS.world_to_pix(img::AstroImage, worldcoords)
+function WCS.world_to_pix(img::AstroImage, worldcoords; parent=false)
     if worldcoords isa Array{Float64}
         worldcoords_prepared = worldcoords
     else
@@ -480,9 +481,9 @@ function WCS.world_to_pix(img::AstroImage, worldcoords)
     else
         out = similar(worldcoords_prepared, Float64, D_out) 
     end
-    return WCS.world_to_pix!(out, img, worldcoords_prepared)
+    return WCS.world_to_pix!(out, img, worldcoords_prepared; parent)
 end
-function WCS.world_to_pix!(pixcoords_out, img::AstroImage, worldcoords)
+function WCS.world_to_pix!(pixcoords_out, img::AstroImage, worldcoords; parent=false)
     # # Find the coordinates in the parent array.
     # # Dimensional data
     # worldcoords_floored = floor.(Int, worldcoords)
@@ -509,25 +510,27 @@ function WCS.world_to_pix!(pixcoords_out, img::AstroImage, worldcoords)
     end
 
     # This returns the parent pixel coordinates.
-    # WCS.world_to_pix!(wcs(img), worldcoords_prepared, pixcoords_out)
-    pixcoords_out = WCS.world_to_pix(wcs(img), worldcoords_prepared)
+    # TODO: switch to non-allocating version.
+    pixcoords_out .= WCS.world_to_pix(wcs(img), worldcoords_prepared)
 
+    if !parent
+        coordoffsets = zeros(length(dims(img))+length(refdims(img)))
+        coordsteps = zeros(length(dims(img))+length(refdims(img)))
+        for (i, dim) in enumerate(dims(img))
+            j = wcsax(dim)
+            coordoffsets[j] = first(dims(img)[i])
+            coordsteps[j] = step(dims(img)[i])
+        end
+        for dim in refdims(img)
+            j = wcsax(dim)
+            coordoffsets[j] = first(dim)
+            coordsteps[j] = step(dim)
+        end
 
-    coordoffsets = zeros(length(dims(img))+length(refdims(img)))
-    coordsteps = zeros(length(dims(img))+length(refdims(img)))
-    for (i, dim) in enumerate(dims(img))
-        j = wcsax(dim)
-        coordoffsets[j] = first(dims(img)[i])
-        coordsteps[j] = step(dims(img)[i])
+        pixcoords_out .-= coordoffsets
+        pixcoords_out .= (pixcoords_out .+ 1) ./ coordsteps
     end
-    for dim in refdims(img)
-        j = wcsax(dim)
-        coordoffsets[j] = first(dim)
-        coordsteps[j] = step(dim)
-    end
-
-    pixcoords_out .-= coordoffsets
-    pixcoords_out .= pixcoords_out ./ coordsteps .+ 1
+    return pixcoords_out
 end
 
 

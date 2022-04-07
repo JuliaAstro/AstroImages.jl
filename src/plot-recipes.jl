@@ -21,11 +21,12 @@
         any(d->typeof(d) <: Wcs, dims(data)) && 
         !all(==(""), wcs(data).ctype)
 
-
-    minx = first(axes(data,2))
-    maxx = last(axes(data,2))
-    miny = first(axes(data,1))
-    maxy = last(axes(data,1))
+        
+       
+    minx = first(parent(dims(data,1)))
+    maxx = last(parent(dims(data,1)))
+    miny = first(parent(dims(data,2)))
+    maxy = last(parent(dims(data,2)))
     extent = (minx-0.5, maxx+0.5, miny-0.5, maxy+0.5)
     if haskey(plotattributes, :xlims)
         extent = (plotattributes[:xlims]..., extent[3:4]...)
@@ -95,8 +96,7 @@
                 i = wcsax(d)
                 ct = wcs(imgv).ctype[i]
                 label = ctype_label(ct, wcs(imgv).radesys)
-                value = pix_to_world(imgv, [1,1], all=true)[i]
-                @show value
+                value = pix_to_world(imgv, [1,1], all=true, parent=true)[i]
                 unit = wcs(imgv).cunit[i]
                 if ct == "STOKES"
                     return _stokes_name(_stokes_symbol(value))
@@ -110,15 +110,19 @@
         title --> refdimslabel
     end
 
+    # To ensure the physical axis tick labels are correct the axes must be
+    # tight to the image
+    xl = first(dims(imgv,1))-0.5, last(dims(imgv,1))+0.5
+    yl = first(dims(imgv,2))-0.5, last(dims(imgv,2))+0.5
+    ylims --> yl
+    xlims --> xl
+
     subplot_i = 0
     # Actual image series (RGB pixels by this point)
     @series begin
         subplot_i += 1
         subplot := subplot_i
         colorbar := false
-
-
-
 
         # Note: if the axes are on unusual sides (e.g. y-axis at right, x-axis at top)
         # then these coordinates are not correct. They are only correct exactly
@@ -132,13 +136,11 @@
 
             yticks --> (gridspec.tickpos2x, wcslabels(wcs(imgv), wcsax(dims(img,2)), gridspec.tickpos2w))
             yguide --> ctype_label(wcs(imgv).ctype[wcsax(dims(img,2))], wcs(imgv).radesys)
-            
-            view(parent(imgv), reverse(axes(imgv,1)),:)
         end
 
+    
         ax1 = collect(parent(dims(imgv,1)))
         ax2 = collect(parent(dims(imgv,2)))
-
         ax1, ax2, view(parent(imgv), reverse(axes(imgv,1)),:)
     end
 
@@ -154,13 +156,6 @@
             if !haskey(plotattributes, :xforeground_color_grid) && !haskey(plotattributes, :yforeground_color_grid)
                 gridcolor --> :lightgray
             end
-
-            # To ensure the physical axis tick labels are correct the axes must be
-            # tight to the image
-            xl = first(axes(imgv,2))-0.5, last(axes(imgv,2))+0.5
-            yl = first(axes(imgv,1))-0.5, last(axes(imgv,1))+0.5
-            ylims --> yl
-            xlims --> xl
 
             wcsg, gridspec
         end
@@ -485,14 +480,12 @@ curvature of the WCS grid projected on the image coordinates.
 
 """
 function WCSGrid(img::AstroImageMat)
-    minx = first(axes(img,1))
-    maxx = last(axes(img,1))
-    miny = first(axes(img,2))
-    maxy = last(axes(img,2))
-    # extent = (minx, maxx, miny, maxy)
+    minx = first(dims(img,2))
+    maxx = last(dims(img,2))
+    miny = first(dims(img,1))
+    maxy = last(dims(img,1))
     extent = (minx-0.5, maxx+0.5, miny-0.5, maxy+0.5)
-    # extent = (minx-2, maxx+2, miny-2, maxy+2)
-
+    @show extent
     return WCSGrid(img, extent)
 end
 
@@ -587,7 +580,7 @@ function wcsgridspec(wsg::WCSGrid)
         minx minx maxx maxx
         miny maxy miny maxy
     ]
-    posuv = pix_to_world(wsg.img, posxy)
+    posuv = pix_to_world(wsg.img, posxy, parent=true)
     (minu, maxu), (minv, maxv) = extrema(posuv, dims=2)
 
     # In general, grid can be curved when plotted back against the image,
@@ -629,7 +622,7 @@ function wcsgridspec(wsg::WCSGrid)
             griduv = repeat(posuv[:,1], 1, N_points)
             griduv[1,:] .= urange
             griduv[2,:] .= tickv
-            posxy = world_to_pix(wsg.img, griduv)
+            posxy = world_to_pix(wsg.img, griduv; parent=true)
 
             # Now that we have the grid in pixel coordinates, 
             # if we find out where the grid intersects the axes we can put
@@ -793,7 +786,7 @@ function wcsgridspec(wsg::WCSGrid)
             griduv = repeat(posuv[:,1], 1, N_points)
             griduv[1,:] .= ticku
             griduv[2,:] .= vrange
-            posxy = world_to_pix(wsg.img, griduv)           
+            posxy = world_to_pix(wsg.img, griduv; parent=true)           
 
             # Now that we have the grid in pixel coordinates, 
             # if we find out where the grid intersects the axes we can put
@@ -938,7 +931,7 @@ function wcsgridspec(wsg::WCSGrid)
         griduv = posuv[:,1]
         griduv[1] = ticku
         griduv[2] = mean(vrange)
-        posxy = world_to_pix(wsg.img, griduv)
+        posxy = world_to_pix(wsg.img, griduv, parent=true)
         if !(minx < posxy[1] < maxx) ||
             !(miny < posxy[2] < maxy)
             continue
@@ -950,7 +943,7 @@ function wcsgridspec(wsg::WCSGrid)
         # Now find slope (TODO: stepsize)
         # griduv[ax[2]] -= 1
         griduv[2] += 0.1step(vrange)
-        posxy2 = world_to_pix(wsg.img, griduv)
+        posxy2 = world_to_pix(wsg.img, griduv, parent=true)
         θ = atan(
             posxy2[2] - posxy[2],
             posxy2[1] - posxy[1],
@@ -966,7 +959,7 @@ function wcsgridspec(wsg::WCSGrid)
         griduv = posuv[:,1]
         griduv[1] = mean(urange)
         griduv[2] = tickv
-        posxy = world_to_pix(wsg.img, griduv)
+        posxy = world_to_pix(wsg.img, griduv, parent=true)
         if !(minx < posxy[1] < maxx) ||
             !(miny < posxy[2] < maxy)
             continue
@@ -976,7 +969,7 @@ function wcsgridspec(wsg::WCSGrid)
         push!(annotations2y, posxy[2])
 
         griduv[1] += 0.1step(urange)
-        posxy2 = world_to_pix(wsg.img, griduv)
+        posxy2 = world_to_pix(wsg.img, griduv, parent=true)
         θ = atan(
             posxy2[2] - posxy[2],
             posxy2[1] - posxy[1],
