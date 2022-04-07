@@ -302,6 +302,70 @@ function wcsfromheader(img::AstroImage; relax=WCS.HDR_ALL)
     end
 end
 
+# Map FITS stokes numbers to a symbol
+function _stokes_symbol(i)
+    return if i == 1
+        :I
+    elseif i == 2
+        :Q
+    elseif i == 3
+        :U
+    elseif i == 4
+        :V
+    elseif i == -1
+        :RR
+    elseif i == -2
+        :LL
+    elseif i == -3
+        :RL
+    elseif i == -4
+        :LR
+    elseif i == -5
+        :XX
+    elseif i == -6
+        :YY
+    elseif i == -7
+        :XY
+    elseif i == -8
+        :YX
+    else
+        @warn "unknown FITS stokes number $i. See \"Representations of world coordinates in FITS\", Table 7."
+        nothing
+    end
+end
+function _stokes_name(symb)
+    return if symb == :I
+        "Stokes Unpolarized"
+    elseif symb == :Q
+        "Stokes Linear Q"
+    elseif symb == :U
+        "Stokes Linear U"
+    elseif symb == :V
+        "Stokes Circular"
+    elseif symb == :RR
+        "Right-right cicular"
+    elseif symb == :LL
+        "Left-left cicular"
+    elseif symb == :RL
+        "Right-left cross-cicular"
+    elseif symb == :LR
+        "Left-right cross-cicular"
+    elseif symb == :XX
+        "X parallel linear"
+    elseif symb == :YY
+        "Y parallel linear"
+    elseif symb == :XY
+        "XY cross linear"
+    elseif symb == :YX
+        "YX cross linear"
+    else
+        @warn "unknown FITS stokes key $symb. See \"Representations of world coordinates in FITS\", Table 7."
+        ""
+    end
+end
+
+
+
 
 # Smart versions of pix_to_world and world_to_pix
 """
@@ -339,19 +403,6 @@ julia> world_coords = pix_to_world(img, [1, 1], all=true)
 !! Coordinates must be provided in the order of `dims(img)`. If you transpose 
 an image, the order you pass the coordinates should not change.
 """
-# function WCS.pix_to_world(img::AstroImage, pixcoords::NTuple{N,DimensionalData.Dimension}) where N
-#     pixcoords_prepared = zeros(Float64, length(pixcoords))
-#     for dim in pixcoords
-#         j = findfirst(dimnames) do dim_candidate
-#             name(dim_candidate) == name(dim)
-#         end
-#         pixcoords_prepared[j] = dim[]
-#     end
-#     D_out = length(dims(img))+length(refdims(img))
-#     out = zeros(Float64, D_out)
-#     return WCS.pix_to_world!(out, img, pixcoords_prepared)
-# end
-# WCS.pix_to_world(img::AstroImage, pixcoords::DimensionalData.Dimension...) = WCS.pix_to_world(img, pixcoords)
 function WCS.pix_to_world(img::AstroImage, pixcoords; all=false)
     if pixcoords isa Array{Float64}
         pixcoords_prepared = pixcoords
@@ -385,11 +436,11 @@ function WCS.pix_to_world(img::AstroImage, pixcoords; all=false)
     # out = zeros(Float64, length(dims(img))+length(refdims(img)), size(pixcoords,2))
     for (i, dim) in enumerate(dims(img))
         j = wcsax(dim)
-        parentcoords_prepared[j,:] .= parentcoords[i,:]
+        parentcoords_prepared[j,:] .= parentcoords[i,:] .- 1
     end
     for dim in refdims(img)
         j = wcsax(dim)
-        parentcoords_prepared[j,:] .= dim[1]
+        parentcoords_prepared[j,:] .= dim[1] .- 1
     end
 
     # Get world coordinates along all slices
