@@ -109,7 +109,7 @@ function _loadhdu(hdu::FITSIO.ImageHDU, args...; kwargs...)
     else
         # Sometimes files have an empty data HDU that shows up as an image HDU but has headers.
         # Fallback to creating an empty AstroImage with those headers.
-        emptydata = fill(0, (0, 0))
+        emptydata = fill(missing)
         return AstroImage(emptydata, (), (), read_header(hdu), Ref(emptywcs(emptydata)), Ref(false))
     end
 end
