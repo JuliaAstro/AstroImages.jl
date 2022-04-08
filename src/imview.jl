@@ -149,7 +149,7 @@ save("output.png", v)
 ```
 """
 function imview(
-    img::AbstractMatrix{T};
+    img::AbstractArray{T};
     clims=_default_clims[],
     stretch=_default_stretch[],
     cmap=_default_cmap[],
@@ -157,17 +157,36 @@ function imview(
     bias=0.5
 ) where {T}
 
-    isempt = isempty(img)
+    # Create flipped view of to match conventions of other programs.
+    # Origin is centre of pixel (1,1) at bottom left.
+    if ndims(img) == 2
+        imgT = view(
+            permutedims(img,(2,1)),
+            reverse(axes(img,2)),
+            :,
+        )
+    elseif ndims(img) >= 3
+        newdims = (2,1, 3:ndims(img)...)
+        ds = Tuple(((:) for _ in 2:ndims(img)))
+        imgT = view(
+            permutedims(img,newdims),
+            reverse(axes(img,2)),
+            ds...,
+        )
+    else
+        imgT = img
+    end
+    isempt = isempty(imgT)
     if isempt
         @warn "imview called with empty argument"
         return fill(RGBA{N0f8}(0,0,0,0), 1,1)
     end
     # Users will occaisionally pass in data that is 0D, filled with NaN, or filled with missing.
     # We still need to do something reasonable in those caes.
-    nonempty = any(x-> !ismissing(x) && isfinite(x), img)
+    nonempty = any(x-> !ismissing(x) && isfinite(x), imgT)
     if !nonempty
         @warn "imview called with all missing or non-finite values"
-        return map(px->RGBA{N0f8}(0,0,0,0), img)
+        return map(px->RGBA{N0f8}(0,0,0,0), imgT)
     end
 
     # TODO: Images.jl has logic to downsize huge images before displaying them.
@@ -183,10 +202,10 @@ function imview(
         imgmax = last(clims)
     # Or as a callable that computes them given an iterator
     else
-        imgmin, imgmax = clims(skipmissingnan(img))
+        imgmin, imgmax = clims(skipmissingnan(imgT))
     end
-    normed = clampednormedview(img, (imgmin, imgmax))
-    return _imview(img, normed, stretch, _lookup_cmap(cmap), contrast, bias)
+    normed = clampednormedview(imgT, (imgmin, imgmax))
+    return _imview(imgT, normed, stretch, _lookup_cmap(cmap), contrast, bias)
 end
 # Special handling for complex images
 """
@@ -203,7 +222,7 @@ vcat(
 )
 ```
 """
-function imview(img::AbstractMatrix{T}; kwargs...) where {T<:Complex}
+function imview(img::AbstractArray{T}; kwargs...) where {T<:Complex}
     
     mag_view = imview(abs.(img); kwargs...)
     angle_view = imview(angle.(img), clims=(-pi, pi), stretch=identity, cmap=:cyclic_mygbm_30_95_c78_n256_s25)
@@ -248,14 +267,7 @@ function _imview(img, normed::AbstractArray{T}, stretch, cmap, contrast, bias) w
         end::RGBA{TT}
     end
 
-    # Flip image to match conventions of other programs
-    flipped_view = view(
-        mapper',
-        reverse(axes(mapper,2)),
-        :,
-    )
-
-    return maybe_copyheader(img, flipped_view)
+    return maybe_copyheader(img, mapper)
 end
 
 
@@ -267,7 +279,7 @@ Create a colorbar for a given image matching how it is displayed by
 `orientation` can be `:vertical` or `:horizontal`.
 """
 function imview_colorbar(
-    img::AbstractMatrix;
+    img::AbstractArray;
     orientation=:vertical,
     clims=_default_clims[],
     stretch=_default_stretch[],
