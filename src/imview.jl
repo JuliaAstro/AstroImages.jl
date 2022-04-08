@@ -207,6 +207,20 @@ function imview(
     normed = clampednormedview(imgT, (imgmin, imgmax))
     return _imview(imgT, normed, stretch, _lookup_cmap(cmap), contrast, bias)
 end
+
+# Unwrap AstroImages before view, then rebuild. 
+# We have to permute the dimensions of the image to get the origin at the bottom left.
+# But we don't want this to affect the dimensions of the array.
+# Also, this reduces the number of methods we need to compile for imview by standardizing types
+# earlier on. The compiled code for showing an array is the same as an array wrapped by an
+# AstroImage, except for one unwrapping step.
+function imview(
+    img::AstroImage;
+    kwargs...
+)
+    return shareheader(img, imview(parent(img); kwargs...))
+end
+
 # Special handling for complex images
 """
     imview(img::AbstractArray{<:Complex}; ...)
@@ -223,7 +237,6 @@ vcat(
 ```
 """
 function imview(img::AbstractArray{T}; kwargs...) where {T<:Complex}
-    
     mag_view = imview(abs.(img); kwargs...)
     angle_view = imview(angle.(img), clims=(-pi, pi), stretch=identity, cmap=:cyclic_mygbm_30_95_c78_n256_s25)
     vcat(mag_view,angle_view)

@@ -72,13 +72,9 @@
     maxpixels = get(plotattributes, :maxpixels, 10^6)
     _length1(A::AbstractArray) = length(eachindex(A))
     _length1(A) = length(A)
-    @show axes(imgv)
     while _length1(imgv) > maxpixels
-        @info "downscaling"
         imgv = restrict(imgv)
-        @show axes(imgv)
     end
-
 
     # We have to do a lot of flipping to keep the orientation corect 
     yflip := false
@@ -151,7 +147,9 @@
     
         ax1 = collect(parent(dims(imgv,1)))
         ax2 = collect(parent(dims(imgv,2)))
-        ax1, ax2, view(parent(imgv), reverse(axes(imgv,1)),:)
+        # Views of images are not currently supported by plotly() so we have to collect them.
+        # ax1, ax2, view(parent(imgv), reverse(axes(imgv,1)),:)
+        ax1, ax2, parent(imgv)[reverse(axes(imgv,1)),:]
     end
 
     # If wcs=true (default) and grid=true (not default), overplot a WCS 
@@ -213,7 +211,9 @@
             xlims := Tuple(axes(cbimg, 2))
             ylims := Tuple(axes(cbimg, 2))
             title := ""
-            view(cbimg, reverse(axes(cbimg,1)),:)
+            # Views of images are not currently supported by plotly so we have to collect them
+            # view(cbimg, reverse(axes(cbimg,1)),:)
+            cbimg[reverse(axes(cbimg,1)),:]
         end    
     end
 
@@ -243,7 +243,7 @@
                 yticks --> (gridspec.tickpos2x, wcslabels(wcs(imgv), wcsax(dims(img,2)), gridspec.tickpos2w))
                 yguide --> ctype_label(wcs(imgv).ctype[wcsax(dims(img,2))], wcs(imgv).radesys)
             end
-            view(parent(imgv), reverse(axes(imgv,1)),:)
+            view(collect(imgv), reverse(axes(imgv,1)),:)
         end
 
         if showcolorbar
