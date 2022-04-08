@@ -62,7 +62,12 @@ end
 # We want to keep the wrapper but downsize the underlying array
 # TODO: correct dimensions after restrict.
 ImageTransformations.restrict(img::AstroImage, ::Tuple{}) = img
-ImageTransformations.restrict(img::AstroImage, region::Dims) = shareheader(img, restrict(arraydata(img), region))
+function ImageTransformations.restrict(img::AstroImage, region::Dims)
+    restricted = restrict(arraydata(img), region)
+    steps = cld.(size(img), size(restricted))
+    newdims = Tuple(d[begin:s:end] for (d,s) in zip(dims(img),steps))
+    return AstroImage(restricted, newdims, refdims(img), header(img), Ref(getfield(img, :wcs)[]), Ref(getfield(img, :wcs_stale)[]))
+end
 
 # TODO: use WCS info
 # ImageCore.pixelspacing(img::ImageMeta) = pixelspacing(arraydata(img))

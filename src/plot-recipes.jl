@@ -43,10 +43,9 @@
     clims   --> _default_clims[]
     stretch --> _default_stretch[]
     cmap    --> _default_cmap[]
-    bias    --> 0.5
-    contrast--> 1
-    bias = plotattributes[:bias]
-    contrast = plotattributes[:contrast]
+
+    bias = get(plotattributes, :bias, 0.5)
+    contrast = get(plotattributes, :contrast, 1)
 
     grid := false
     # In most cases, a grid framestyle is a nicer looking default for images
@@ -67,6 +66,17 @@
             img = data
         end
         imgv = imview(img; clims, stretch, cmap, contrast, bias)
+    end
+
+    # Reduce large images using the same heuristic as Images.jl
+    maxpixels = get(plotattributes, :maxpixels, 10^6)
+    _length1(A::AbstractArray) = length(eachindex(A))
+    _length1(A) = length(A)
+    @show axes(imgv)
+    while _length1(imgv) > maxpixels
+        @info "downscaling"
+        imgv = restrict(imgv)
+        @show axes(imgv)
     end
 
 
