@@ -97,7 +97,7 @@ struct AstroImage{T,N,D<:Tuple,R<:Tuple,A<:AbstractArray{T,N},W<:Tuple} <: Abstr
     # the new header on demand.
     wcs_stale::Base.RefValue{Bool}
     # Correspondance between dims & refdims -> WCS Axis numbers
-    wcs_dims::W
+    wcsdims::W
 end
 # Provide type aliases for 1D and 2D versions of our data structure.
 const AstroImageVec{T,D} = AstroImage{T,1} where {T}
@@ -150,7 +150,7 @@ const Pol = Dim{:Pol}
 Return the WCS axis number associated with a dimension.
 """
 function wcsax(img::AstroImage, dim)
-    return findfirst(di->name(di)==name(dim), img.wcs_dims)
+    return findfirst(di->name(di)==name(dim), img.wcsdims)
 end
 
 export Spec, Pol#, Wcs
@@ -207,7 +207,7 @@ end
     header=deepcopy(header(img)),
     wcs=getfield(img, :wcs)[],
     wcs_stale=getfield(img, :wcs_stale)[],
-    wcsdims=getfield(img, :wcs_dims),
+    wcsdims=getfield(img, :wcsdims),
 ) = rebuild(img, data, DimensionalData.slicedims(f, img, I)..., nothing, nothing, header, wcs, wcs_stale, wcsdims)
 
 # Return result wrapped in AstroImage
@@ -390,7 +390,7 @@ header of `imgnew` does not affect the header of `img`.
 See also: [`shareheader`](@ref).
 """
 copyheader(img::AstroImage, data::AbstractArray) =
-    AstroImage(data, dims(img), refdims(img), deepcopy(header(img)), Ref(getfield(img, :wcs)[]), Ref(getfield(img, :wcs_stale)[]), getfield(img,:wcs_dims))
+    AstroImage(data, dims(img), refdims(img), deepcopy(header(img)), Ref(getfield(img, :wcs)[]), Ref(getfield(img, :wcs_stale)[]), getfield(img,:wcsdims))
 export copyheader
 
 """
@@ -400,7 +400,7 @@ using the data of the AbstractArray `data`. The two images have
 synchronized header; modifying one also affects the other.
 See also: [`copyheader`](@ref).
 """ 
-shareheader(img::AstroImage, data::AbstractArray) = AstroImage(data, dims(img), refdims(img), header(img), Ref(getfield(img, :wcs)[]), Ref(getfield(img, :wcs_stale)[]), getfield(img,:wcs_dims))
+shareheader(img::AstroImage, data::AbstractArray) = AstroImage(data, dims(img), refdims(img), header(img), Ref(getfield(img, :wcs)[]), Ref(getfield(img, :wcs_stale)[]), getfield(img,:wcsdims))
 export shareheader
 # Share header if an AstroImage, do nothing if AbstractArray
 maybe_shareheader(img::AstroImage, data) = shareheader(img, data)

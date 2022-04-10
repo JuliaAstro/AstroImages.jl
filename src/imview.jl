@@ -35,7 +35,7 @@ Base.show(io::IO, p::percent; kwargs...) = print(io, "percent($(p.perc))", kwarg
 
 Wraps PlotUtils.zscale to first collect iterators.
 """
-Base.@kwdef struct zscale3
+Base.@kwdef struct zscale
     nsamples::Int=1000
     contrast::Float64=0.25
     max_reject::Float64=0.5
@@ -43,9 +43,9 @@ Base.@kwdef struct zscale3
     k_rej::Float64=2.5
     max_iterations::Int=5
 end
-(z::zscale3)(data::AbstractArray) = PlotUtils.zscale(vec(data), z.nsamples; z.contrast, z.max_reject, z.min_npixels, z.k_rej, z.max_iterations)
-(z::zscale3)(data) = z(collect(data))
-Base.show(io::IO, z::zscale3; kwargs...) = print(io, "zscale()", kwargs...)
+(z::zscale)(data::AbstractArray) = PlotUtils.zscale(vec(data), z.nsamples; z.contrast, z.max_reject, z.min_npixels, z.k_rej, z.max_iterations)
+(z::zscale)(data) = z(collect(data))
+Base.show(io::IO, z::zscale; kwargs...) = print(io, "zscale()", kwargs...)
 
 zscale2(data::AbstractArray) = PlotUtils.zscale(data)
 zscale2(data) = PlotUtils.zscale(collect(data))
