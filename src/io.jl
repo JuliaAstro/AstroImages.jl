@@ -55,23 +55,23 @@ end
 
 
 """
-load(fitsfile::String; wcsdims=false)
+load(fitsfile::String)
 
 Read and return the data from the first ImageHDU in a FITS file
 as an AstroImage. If no ImageHDUs are present, an error is returned.
 
-load(fitsfile::String, ext::Int; wcsdims=false)
+load(fitsfile::String, ext::Int)
 
 Read and return the data from the HDU `ext`. If it is an ImageHDU,
 as AstroImage is returned. If it is a TableHDU, a plain Julia
 column table is returned.
 
-load(fitsfile::String, :; wcsdims=false)
+load(fitsfile::String, :)
 
 Read and return the data from each HDU in an FITS file. ImageHDUs are
 returned as AstroImage, and TableHDUs are returned as column tables.
 
-load(fitsfile::String, exts::Union{NTuple, AbstractArray}; wcsdims=false)
+load(fitsfile::String, exts::Union{NTuple, AbstractArray})
 
 Read and return the data from the HDUs given by `exts`. ImageHDUs are
 returned as AstroImage, and TableHDUs are returned as column tables.
