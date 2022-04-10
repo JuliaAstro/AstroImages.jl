@@ -33,10 +33,13 @@ See also: normedview
 """
 function clampednormedview(img::AbstractArray{T}, lims) where T
     imgmin, imgmax = lims
-    Δ = abs(imgmax - imgmin)
+    Δ = imgmax - imgmin
+    # Do not introduce NaNs if colorlimits are identical
+    if Δ == false
+        Δ = true
+    end
     normeddata = mappedarray(
-        pix -> clamp((pix - imgmin)/Δ, zero(T), one(T)),
-        pix_norm -> convert(T, pix_norm*Δ + imgmin),
+        pix -> clamp((pix - imgmin)/Δ, false, true),
         img
     )
     return maybe_shareheader(img, normeddata)
@@ -48,10 +51,13 @@ function clampednormedview(img::AbstractArray{T}, lims) where T <: Normed
         return img
     end
     imgmin, imgmax = lims
-    Δ = abs(imgmax - imgmin)
+    Δ = imgmax - imgmin
+    # Do not introduce NaNs if colorlimits are identical
+    if Δ == false
+        Δ = true
+    end
     normeddata = mappedarray(
-        pix -> clamp((pix - imgmin)/Δ, zero(T), one(T)),
-        # pix_norm -> pix_norm*Δ + imgmin, # TODO
+        pix -> clamp((pix - imgmin)/Δ, false, true),
         img
     )
     return maybe_shareheader(img, normeddata)
@@ -66,8 +72,9 @@ function ImageTransformations.restrict(img::AstroImage, region::Dims)
     restricted = restrict(arraydata(img), region)
     steps = cld.(size(img), size(restricted))
     newdims = Tuple(d[begin:s:end] for (d,s) in zip(dims(img),steps))
-    return AstroImage(restricted, newdims, refdims(img), header(img), Ref(getfield(img, :wcs)[]), Ref(getfield(img, :wcs_stale)[]))
+    return rebuild(img, restricted, newdims)
 end
+
 
 # TODO: use WCS info
 # ImageCore.pixelspacing(img::ImageMeta) = pixelspacing(arraydata(img))

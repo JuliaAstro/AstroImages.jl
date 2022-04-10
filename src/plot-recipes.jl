@@ -14,11 +14,9 @@
 
     # Show WCS coordinates if wcsticks is true or unspecified, and has at least one WCS axis present.
     showwcsticks = (!haskey(plotattributes, :wcsticks) || plotattributes[:wcsticks]) &&
-        any(d->typeof(d) <: Wcs, dims(data)) && 
         !all(==(""), wcs(data).ctype)
     showwcstitle = (!haskey(plotattributes, :wcstitle) || plotattributes[:wcstitle]) &&
         length(refdims(data)) > 0 && 
-        any(d->typeof(d) <: Wcs, dims(data)) && 
         !all(==(""), wcs(data).ctype)
 
         
@@ -99,7 +97,7 @@
         if showwcstitle
             refdimslabel = join(map(refdims(imgv)) do d
                 # match dimension with the wcs axis number
-                i = wcsax(d)
+                i = wcsax(imgv, d)
                 ct = wcs(imgv).ctype[i]
                 label = ctype_label(ct, wcs(imgv).radesys)
                 value = pix_to_world(imgv, [1,1], all=true, parent=true)[i]
@@ -137,11 +135,11 @@
         # the transformation from pixel to coordinates can be non-linear and curved.
         
         if showwcsticks
-            xticks --> (gridspec.tickpos1x, wcslabels(wcs(imgv), wcsax(dims(img,1)), gridspec.tickpos1w))
-            xguide --> ctype_label(wcs(imgv).ctype[wcsax(dims(img,1))], wcs(imgv).radesys)
+            xticks --> (gridspec.tickpos1x, wcslabels(wcs(imgv), wcsax(imgv, dims(imgv,1)), gridspec.tickpos1w))
+            xguide --> ctype_label(wcs(imgv).ctype[wcsax(imgv, dims(imgv,1))], wcs(imgv).radesys)
 
-            yticks --> (gridspec.tickpos2x, wcslabels(wcs(imgv), wcsax(dims(img,2)), gridspec.tickpos2w))
-            yguide --> ctype_label(wcs(imgv).ctype[wcsax(dims(img,2))], wcs(imgv).radesys)
+            yticks --> (gridspec.tickpos2x, wcslabels(wcs(imgv), wcsax(imgv, dims(imgv,2)), gridspec.tickpos2w))
+            yguide --> ctype_label(wcs(imgv).ctype[wcsax(imgv, dims(imgv,2))], wcs(imgv).radesys)
         end
 
     
@@ -237,11 +235,11 @@
             # the transformation from pixel to coordinates can be non-linear and curved.
             
             if showwcsticks
-                xticks --> (gridspec.tickpos1x, wcslabels(wcs(imgv), wcsax(dims(img,1)), gridspec.tickpos1w))
-                xguide --> ctype_label(wcs(imgv).ctype[wcsax(dims(img,1))], wcs(imgv).radesys)
+                xticks --> (gridspec.tickpos1x, wcslabels(wcs(imgv), wcsax(imgv, dims(imgv,1)), gridspec.tickpos1w))
+                xguide --> ctype_label(wcs(imgv).ctype[wcsax(imgv, dims(imgv,1))], wcs(imgv).radesys)
 
-                yticks --> (gridspec.tickpos2x, wcslabels(wcs(imgv), wcsax(dims(img,2)), gridspec.tickpos2w))
-                yguide --> ctype_label(wcs(imgv).ctype[wcsax(dims(img,2))], wcs(imgv).radesys)
+                yticks --> (gridspec.tickpos2x, wcslabels(wcs(imgv), wcsax(imgv, dims(imgv,2)), gridspec.tickpos2w))
+                yguide --> ctype_label(wcs(imgv).ctype[wcsax(imgv, dims(imgv,2))], wcs(imgv).radesys)
             end
             view(collect(imgv), reverse(axes(imgv,1)),:)
         end
@@ -522,8 +520,8 @@ end
     end
     annotate = haskey(plotattributes, :gridlabels) && plotattributes[:gridlabels]
 
-    xguide --> ctype_label(wcs(wcsg.img).ctype[wcsax(dims(wcsg.img,1))], wcs(wcsg.img).radesys)
-    yguide --> ctype_label(wcs(wcsg.img).ctype[wcsax(dims(wcsg.img,2))], wcs(wcsg.img).radesys)
+    xguide --> ctype_label(wcs(wcsg.img).ctype[wcsax(wcsg.img, dims(wcsg.img,1))], wcs(wcsg.img).radesys)
+    yguide --> ctype_label(wcs(wcsg.img).ctype[wcsax(wcsg.img, dims(wcsg.img,2))], wcs(wcsg.img).radesys)
 
     xlims --> wcsg.extent[1], wcsg.extent[2]
     ylims --> wcsg.extent[3], wcsg.extent[4]

@@ -25,9 +25,31 @@ struct percent
     trim::Float64
     percent(percentage::Number) = new(Float64(percentage), (1 - percentage/100)/2)
 end
-(p::percent)(data::AbstractMatrix) = quantile(vec(data), (p.trim, 1-p.trim))
-(p::percent)(data) = quantile(data, (p.trim, 1-p.trim))
+(p::percent)(data::AbstractArray) = quantile(vec(data), (p.trim, 1-p.trim))
+(p::percent)(data) = p(collect(data))
 Base.show(io::IO, p::percent; kwargs...) = print(io, "percent($(p.perc))", kwargs...)
+
+
+"""
+    zscale(data)
+
+Wraps PlotUtils.zscale to first collect iterators.
+"""
+Base.@kwdef struct zscale3
+    nsamples::Int=1000
+    contrast::Float64=0.25
+    max_reject::Float64=0.5
+    min_npixels::Float64=5
+    k_rej::Float64=2.5
+    max_iterations::Int=5
+end
+(z::zscale3)(data::AbstractArray) = PlotUtils.zscale(vec(data), z.nsamples; z.contrast, z.max_reject, z.min_npixels, z.k_rej, z.max_iterations)
+(z::zscale3)(data) = z(collect(data))
+Base.show(io::IO, z::zscale3; kwargs...) = print(io, "zscale()", kwargs...)
+
+zscale2(data::AbstractArray) = PlotUtils.zscale(data)
+zscale2(data) = PlotUtils.zscale(collect(data))
+
 
 const _default_cmap  = Base.RefValue{Union{Symbol,Nothing}}(:magma)#nothing)
 const _default_clims = Base.RefValue{Any}(percent(99.5))
@@ -80,7 +102,7 @@ end
 _lookup_cmap(::Nothing) = ColorSchemes.colorschemes[:grays]
 _lookup_cmap(acl::AbstractColorList) = acl
 
-function _resolve_clims(img, clims)
+function _resolve_clims(img::AbstractArray, clims)
     # Tuple or abstract array
     if typeof(clims) <: AbstractArray || typeof(clims) <: Tuple
         if length(clims) != 2
@@ -92,6 +114,7 @@ function _resolve_clims(img, clims)
     else
         imgmin, imgmax = clims(skipmissingnan(img))
     end
+
     return imgmin, imgmax
 end
 
@@ -189,21 +212,7 @@ function imview(
         return map(px->RGBA{N0f8}(0,0,0,0), imgT)
     end
 
-    # TODO: Images.jl has logic to downsize huge images before displaying them.
-    # We should use that here before applying all this processing instead of
-    # letting Images.jl handle it after.
-
-    # Users can pass clims as an array or tuple containing the minimum and maximum values
-    if typeof(clims) <: AbstractArray || typeof(clims) <: Tuple
-        if length(clims) != 2
-            error("clims must have exactly two values if provided.")
-        end
-        imgmin = first(clims)
-        imgmax = last(clims)
-    # Or as a callable that computes them given an iterator
-    else
-        imgmin, imgmax = clims(skipmissingnan(imgT))
-    end
+    imgmin, imgmax = _resolve_clims(imgT, clims)
     normed = clampednormedview(imgT, (imgmin, imgmax))
     return _imview(imgT, normed, stretch, _lookup_cmap(cmap), contrast, bias)
 end
@@ -244,19 +253,7 @@ end
 
 function _imview(img, normed::AbstractArray{T}, stretch, cmap, contrast, bias) where T
     
-    if T <: Union{Missing,<:Number}
-        TT = typeof(first(skipmissing(normed)))
-    else
-        TT = T
-    end
-    if TT == Bool
-        TT = N0f8
-    end
-
-    stretchmin = stretch(zero(TT))
-    stretchmax = stretch(one(TT))
-
-    mapper = mappedarray(img, normed) do pixr, pixn
+    function colormap(pixr, pixn)::RGBA{N0f8}
         if ismissing(pixr) || !isfinite(pixr) || ismissing(pixn) || !isfinite(pixn)
             # We check pixr in addition to pixn because we want to preserve if the pixels
             # are +-Inf
@@ -266,19 +263,21 @@ function _imview(img, normed::AbstractArray{T}, stretch, cmap, contrast, bias) w
         end
 
         # We treat NaN/missing values as transparent
-        return if ismissing(stretched) || isnan(stretched)
-            RGBA{TT}(0,0,0,0)
+        pix= if ismissing(stretched) || isnan(stretched)
+            RGBA{N0f8}(0,0,0,0)
         # We treat Inf values as white / -Inf as black
         elseif isinf(stretched)
             if stretched > 0
-                RGBA{TT}(1,1,1,1)
+                RGBA{N0f8}(1,1,1,1)
             else
-                RGBA{TT}(0,0,0,1)
+                RGBA{N0f8}(0,0,0,1)
             end
         else
-            RGBA{TT}(get(cmap, stretched, (stretchmin, stretchmax)))
-        end::RGBA{TT}
+            RGBA{N0f8}(get(cmap, stretched, (false, true)))
+        end
+        return pix
     end
+    mapper = mappedarray(colormap, img, normed)
 
     return maybe_copyheader(img, mapper)
 end

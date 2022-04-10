@@ -436,11 +436,11 @@ function WCS.pix_to_world(img::AstroImage, pixcoords; all=false, parent=false)
     end
     # out = zeros(Float64, length(dims(img))+length(refdims(img)), size(pixcoords,2))
     for (i, dim) in enumerate(dims(img))
-        j = wcsax(dim)
+        j = wcsax(img, dim)
         parentcoords_prepared[j,:] .= parentcoords[i,:] .- 1
     end
     for dim in refdims(img)
-        j = wcsax(dim)
+        j = wcsax(img, dim)
         parentcoords_prepared[j,:] .= dim[1] .- 1
     end
 
@@ -460,7 +460,7 @@ function WCS.pix_to_world(img::AstroImage, pixcoords; all=false, parent=false)
         world_coords_of_these_axes = zeros(length(dims(img)))
     end
     for (i, dim) in enumerate(dims(img))
-        j = wcsax(dim)
+        j = wcsax(img, dim)
         world_coords_of_these_axes[i,:] .= worldcoords_out[j,:]
     end
 
@@ -501,11 +501,11 @@ function WCS.world_to_pix!(pixcoords_out, img::AstroImage, worldcoords; parent=f
     # output to only include the dims of the current slice?
     # out = zeros(Float64, length(dims(img))+length(refdims(img)), size(worldcoords,2))
     for (i, dim) in enumerate(dims(img))
-        j = wcsax(dim)
+        j = wcsax(img, dim)
         worldcoords_prepared[j,:] = worldcoords[i,:]
     end
     for dim in refdims(img)
-        j = wcsax(dim)
+        j = wcsax(img, dim)
         worldcoords_prepared[j,:] .= dim[1]
     end
 
@@ -517,12 +517,12 @@ function WCS.world_to_pix!(pixcoords_out, img::AstroImage, worldcoords; parent=f
         coordoffsets = zeros(length(dims(img))+length(refdims(img)))
         coordsteps = zeros(length(dims(img))+length(refdims(img)))
         for (i, dim) in enumerate(dims(img))
-            j = wcsax(dim)
+            j = wcsax(img, dim)
             coordoffsets[j] = first(dims(img)[i])
             coordsteps[j] = step(dims(img)[i])
         end
         for dim in refdims(img)
-            j = wcsax(dim)
+            j = wcsax(img, dim)
             coordoffsets[j] = first(dim)
             coordsteps[j] = step(dim)
         end
