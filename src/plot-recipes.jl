@@ -89,9 +89,7 @@
     # we have a wcs flag (from the image by default) so that users can skip over 
     # plotting in physical coordinates. This is especially important
     # if the WCS headers are mallformed in some way.
-    showgrid = (!haskey(plotattributes, :xgrid) || haskey(plotattributes, :xgrid)) &&
-               (!haskey(plotattributes, :ygrid) || haskey(plotattributes, :ygrid))
-
+    showgrid = get(plotattributes, :xgrid, true) && get(plotattributes, :ygrid, true)
     # Display a title giving our position along unplotted dimensions
     if length(refdims(imgv)) > 0
         if showwcstitle
