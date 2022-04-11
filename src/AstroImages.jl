@@ -19,7 +19,7 @@ using AstroAngles
 using Printf
 using PlotUtils: PlotUtils
 using PlotUtils: optimize_ticks, AbstractColorList
-
+using UUIDs
 
 
 export load,
@@ -27,13 +27,11 @@ export load,
     AstroImage,
     AstroImageVec,
     AstroImageMat,
-    Wcs,
     WCSGrid,
     ccd2rgb,
-    composechannels,
-    reset!,
+    # composechannels,
     Zscale,
-    percent,
+    Percent,
     logstretch,
     powstretch,
     sqrtstretch,
@@ -42,9 +40,6 @@ export load,
     sinhstretch,
     powerdiststretch,
     imview,
-    clampednormedview,
-    # wcsticks,
-    # wcsgridlines,
     arraydata,
     header,
     wcs,
@@ -54,8 +49,7 @@ export load,
     pix_to_world,
     pix_to_world!,
     world_to_pix,
-    world_to_pix!,
-    x
+    world_to_pix!
 
 
 
@@ -443,8 +437,7 @@ include("contrib/abstract-ffts.jl")
 include("contrib/reproject.jl")
 
 include("ccd2rgb.jl")
-# include("patches.jl")
-using UUIDs
+include("precompile.jl")
 
 function __init__()
 
