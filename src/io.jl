@@ -76,7 +76,7 @@ load(fitsfile::String, exts::Union{NTuple, AbstractArray})
 Read and return the data from the HDUs given by `exts`. ImageHDUs are
 returned as AstroImage, and TableHDUs are returned as column tables.
 
-!! Currently comments on TableHDUs are not supported and are ignored.
+!!! Currently any header on TableHDUs are not supported and are ignored.
 """
 function fileio_load(f::File{format"FITS"}, ext::Union{Int,Nothing}=nothing, args...; kwargs...) where {N}
     return FITS(f.filename, "r") do fits
