@@ -20,22 +20,32 @@ julia> imview(img, clims=percent(90))
 ```
 This will set the limits to be the 5th percentile to the 95th percentile.
 """
-struct percent
+struct Percent
     perc::Float64
     trim::Float64
-    percent(percentage::Number) = new(Float64(percentage), (1 - percentage/100)/2)
+    Percent(percentage::Number) = new(Float64(percentage), (1 - percentage/100)/2)
 end
-(p::percent)(data::AbstractArray) = quantile(vec(data), (p.trim, 1-p.trim))
-(p::percent)(data) = p(collect(data))
-Base.show(io::IO, p::percent; kwargs...) = print(io, "percent($(p.perc))", kwargs...)
+(p::Percent)(data::AbstractArray) = quantile(vec(data), (p.trim, 1-p.trim))
+(p::Percent)(data) = p(collect(data))
+Base.show(io::IO, p::Percent; kwargs...) = print(io, "Percent($(p.perc))", kwargs...)
 
 
 """
-    zscale(data)
+    Zscale(options)(data)
 
 Wraps PlotUtils.zscale to first collect iterators.
+
+Default parameters:
+```
+nsamples::Int=1000
+contrast::Float64=0.25
+max_reject::Float64=0.5
+min_npixels::Float64=5
+k_rej::Float64=2.5
+max_iterations::Int=5
+```
 """
-Base.@kwdef struct zscale
+Base.@kwdef struct Zscale
     nsamples::Int=1000
     contrast::Float64=0.25
     max_reject::Float64=0.5
@@ -43,13 +53,9 @@ Base.@kwdef struct zscale
     k_rej::Float64=2.5
     max_iterations::Int=5
 end
-(z::zscale)(data::AbstractArray) = PlotUtils.zscale(vec(data), z.nsamples; z.contrast, z.max_reject, z.min_npixels, z.k_rej, z.max_iterations)
-(z::zscale)(data) = z(collect(data))
-Base.show(io::IO, z::zscale; kwargs...) = print(io, "zscale()", kwargs...)
-
-zscale2(data::AbstractArray) = PlotUtils.zscale(data)
-zscale2(data) = PlotUtils.zscale(collect(data))
-
+(z::Zscale)(data::AbstractArray) = PlotUtils.zscale(vec(data), z.nsamples; z.contrast, z.max_reject, z.min_npixels, z.k_rej, z.max_iterations)
+(z::Zscale)(data) = z(collect(data))
+Base.show(io::IO, z::Zscale; kwargs...) = print(io, "Zscale()", kwargs...)
 
 const _default_cmap  = Base.RefValue{Union{Symbol,Nothing}}(:magma)#nothing)
 const _default_clims = Base.RefValue{Any}(percent(99.5))
@@ -67,7 +73,7 @@ function set_cmap!(cmap)
 end
 """
     set_clims!(clims::Tuple)
-    set_clims!(clims::Function)
+    set_clims!(clims::Callable)
 
 Alter the default limits used to display images when using
 `imview` or displaying an AstroImageMat.
