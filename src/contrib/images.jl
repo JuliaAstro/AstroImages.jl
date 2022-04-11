@@ -14,6 +14,10 @@ ImageCore.normedview(img::AstroImageMat{<:FixedPoint}) = img
 function ImageCore.normedview(img::AstroImageMat{T}) where T
     imgmin, imgmax = extrema(skipmissingnan(img))
     Δ = abs(imgmax - imgmin)
+    # Do not introduce NaNs if limits are identical
+    if Δ == 0
+        Δ = one(imgmin)
+    end
     normeddata = mappedarray(
         pix -> (pix - imgmin)/Δ,
         pix_norm -> convert(T, pix_norm*Δ + imgmin),
@@ -35,34 +39,15 @@ function clampednormedview(img::AbstractArray{T}, lims) where T
     imgmin, imgmax = lims
     Δ = imgmax - imgmin
     # Do not introduce NaNs if colorlimits are identical
-    if Δ == false
-        Δ = true
+    if Δ == 0
+        Δ = one(imgmin)
     end
     normeddata = mappedarray(
-        pix -> clamp((pix - imgmin)/Δ, false, true),
+        pix -> clamp((pix - imgmin)/Δ, zero(pix), one(pix)),
         img
     )
     return maybe_shareheader(img, normeddata)
 end
-function clampednormedview(img::AbstractArray{T}, lims) where T <: Normed
-    # If the data is in a Normed type and the limits are [0,1] then
-    # it already lies in that range.
-    if lims[1] == 0 && lims[2] == 1
-        return img
-    end
-    imgmin, imgmax = lims
-    Δ = imgmax - imgmin
-    # Do not introduce NaNs if colorlimits are identical
-    if Δ == false
-        Δ = true
-    end
-    normeddata = mappedarray(
-        pix -> clamp((pix - imgmin)/Δ, false, true),
-        img
-    )
-    return maybe_shareheader(img, normeddata)
-end
-
 
 # Restrict downsizes images by roughly a factor of two.
 # We want to keep the wrapper but downsize the underlying array
