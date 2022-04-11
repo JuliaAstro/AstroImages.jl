@@ -58,7 +58,7 @@ end
 Base.show(io::IO, z::Zscale; kwargs...) = print(io, "Zscale()", kwargs...)
 
 const _default_cmap  = Base.RefValue{Union{Symbol,Nothing}}(:magma)#nothing)
-const _default_clims = Base.RefValue{Any}(percent(99.5))
+const _default_clims = Base.RefValue{Any}(Percent(99.5))
 const _default_stretch  = Base.RefValue{Any}(identity)
 
 """
@@ -126,7 +126,7 @@ end
 
 
 """
-    imview(img; clims=extrema, stretch=identity, cmap=:magma, contrast=1.0, bias=0.5)
+    imview(img; clims=Percent(99.5), stretch=identity, cmap=:magma, contrast=1.0, bias=0.5)
 
 Create a read only view of an array or AstroImageMat mapping its data values
 to Colors according to `clims`, `stretch`, and `cmap`.
