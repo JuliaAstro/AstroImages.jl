@@ -19,7 +19,7 @@ img = AstroImage(filename::AbstractString, ext::Integer=1)
 
 Load an image HDU `ext` from the  FITS file at `filename` as an AstroImage.
 """
-function AstroImage(filename::AbstractString, ext::Integer=1, args...; kwargs...)
+function AstroImage(filename::AbstractString, ext::Integer, args...; kwargs...)
     return FITS(filename, "r") do fits
         return AstroImage(fits[ext], args...; kwargs...)
     end
