@@ -45,6 +45,12 @@ function AstroImage(filename::AbstractString, exts::Union{NTuple{N,<:Integer},Ab
         end
     end
 end
+function AstroImage(filename::AbstractString; kwargs...) where {N}
+    return FITS(filename, "r") do fits
+        ext = indexer(fits)
+        return AstroImage(fits[ext]; kwargs...)
+    end
+end
 function AstroImage(filename::AbstractString, ::Colon, args...; kwargs...) where {N}
     return FITS(filename, "r") do fits
         return map(fits) do hdu
@@ -116,7 +122,7 @@ end
 function indexer(fits::FITS)
     ext = 0
     for (i, hdu) in enumerate(fits)
-        if hdu isa ImageHDU && length(size(hdu)) >= 2# check if Image is atleast 2D
+        if hdu isa ImageHDU && length(size(hdu)) >= 1 # check if Image is atleast 1D
             ext = i
             break
         end
