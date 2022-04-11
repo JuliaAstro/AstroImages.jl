@@ -440,7 +440,15 @@ function WCS.pix_to_world(img::AstroImage, pixcoords; all=false, parent=false)
     end
     for dim in refdims(img)
         j = wcsax(img, dim)
-        parentcoords_prepared[j,:] .= dim[1] .- 1
+        # Non numeric reference dims can be used, e.g. a polarization axis of symbols I, Q, U, etc.
+        if eltype(dim) <: Number
+            z = dim[1] - 1
+        else
+            # Find the index of the symbol into the parent cube
+            parentrefdim = img.wcsdims[findfirst(d->name(d)==name(dim), img.wcsdims)]
+            z = findfirst(==(first(dim)), collect(parentrefdim)) - 1
+        end
+        parentcoords_prepared[j,:] .= z
     end
 
     # Get world coordinates along all slices
@@ -505,7 +513,15 @@ function WCS.world_to_pix!(pixcoords_out, img::AstroImage, worldcoords; parent=f
     end
     for dim in refdims(img)
         j = wcsax(img, dim)
-        worldcoords_prepared[j,:] .= dim[1]
+        # Non numeric reference dims can be used, e.g. a polarization axis of symbols I, Q, U, etc.
+        if eltype(dim) <: Number
+            z = dim[1]
+        else
+            # Find the index of the symbol into the parent cube
+            parentrefdim = img.wcsdims[findfirst(d->name(d)==name(dim), img.wcsdims)]
+            z = findfirst(==(first(dim)),collect(parentrefdim)) -1
+        end
+        worldcoords_prepared[j,:] .= z
     end
 
     # This returns the parent pixel coordinates.
@@ -522,8 +538,17 @@ function WCS.world_to_pix!(pixcoords_out, img::AstroImage, worldcoords; parent=f
         end
         for dim in refdims(img)
             j = wcsax(img, dim)
-            coordoffsets[j] = first(dim)
-            coordsteps[j] = step(dim)
+            # Non numeric reference dims can be used, e.g. a polarization axis of symbols I, Q, U, etc.
+            if eltype(dim) <: Number
+                coordoffsets[j] = first(dim)
+                coordsteps[j] = step(dim)
+            else
+                # Find the index of the symbol into the parent cube
+                parentrefdim = img.wcsdims[findfirst(d->name(d)==name(dim), img.wcsdims)]
+                z = findfirst(==(first(dim)),collect(parentrefdim))
+                coordoffsets[j] = z - 1
+                coordsteps[j] = 1
+            end
         end
 
         pixcoords_out .-= coordoffsets
