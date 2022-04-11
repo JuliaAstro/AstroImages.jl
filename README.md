@@ -8,17 +8,17 @@
 Introduction
 ------------
 
-`AstroImageMat.jl` allows you to plot images from an
+`AstroImages.jl` allows you to plot images from an
 astronomical [`FITS`](https://en.wikipedia.org/wiki/FITS) file using the
 popular [`Images.jl`](https://github.com/JuliaImages/Images.jl)
 and [`Plots.jl`](https://github.com/JuliaPlots/Plots.jl) Julia packages.
-`AstroImageMat.jl` uses [`FITSIO.jl`](https://github.com/JuliaAstro/FITSIO.jl) to
+`AstroImages.jl` uses [`FITSIO.jl`](https://github.com/JuliaAstro/FITSIO.jl) to
 read FITS files.
 
 Installation
 ------------
 
-`AstroImageMat.jl` is available for Julia 1.0 and later versions, and can be
+`AstroImages.jl` is available for Julia 1.6 and later versions, and can be
 installed with [Julia built-in package
 manager](https://docs.julialang.org/en/v1/stdlib/Pkg/).
 
