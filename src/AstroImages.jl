@@ -45,7 +45,14 @@ export load,
     wcs,
     Comment,
     History,
+    # Dimensions
     Centered,
+    Spec,
+    Pol,
+    Ti,
+    X, Y, Z, Dim,
+    At, Near, Between, ..,
+    dims, refdims,
     pix_to_world,
     pix_to_world!,
     world_to_pix,
@@ -84,8 +91,8 @@ struct AstroImage{T,N,D<:Tuple,R<:Tuple,A<:AbstractArray{T,N},W<:Tuple} <: Abstr
     refdims::R
     # FITS Heads beloning to this image, if any
     header::FITSHeader
-    # A cached WCSTransform object for this data
-    wcs::Base.RefValue{WCSTransform}
+    # cached WCSTransform objects for this data.
+    wcs::Vector{WCSTransform}
     # A flag that is set when a user modifies a WCS header.
     # The next access to the wcs object will regenerate from
     # the new header on demand.
@@ -97,11 +104,6 @@ end
 const AstroImageVec{T,D} = AstroImage{T,1} where {T}
 const AstroImageMat{T,D} = AstroImage{T,2} where {T}
 
-# Re-export symbols from DimensionalData that users will need 
-# for indexing.
-export X, Y, Z, Dim
-export At, Near, Between, ..
-export dims, refdims
 
 """
     Centered()
@@ -147,19 +149,20 @@ function wcsax(img::AstroImage, dim)
     return findfirst(di->name(di)==name(dim), img.wcsdims)
 end
 
-export Spec, Pol#, Wcs
-
 # Accessors
 header(img::AstroImage) = getfield(img, :header)
 header(::AbstractArray) = emptyheader()
 function wcs(img::AstroImage)
     if getfield(img, :wcs_stale)[]
-        getfield(img, :wcs)[] = wcsfromheader(img)
+        empty!(getfield(img, :wcs))
+        append!(getfield(img, :wcs), wcsfromheader(img))
         getfield(img, :wcs_stale)[] = false
     end
-    return getfield(img, :wcs)[]
+    return getfield(img, :wcs)
 end
-wcs(arr::AbstractArray) = emptywcs(arr)
+wcs(arr::AbstractArray) = [emptywcs(arr)]
+wcs(img, ind) = wcs(img)[ind]
+
 """
     ImageMetadata.arraydata(img::AstroImage)
 
@@ -187,11 +190,11 @@ DimensionalData.metadata(::AstroImage) = DimensionalData.Dimensions.LookupArrays
     # FITS Header beloning to this image, if any
     header::FITSHeader=deepcopy(header(img)),
     # A cached WCSTransform object for this data
-    wcs::WCSTransform=getfield(img, :wcs)[],
+    wcs::Vector{WCSTransform}=getfield(img, :wcs),
     wcs_stale::Bool=getfield(img, :wcs_stale)[],
     wcsdims::Tuple=(dims...,refdims...),
 )
-    return AstroImage(data, dims, refdims, header, Ref(wcs), Ref(wcs_stale), wcsdims)
+    return AstroImage(data, dims, refdims, header, wcs, Ref(wcs_stale), wcsdims)
 end
 @inline DimensionalData.rebuildsliced(
     f::Function,
@@ -199,7 +202,7 @@ end
     data,
     I,
     header=deepcopy(header(img)),
-    wcs=getfield(img, :wcs)[],
+    wcs=getfield(img, :wcs),
     wcs_stale=getfield(img, :wcs_stale)[],
     wcsdims=getfield(img, :wcsdims),
 ) = rebuild(img, data, DimensionalData.slicedims(f, img, I)..., nothing, nothing, header, wcs, wcs_stale, wcsdims)
@@ -241,7 +244,7 @@ function AstroImage(
 ) where {T, N}
     wcs_stale = isnothing(wcs)
     if isnothing(wcs)
-        wcs = emptywcs(data)
+        wcs = [emptywcs(data)]
     end
     # If the user passes in a WCSTransform of their own, we use it and mark
     # wcs_stale=false. It will be kept unless they manually change a WCS header.
@@ -289,35 +292,35 @@ function AstroImage(
         wcsdims = (dims...,refdims...)
     end
 
-    return AstroImage(data, dims, refdims, header, Ref(wcs), Ref(wcs_stale), wcsdims)
+    return AstroImage(data, dims, refdims, header, wcs, Ref(wcs_stale), wcsdims)
 end
 function AstroImage(
     darr::AbstractDimArray,
     header::FITSHeader=emptyheader(),
-    wcs::Union{WCSTransform,Nothing}=nothing;
+    wcs::Union{Vector{WCSTransform},Nothing}=nothing;
 )
     wcs_stale = isnothing(wcs)
     if isnothing(wcs)
-        wcs = emptywcs(darr)
+        wcs = [emptywcs(darr)]
     end
     wcsdims = (dims(darr)..., refdims(darr)...)
-    return AstroImage(parent(darr), dims(darr), refdims(darr), header, Ref(wcs), Ref(wcs_stale), wcsdims)
+    return AstroImage(parent(darr), dims(darr), refdims(darr), header, wcs, Ref(wcs_stale), wcsdims)
 end
 AstroImage(
     data::AbstractArray,
     dims::Union{Tuple,NamedTuple},
     header::FITSHeader,
-    wcs::Union{WCSTransform,Nothing}=nothing;
+    wcs::Union{Vector{WCSTransform},Nothing}=nothing;
 ) = AstroImage(data, dims, (), header, wcs)
 AstroImage(
     data::AbstractArray,
     header::FITSHeader,
-    wcs::Union{WCSTransform,Nothing}=nothing;
+    wcs::Union{Vector{WCSTransform},Nothing}=nothing;
 ) = AstroImage(data, (), (), header, wcs)
 
 
 # TODO: ensure this gets WCS dims.
-AstroImage(data::AbstractArray, wcs::WCSTransform) = AstroImage(data, emptyheader(), wcs)
+AstroImage(data::AbstractArray, wcs::Vector{WCSTransform}) = AstroImage(data, emptyheader(), wcs)
 
 
 
@@ -384,7 +387,7 @@ header of `imgnew` does not affect the header of `img`.
 See also: [`shareheader`](@ref).
 """
 copyheader(img::AstroImage, data::AbstractArray) =
-    AstroImage(data, dims(img), refdims(img), deepcopy(header(img)), Ref(getfield(img, :wcs)[]), Ref(getfield(img, :wcs_stale)[]), getfield(img,:wcsdims))
+    AstroImage(data, dims(img), refdims(img), deepcopy(header(img)), copy(getfield(img, :wcs)), Ref(getfield(img, :wcs_stale)[]), getfield(img,:wcsdims))
 export copyheader
 
 """
@@ -394,7 +397,7 @@ using the data of the AbstractArray `data`. The two images have
 synchronized header; modifying one also affects the other.
 See also: [`copyheader`](@ref).
 """ 
-shareheader(img::AstroImage, data::AbstractArray) = AstroImage(data, dims(img), refdims(img), header(img), Ref(getfield(img, :wcs)[]), Ref(getfield(img, :wcs_stale)[]), getfield(img,:wcsdims))
+shareheader(img::AstroImage, data::AbstractArray) = AstroImage(data, dims(img), refdims(img), header(img), getfield(img, :wcs), Ref(getfield(img, :wcs_stale)[]), getfield(img,:wcsdims))
 export shareheader
 # Share header if an AstroImage, do nothing if AbstractArray
 maybe_shareheader(img::AstroImage, data) = shareheader(img, data)
