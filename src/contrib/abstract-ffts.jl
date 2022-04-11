@@ -10,14 +10,14 @@ for f in [
     :(AbstractFFTs.rfft),
 ]
     # TODO: should we try to alter the image headers to change the units?
-    @eval ($f)(img::AstroImage, args...; kwargs...) = copyheader(img, $f(arraydata(img)))
+    @eval ($f)(img::AstroImage, args...; kwargs...) = copyheader(img, $f(arraydata(img), args...; kwargs...))
 end
 
 for f in [
     :(AbstractFFTs.fftshift),
 ]
     # TODO: should we try to alter the image headers to change the units?
-    @eval ($f)(img::AstroImage, args...; kwargs...) = shareheader(img, $f(arraydata(img)))
+    @eval ($f)(img::AstroImage, args...; kwargs...) = shareheader(img, $f(arraydata(img), args...; kwargs...))
 end
 
 
