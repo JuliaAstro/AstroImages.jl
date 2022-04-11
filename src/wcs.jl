@@ -206,7 +206,6 @@ const WCS_HEADERS_TEMPLATES = [
 ]
 
 # Expand the headers containing lower case specifers into N copies
-Is = [""; string.(1:4); string.('a':'d')]
 # Find all lower case templates
 const WCS_HEADERS = Set(mapreduce(vcat, WCS_HEADERS_TEMPLATES) do template
     if any(islowercase, template)
@@ -216,7 +215,7 @@ const WCS_HEADERS = Set(mapreduce(vcat, WCS_HEADERS_TEMPLATES) do template
         for replace_target in chars
             newout = String[]
             for template in out
-                for i in Is
+                for i in [""; string.(1:4); string.('a':'d')]
                     push!(newout, replace(template, replace_target=>i))
                 end
             end
