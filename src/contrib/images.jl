@@ -61,8 +61,7 @@ function ImageTransformations.restrict(img::AstroImage, region::Dims)
 end
 
 
-# TODO: use WCS info
-# ImageCore.pixelspacing(img::ImageMeta) = pixelspacing(arraydata(img))
+ImageCore.pixelspacing(img::AstroImage) = step.(dims(img))
 
 
 # ImageContrastAdjustment
