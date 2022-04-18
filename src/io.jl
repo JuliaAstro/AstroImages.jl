@@ -139,7 +139,17 @@ indexer(fits::NTuple{N,FITS}) where {N} = ntuple(i -> indexer(fits[i]), N)
 
 # Fallback for saving arbitrary arrays
 function fileio_save(f::File{format"FITS"}, args...)
-    FITS(f.filename, "w") do fits
+    return writefits(f.filename, args...)
+end
+"""
+    writefits("abc.fits", img1, img2, table1,...)
+
+Write arguments to a FITS file.
+
+See also `Fileio.save`
+"""
+function writefits(fname, args...)
+    FITS(fname, "w") do fits
         for arg in args
             writearg(fits, arg)
         end
