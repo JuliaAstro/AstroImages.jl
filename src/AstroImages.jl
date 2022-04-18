@@ -7,7 +7,6 @@ using FileIO
 # We also need ImageShow so that user's images appear automatically.
 using ImageCore, ImageShow, ImageMetadata, ImageAxes, ImageTransformations # TODO: maybe this can be ImagesCore
 
-using Reproject
 using WCS
 using Statistics
 using MappedArrays
