@@ -53,6 +53,7 @@ export load,
     X, Y, Z, Dim,
     At, Near, Between, ..,
     dims, refdims,
+    recenter,
     pix_to_world,
     pix_to_world!,
     world_to_pix,
@@ -323,13 +324,29 @@ AstroImage(
 AstroImage(data::AbstractArray, wcs::Vector{WCSTransform}) = AstroImage(data, emptyheader(), wcs)
 
 
+"""
+Index for accessing a comment associated with a header keyword
+or COMMENT entry.
 
+Example:
+```
+img = AstroImage(randn(10,10))
+img["ABC"] = 1
+img["ABC", Comment] = "A comment describing this key"
 
-
-
-
-
+push!(img, Comment, "The purpose of this file is to demonstrate comments")
+img[Comment] # ["The purpose of this file is to demonstrate comments")]
+```
+"""
 struct Comment end
+
+"""
+Allows accessing and setting HISTORY header entries
+
+img = AstroImage(randn(10,10))
+push!(img, History, "2023-04-19: Added history entry.")
+img[History] # ["2023-04-19: Added history entry."]
+"""
 struct History end
 
 
@@ -427,6 +444,36 @@ Base.convert(::Type{AstroImage{T,N,D,R,AT}}, A::AbstractArray{T,N}) where {T,N,D
 Convenience function to create a FITSHeader with no keywords set.
 """
 emptyheader() = FITSHeader(String[],[],String[])
+
+
+"""
+	recenter(img::AstroImage, newcentx, newcenty, ...)
+
+Adjust the dimensions of an AstroImage so that they are centered on the pixel locations given by `newcentx`, .. etc.
+
+This does not affect the underlying array, it just updates the dimensions associated with it by the AstroImage.
+
+Example:
+```julia
+a = AstroImage(randn(11,11))
+a[1,1] # Bottom left
+a[At(1),At(1)] # Bottom left
+r = recenter(a, 6, 6)
+r[1,1] # Still bottom left
+r[At(1),At(1)] # Center pixel
+```
+"""
+function recenter(img::AstroImage, centers::Number...)
+	newdims = map(dims(img), axes(img), centers) do d, a, c
+		return AstroImages.name(d) => a .- c
+	end
+	newdimsformatted = AstroImages.DimensionalData.format(NamedTuple(newdims), parent(img))
+	l = length(newdimsformatted)
+	if l < ndims(img)
+		newdimsformatted = (newdimsformatted..., dims(img)[l+1:end]...)
+	end
+	AstroImages.rebuild(img, parent(img), newdimsformatted)
+end
 
 
 include("wcs.jl")
