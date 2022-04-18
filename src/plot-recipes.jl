@@ -126,6 +126,7 @@
         subplot_i += 1
         subplot := subplot_i
         colorbar := false
+        aspect_ratio --> 1
 
         # Note: if the axes are on unusual sides (e.g. y-axis at right, x-axis at top)
         # then these coordinates are not correct. They are only correct exactly
@@ -229,6 +230,7 @@
             subplot := subplot_i
             colorbar := false
             title := ""
+            aspect_ratio --> 1
 
 
             # Note: if the axes are on unusual sides (e.g. y-axis at right, x-axis at top)
