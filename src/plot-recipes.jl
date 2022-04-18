@@ -97,7 +97,7 @@
                 ct = wcs(imgv, wcsn).ctype[i]
                 label = ctype_label(ct, wcs(imgv, wcsn).radesys)
                 if label == "NONE"
-                    label = name(d)[1]
+                    label = name(d)
                 end
                 value = pix_to_world(imgv, [1,1]; wcsn, all=true, parent=true)[i]
                 unit = wcs(imgv, wcsn).cunit[i]
