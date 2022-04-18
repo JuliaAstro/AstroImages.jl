@@ -96,6 +96,9 @@
                 i = wcsax(imgv, d)
                 ct = wcs(imgv, wcsn).ctype[i]
                 label = ctype_label(ct, wcs(imgv, wcsn).radesys)
+                if label == "NONE"
+                    label = name(d)[1]
+                end
                 value = pix_to_world(imgv, [1,1]; wcsn, all=true, parent=true)[i]
                 unit = wcs(imgv, wcsn).cunit[i]
                 if ct == "STOKES"
@@ -187,8 +190,12 @@
             ]
         end
         colorbar_title = get(plotattributes, :colorbar_title, "")
-        if !haskey(plotattributes, :colorbar_title) && haskey(header(img), "UNIT")
-            colorbar_title = string(img[:UNIT])
+        if !haskey(plotattributes, :colorbar_title)
+            if haskey(header(img), "UNIT")
+                colorbar_title = string(img[:UNIT])
+            elseif haskey(header(img), "BUNIT")
+                colorbar_title = string(img[:BUNIT])
+            end
         end
 
         subplot_i += 1
