@@ -405,7 +405,7 @@ function WCS.pix_to_world(img::AstroImage, pixcoords; wcsn=1, all=false, parent=
     else
         pixcoords_prepared = [Float64(c) for c in pixcoords]
     end
-    D_out = length(dims(img))+length(refdims(img))
+    D_out = wcs(img,wcsn).naxis
     if ndims(pixcoords_prepared) > 1
         worldcoords_out = similar(pixcoords_prepared, Float64, D_out, size(pixcoords_prepared,2)) 
     else
@@ -426,11 +426,11 @@ function WCS.pix_to_world(img::AstroImage, pixcoords; wcsn=1, all=false, parent=
     # as input, not any other kind of collection.
     # TODO: avoid allocation in case where refdims=() and pixcoords isa Array{Float64}
     if ndims(pixcoords_prepared) > 1
-        parentcoords_prepared = zeros(length(dims(img))+length(refdims(img)), size(pixcoords_prepared,2))
+        parentcoords_prepared = zeros(wcs(img,wcsn).naxis, size(pixcoords_prepared,2))
     else
-        parentcoords_prepared = zeros(length(dims(img))+length(refdims(img)))
+        parentcoords_prepared = zeros(wcs(img,wcsn).naxis)
     end
-    # out = zeros(Float64, length(dims(img))+length(refdims(img)), size(pixcoords,2))
+    # out = zeros(Float64, wcs(img,wcsn).naxis, size(pixcoords,2))
     for (i, dim) in enumerate(dims(img))
         j = wcsax(img, dim)
         parentcoords_prepared[j,:] .= parentcoords[i,:] .- 1
@@ -479,7 +479,7 @@ function WCS.world_to_pix(img::AstroImage, worldcoords; parent=false, wcsn=1)
     else
         worldcoords_prepared = [Float64(c) for c in worldcoords]
     end
-    D_out = length(dims(img))+length(refdims(img))
+    D_out = wcs(img,wcsn).naxis
     if ndims(worldcoords_prepared) > 1
         out = similar(worldcoords_prepared, Float64, D_out, size(worldcoords_prepared,2)) 
     else
@@ -497,13 +497,13 @@ function WCS.world_to_pix!(pixcoords_out, img::AstroImage, worldcoords; wcsn=1, 
     # as input, not any other kind of collection.
     # TODO: avoid allocation in case where refdims=() and worldcoords isa Array{Float64}
     if ndims(worldcoords) > 1
-        worldcoords_prepared = zeros(length(dims(img))+length(refdims(img)),size(worldcoords,2))
+        worldcoords_prepared = zeros(wcs(img,wcsn).naxis,size(worldcoords,2))
     else
-        worldcoords_prepared = zeros(length(dims(img))+length(refdims(img)))
+        worldcoords_prepared = zeros(wcs(img,wcsn).naxis)
     end
     # TODO: we need to pass in ref dims locations as well, and then filter the
     # output to only include the dims of the current slice?
-    # out = zeros(Float64, length(dims(img))+length(refdims(img)), size(worldcoords,2))
+    # out = zeros(Float64, wcs(img,wcsn).naxis, size(worldcoords,2))
     for (i, dim) in enumerate(dims(img))
         j = wcsax(img, dim)
         worldcoords_prepared[j,:] = worldcoords[i,:]
@@ -526,8 +526,8 @@ function WCS.world_to_pix!(pixcoords_out, img::AstroImage, worldcoords; wcsn=1, 
     pixcoords_out .= WCS.world_to_pix(wcs(img, wcsn), worldcoords_prepared)
 
     if !parent
-        coordoffsets = zeros(length(dims(img))+length(refdims(img)))
-        coordsteps = zeros(length(dims(img))+length(refdims(img)))
+        coordoffsets = zeros(wcs(img,wcsn).naxis)
+        coordsteps = zeros(wcs(img,wcsn).naxis)
         for (i, dim) in enumerate(dims(img))
             j = wcsax(img, dim)
             coordoffsets[j] = first(dims(img)[i])
