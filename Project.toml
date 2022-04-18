@@ -29,7 +29,6 @@ WCS = "15f3aee2-9e10-537f-b834-a6fb8bdb944d"
 julia = "^1.6.0"
 DimensionalData = "^0.20"
 Reproject = "^0.3.0"
-Interpolations = "0.13"
 
 [extras]
 JLD = "4138dd39-2aa7-5051-a626-17a0bb65d9c8"
