@@ -484,7 +484,7 @@ include("plot-recipes.jl")
 
 include("contrib/images.jl")
 include("contrib/abstract-ffts.jl")
-include("contrib/reproject.jl")
+# include("contrib/reproject.jl")
 
 include("ccd2rgb.jl")
 include("precompile.jl")
