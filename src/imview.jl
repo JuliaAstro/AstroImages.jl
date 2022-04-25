@@ -336,7 +336,7 @@ function imview_colorbar(
     ticks, _, _ = optimize_ticks(Float64(imgmin), Float64(imgmax), k_min=3)
     # Now map these to pixel locations through streching and colorlimits:
     stretchmin = stretch(zero(eltype(data)))
-    stretchmax = stretch(one(eltype(data)))
+    stretchmax = stretch(oneunit(eltype(data)))
     normedticks = clampednormedview(ticks, (imgmin, imgmax))
     ticksloc = map(normedticks) do tickn
         stretched = stretch(tickn)
