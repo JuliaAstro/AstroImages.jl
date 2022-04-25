@@ -16,7 +16,7 @@ function ImageCore.normedview(img::AstroImageMat{T}) where T
     Δ = abs(imgmax - imgmin)
     # Do not introduce NaNs if limits are identical
     if Δ == 0
-        Δ = one(imgmin)
+        Δ = oneunit(imgmin)
     end
     normeddata = mappedarray(
         pix -> (pix - imgmin)/Δ,
@@ -40,10 +40,10 @@ function clampednormedview(img::AbstractArray{T}, lims) where T
     Δ = imgmax - imgmin
     # Do not introduce NaNs if colorlimits are identical
     if Δ == 0
-        Δ = one(imgmin)
+        Δ = oneunit(imgmin)
     end
     normeddata = mappedarray(
-        pix -> clamp((pix - imgmin)/Δ, zero(pix), one(pix)),
+        pix -> clamp((pix - imgmin)/Δ, zero(pix), oneunit(pix)),
         img
     )
     return maybe_shareheader(img, normeddata)

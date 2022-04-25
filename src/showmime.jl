@@ -53,7 +53,7 @@ function render(img::AstroImageMat{T,N}) where {T,N}
     imgmin, imgmax = extrema(img)
     # Add one to maximum to work around this issue:
     # https://github.com/JuliaMath/FixedPointNumbers.jl/issues/102
-    f = scaleminmax(_float(imgmin), _float(max(imgmax, imgmax + one(T))))
+    f = scaleminmax(_float(imgmin), _float(max(imgmax, imgmax + oneunit(T))))
     return colorview(Gray, f.(_float.(img.data)))
 end
 ImageCore.colorview(img::AstroImageMat) = render(img)
