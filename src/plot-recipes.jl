@@ -42,6 +42,7 @@
 
     bias = get(plotattributes, :bias, 0.5)
     contrast = get(plotattributes, :contrast, 1)
+    platescale = get(plotattributes, :platescale, 1)
 
     grid := false
     # In most cases, a grid framestyle is a nicer looking default for images
@@ -115,8 +116,8 @@
 
     # To ensure the physical axis tick labels are correct the axes must be
     # tight to the image
-    xl = first(dims(imgv,1))-0.5, last(dims(imgv,1))+0.5
-    yl = first(dims(imgv,2))-0.5, last(dims(imgv,2))+0.5
+    xl = (first(dims(imgv,1))-0.5)*platescale, (last(dims(imgv,1))+0.5)*platescale
+    yl = (first(dims(imgv,2))-0.5)*platescale, (last(dims(imgv,2))+0.5)*platescale
     ylims --> yl
     xlims --> xl
 
@@ -143,8 +144,8 @@
         end
 
     
-        ax1 = collect(parent(dims(imgv,1)))
-        ax2 = collect(parent(dims(imgv,2)))
+        ax1 = collect(parent(dims(imgv,1))) .* platescale
+        ax2 = collect(parent(dims(imgv,2))) .* platescale
         # Views of images are not currently supported by plotly() so we have to collect them.
         # ax1, ax2, view(parent(imgv), reverse(axes(imgv,1)),:)
         ax1, ax2, parent(imgv)[reverse(axes(imgv,1)),:]
@@ -246,7 +247,12 @@
                 yticks --> (gridspec.tickpos2x, wcslabels(wcs(imgv, wcsn), wcsax(imgv, dims(imgv,2)), gridspec.tickpos2w))
                 yguide --> ctype_label(wcs(imgv, wcsn).ctype[wcsax(imgv, dims(imgv,2))], wcs(imgv, wcsn).radesys)
             end
-            view(collect(imgv), reverse(axes(imgv,1)),:)
+        
+            ax1 = collect(parent(dims(imgv,1))) .* platescale
+            ax2 = collect(parent(dims(imgv,2))) .* platescale
+            # Views of images are not currently supported by plotly() so we have to collect them.
+            # ax1, ax2, view(parent(imgv), reverse(axes(imgv,1)),:)
+            ax1, ax2, parent(imgv)[reverse(axes(imgv,1)),:]
         end
 
         if showcolorbar
@@ -283,56 +289,59 @@ end
 
 
 """
-    implot(img::AstroImageMat; clims=extrema, stretch=identity, cmap=nothing)
+    implot(
+        img::AbstractArray;
+        clims=Percent(99.5),
+        stretch=identity,
+        cmap=:magma,
+        bias=0.5,
+        contrast=1,
+        wcsticks=true,
+        grid=true,
+        platescale=1
+    )
 
 Create a read only view of an array or AstroImageMat mapping its data values
-to Colors according to `clims`, `stretch`, and `cmap`.
+to an array of Colors. Equivalent to:
 
-The data is first clamped to `clims`, which can either be a tuple of (min, max)
-values or a function accepting an iterator of pixel values that returns (min, max).
-By default, `clims=extrema` i.e. the minimum and maximum of `img`.
-Convenient functions to use for `clims` are:
-`extrema`, `zscale`, and `percent(p)`
+    implot(
+        imview(
+            img::AbstractArray;
+            clims=Percent(99.5),
+            stretch=identity,
+            cmap=:magma,
+            bias=0.5,
+            contrast=1,
+        ),
+        wcsn=1,
+        wcsticks=true,
+        wcstitle=true,
+        grid=true,
+        platescale=1
+    )
 
-Next, the data is rescaled to [0,1] and remapped according to the function `stretch`.
-Stretch can be any monotonic function mapping values in the range [0,1] to some range [a,b].
-Note that `log(0)` is not defined so is not directly supported.
-For a list of convenient stretch functions, see:
-`logstretch`, `powstretch`, `squarestretch`, `asinhstretch`, `sinhstretch`, `powerdiststretch`
+### Image Rendering
+See `imview` for how data is mapped to RGBA pixel values.
 
-Finally the data is mapped to RGB values according to `cmap`. If cmap is `nothing`,
-grayscale is used. ColorSchemes.jl defines hundreds of colormaps. A few nice ones for
-images include: `:viridis`, `:magma`, `:plasma`, `:thermal`, and `:turbo`.
+### WCS & Image Coordinates
+If provided with an AstroImage that has WCS headers set, the tick marks and plot grid
+are calculated using WCS.jl. By default, use the first WCS coordinate system.
+The underlying pixel coordinates are those returned by `dims(img)` multiplied by `platescale`.
+This allows you to overplot lines, regions, etc. using pixel coordinates.
+If you wish to compute the pixel coordinate of a point in world coordinates, see `world_to_pix`.
 
-Crucially, this function returns a view over the underlying data. If `img` is updated
-then those changes will be reflected by this view with the exception of `clims` which
-is not recalculated.
+* `wcsn` (default `1`) select which WCS transform in the headers to use for ticks & grid
+* `wcsticks` (default `true` if WCS headers present) display ticks and labels, and title using world coordinates
+* `wcstitle` (default `true` if WCS headers present and `length(refdims(img))>0`). When slicing a cube, display the location along unseen axes in world coordinates instead of pixel coordinates.
+* `grid` (default `true`) show a grid over the plot. Uses WCS coordinates if `wcsticks` is true, otherwise pixel coordinates multiplied by `platescale`.
+* `platescale` (default `1`). Scales the underlying pixel coordinates to ease overplotting, etc. If `wcsticks` is false, the displayed pixel coordinates are also scaled.
 
-Note: if clims or stretch is a function, the pixel values passed in are first filtered
-to remove non-finite or missing values.
 
 ### Defaults
 The default values of `clims`, `stretch`, and `cmap` are `extrema`, `identity`, and `nothing`
 respectively.
 You may alter these defaults using `AstroImages.set_clims!`,  `AstroImages.set_stretch!`, and
 `AstroImages.set_cmap!`.
-
-### Automatic Display
-Arrays wrapped by `AstroImageMat()` get displayed as images automatically by calling 
-`imview` on them with the default settings when using displays that support showing PNG images.
-
-### Missing data
-Pixels that are `NaN` or `missing` will be displayed as transparent when `cmap` is set
-or black if.
-+/- Inf will be displayed as black or white respectively.
-
-### Exporting Images
-The view returned by `imview` can be saved using general `FileIO.save` methods.
-Example:
-```julia
-v = imview(data, cmap=:magma, stretch=asinhstretch, clims=percent(95))
-save("output.png", v)
-```
 """
 implot
 
