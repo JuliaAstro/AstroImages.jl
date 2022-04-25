@@ -1,6 +1,3 @@
-#=
-ImageTransformations
-=#
 # function warp(img::AstroImageMat, args...; kwargs...)
 #     out = warp(arraydatat(img), args...; kwargs...)
 #     return copyheaders(img, out)
@@ -10,8 +7,8 @@ ImageTransformations
 
 # Instead of using a datatype like N0f32 to interpret integers as fixed point values in [0,1],
 # we use a mappedarray to map the native data range (regardless of type) to [0,1]
-ImageCore.normedview(img::AstroImageMat{<:FixedPoint}) = img
-function ImageCore.normedview(img::AstroImageMat{T}) where T
+ImageBase.normedview(img::AstroImageMat{<:FixedPoint}) = img
+function ImageBase.normedview(img::AstroImageMat{T}) where T
     imgmin, imgmax = extrema(skipmissingnan(img))
     Δ = abs(imgmax - imgmin)
     # Do not introduce NaNs if limits are identical
@@ -52,8 +49,8 @@ end
 # Restrict downsizes images by roughly a factor of two.
 # We want to keep the wrapper but downsize the underlying array
 # TODO: correct dimensions after restrict.
-ImageTransformations.restrict(img::AstroImage, ::Tuple{}) = img
-function ImageTransformations.restrict(img::AstroImage, region::Dims)
+ImageBase.restrict(img::AstroImage, ::Tuple{}) = img
+function ImageBase.restrict(img::AstroImage, region::Dims)
     restricted = restrict(arraydata(img), region)
     steps = cld.(size(img), size(restricted))
     newdims = Tuple(d[begin:s:end] for (d,s) in zip(dims(img),steps))
@@ -61,7 +58,7 @@ function ImageTransformations.restrict(img::AstroImage, region::Dims)
 end
 
 
-ImageCore.pixelspacing(img::AstroImage) = step.(dims(img))
+ImageBase.pixelspacing(img::AstroImage) = step.(dims(img))
 
 
 # ImageContrastAdjustment
