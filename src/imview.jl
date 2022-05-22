@@ -93,12 +93,11 @@ end
 
 
 
-"""
-Helper to iterate over data skipping missing and non-finite values.
-""" 
+# Helper to iterate over data skipping missing and non-finite values.
 skipmissingnan(itr) = Iterators.filter(el->!ismissing(el) && isfinite(el), itr)
 
-
+# Convert argument into a colorscheme or AbstractColorList which allow converting
+# from numerical data into colors.
 function _lookup_cmap(cmap::Symbol)
     if cmap ∉ keys(ColorSchemes.colorschemes)
         error("$cmap not found in ColorSchemes.colorschemes. See: https://juliagraphics.github.io/ColorSchemes.jl/stable/catalogue/")
@@ -107,6 +106,8 @@ function _lookup_cmap(cmap::Symbol)
 end
 _lookup_cmap(::Nothing) = ColorSchemes.colorschemes[:grays]
 _lookup_cmap(acl::AbstractColorList) = acl
+_lookup_cmap(colorant::Colorant) = PlotUtils.cgrad([:black, colorant])
+_lookup_cmap(colorant::String) = PlotUtils.cgrad([:black, colorant])
 
 function _resolve_clims(img::AbstractArray, clims)
     # Tuple or abstract array
