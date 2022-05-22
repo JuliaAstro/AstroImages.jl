@@ -1,114 +1,77 @@
 """
-    ccd2rgb(red::ImageHDU, green::ImageHDU, blue::ImageHDU; stretch = identity, shape_out = size(red))
-    ccd2rgb(red::Tuple{AbstractMatrix, WCSTransform}, green::Tuple{AbstractMatrix, WCSTransform},
-                     blue::Tuple{AbstractMatrix, WCSTransform}; stretch = identity, shape_out = size(red[1]))
+    composecolors(
+        images,
+        cmap=["#F00", "#0F0", "#00F"];
+        clims,
+        stretch,
+        contrast,
+        bias,
+        multiplier
+    )
 
-Converts 3 grayscale ImageHDU into RGB by reprojecting them.
+Create a color composite of multiple images by applying `imview` and blending 
+the results. This function can be used to create RGB composites using any number of channels
+(e.g. red, green, blue, and hydrogen alpha) as well as more exotic images like blending
+radio and optical data using two different colormaps.
 
-# Arguments
-- `red`: Red channel data.
-- `green`: Green channel data.
-- `blue`: Blue channel data.
-- `stretch`: Stretch function applied.
-- `shape_out`: Shape of output RGB image.
+`cmap` should be a list of colorants, named colors (see Colors.jl), or colorschemes (see ColorSchemes.jl).
+`clims`, `stretch`, `contrast`, and `bias` are passed on to `imview`. They can be a single value or
+a list of different values for each image.
 
-# Examples
-```julia-repl
-julia> ccd2rgb(r, b, g, shape_out = (1000,1000))
-
-julia> ccd2rgb(r, b, g, shape_out = (1000,1000), stretch = log)
-
-julia> ccd2rgb(r, b, g, shape_out = (1000,1000), stretch = sqrt)
-
-julia> ccd2rgb(r, b, g, shape_out = (1000,1000), stretch = asinh)
+Examples:
+```julia
+# Basic RGB
+composecolors([redimage, greenimage, blueimage])
+# Non-linear stretch before blending
+composecolors([redimage, greenimage, blueimage], stretch=asinhstretch)
+# More than three channels are allowed (H alpha in pink)
+composecolors(
+    [antred, antgreen, antblue, anthalp],
+    ["red", "green", "blue", "maroon1"],
+    multiplier=[1,2,1,1]
+)
+# Can mix 
+composecolors([radioimage, xrayimage], [:ice, :magma], clims=extrema)
+composecolors([radioimage, xrayimage], [:magma, :viridis], clims=[Percent(99), Zscale()])
 ```
 """
-function ccd2rgb(
-    red::AstroImageMat,
-    green::AstroImageMat,
-    blue::AstroImageMat;
-    stretch = identity,
-    shape_out = size(red[1])
-)
-    red_rp = reproject(red, red, shape_out = shape_out)[1]
-    green_rp = reproject(green, red, shape_out = shape_out)[1]
-    blue_rp = reproject(blue, red, shape_out = shape_out)[1]
-    
-    I = (red_rp .+ green_rp .+ blue_rp) ./ 3
-    I .= (x -> stretch(x)/x).(I)
-        
-    red_rp .*= I
-    green_rp .*= I
-    blue_rp .*= I
-    
-    m1 = maximum(x->isnan(x) ? -Inf : x, red_rp)
-    m2 = maximum(x->isnan(x) ? -Inf : x, green_rp)
-    m3 = maximum(x->isnan(x) ? -Inf : x, blue_rp)
-    return colorview(RGB, red_rp./m1 , green_rp./m2, blue_rp./m3)
-end
-
-ccd2rgb(red::ImageHDU, green::ImageHDU, blue::ImageHDU; stretch = identity, shape_out = size(red)) =
-    ccd2rgb((read(red), WCS.from_header(read_header(red, String))[1]), (read(green), WCS.from_header(read_header(green, String))[1]),
-            (read(blue), WCS.from_header(read_header(blue, String))[1]), stretch = stretch, shape_out = shape_out)
-
-
-
-function composechannels(
+function composecolors(
     images,
-    multipliers=ones(size(images)), # 0.299 * R + 0.587 * G + 0.114 * B
-    channels=["#F00", "#0F0", "#00F"];
-    clims=extrema,
-    stretch=identity,
-    # reproject = all(==(wcs(first(images))), wcs(img) for img in images) ? false : wcs(first(images)),
-    reproject = false,
-    shape_out = size(first(images)),
+    cmap=nothing;
+    clims=_default_clims[],
+    stretch=_default_stretch[],
+    contrast=1.0,
+    bias=0.5,
+    multiplier=1.0
 )
-    if reproject == false
-        reprojected = images
-    else
-        if reproject == true
-            reproject = first(images)
-        end
-        reprojected = map(images) do image
-            Reproject.reproject(image, reproject; shape_out)[1]
-        end
+    if isempty(images)
+        error("At least one image is required.")
     end
-    I = broadcast(+, reprojected...) ./ length(reprojected)
-    I .= (x -> stretch(x)/x).(I)
-
-    colors = parse.(Colorant, channels)
-    # @show colors
-        
-    # red_rp .*= I
-    # green_rp .*= I
-    # blue_rp .*= I
-    
-    # m1 = maximum(x->isnan(x) ? -Inf : x, red_rp)
-    # m2 = maximum(x->isnan(x) ? -Inf : x, green_rp)
-    # m3 = maximum(x->isnan(x) ? -Inf : x, blue_rp)
-    # return colorview(RGB, red_rp./m1 , green_rp./m2, blue_rp./m3)
-
-    # return colorview(RGB, (reprojected .* multipliers)...)
-
-    ## TODO: this all needs to be lazy
-
-    colorized = map(eachindex(reprojected)) do i
-        reprojected[i] .* multipliers[i] .* colors[i]
+    if !allequal(size.(images))
+        error("Images must have the same dimensions to compose them.")
     end
-    mapped = (+).(colorized...) ./ length(reprojected)
-    T = coloralpha(eltype(mapped))
-    mapped = T.(mapped)
-    mapped[isnan.(mapped)] .= RGBA(0,0,0,0)
+    if length(images) == 3 && isnothing(cmap)
+        cmap = ["red", "green", "blue"]
+    end
+    if length(cmap) < length(images)
+        error("Please provide a color channel for each image")
+    end
 
-    # Flip image to match conventions of other programs
-    flipped_view = view(mapped', reverse(axes(mapped,2)),:)
+    # Use imview to render each channel to RGBA
+    images_rendered = broadcast(images, cmap, clims, stretch, contrast, bias) do image, cmap, clims, stretch, contrast, bias
+        imview(image; cmap, clims, stretch, contrast, bias)
+    end
 
-    return maybe_copyheaders(first(images), flipped_view)
-    # return (reprojected .* multipliers .* colors)
-
-
-    # TODO: more flexible blending
-    # ColorBlnding
-    # missing/NaN handling
+    # Now blend, ensuring each color channel never exceeds [0,1]
+    combined = mappedarray(images_rendered...) do channels...
+        pxblended = sum(channels .* multiplier)
+        return typeof(pxblended)(
+            clamp(pxblended.r,0,1),
+            clamp(pxblended.g,0,1),
+            clamp(pxblended.b,0,1),
+            clamp(pxblended.alpha,0,1)
+        )
+    end
+    return combined
 end
 export composechannels

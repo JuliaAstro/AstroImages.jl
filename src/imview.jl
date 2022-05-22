@@ -27,8 +27,8 @@ struct Percent
 end
 (p::Percent)(data::AbstractArray) = quantile(vec(data), (p.trim, 1-p.trim))
 (p::Percent)(data) = p(collect(data))
+Base.broadcastable(p::Percent) = Ref(p)
 Base.show(io::IO, p::Percent; kwargs...) = print(io, "Percent($(p.perc))", kwargs...)
-
 
 """
     Zscale(options)(data)
@@ -56,6 +56,7 @@ end
 (z::Zscale)(data::AbstractArray) = PlotUtils.zscale(vec(data), z.nsamples; z.contrast, z.max_reject, z.min_npixels, z.k_rej, z.max_iterations)
 (z::Zscale)(data) = z(collect(data))
 Base.show(io::IO, z::Zscale; kwargs...) = print(io, "Zscale()", kwargs...)
+Base.broadcastable(z::Zscale) = Ref(z)
 
 const _default_cmap  = Base.RefValue{Union{Symbol,Nothing}}(:magma)#nothing)
 const _default_clims = Base.RefValue{Any}(Percent(99.5))
