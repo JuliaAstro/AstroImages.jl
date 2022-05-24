@@ -1,7 +1,6 @@
-using AstroImages, FITSIO, Images, Random, WCS
+using AstroImages, FITSIO, Random, WCS
 
 using Test, WCS
-using SHA: sha256
 
 using Statistics
 
