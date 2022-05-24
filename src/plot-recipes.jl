@@ -1079,7 +1079,7 @@ end
     end
     # Only show arrows where the data is finite, and more than a couple pixels
     # long.
-    mask = isfinite.(qpolintenr) .&& qpolintenr .>= minpol.*qmaxlen
+    mask = (isfinite.(qpolintenr)) .& (qpolintenr .>= minpol.*qmaxlen)
     pointstmp = map(xs[mask],ys[mask],qx[mask],qy[mask]) do x,y,qxi,qyi
         return ([x, x+a*qxi, NaN], [y, y+a*qyi, NaN])
     end
