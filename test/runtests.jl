@@ -1,8 +1,4 @@
-using AstroImages, FITSIO, Random, WCS
-
-using Test, WCS
-
-using Statistics
+using AstroImages, FITSIO, Random, WCS, ImageBase, Test, WCS, Statistics
 
 import AstroImages: _float, render
 
