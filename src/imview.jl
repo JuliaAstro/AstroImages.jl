@@ -105,7 +105,7 @@ function _lookup_cmap(cmap::Symbol)
     end
     return ColorSchemes.colorschemes[cmap]
 end
-_lookup_cmap(::Nothing) = ColorSchemes.colorschemes[:grays]
+_lookup_cmap(::Nothing) = nothing
 _lookup_cmap(acl::AbstractColorList) = acl
 _lookup_cmap(colorant::Colorant) = PlotUtils.cgrad([:black, colorant])
 _lookup_cmap(colorant::String) = PlotUtils.cgrad([:black, colorant])
@@ -281,7 +281,14 @@ function _imview(img, normed::AbstractArray{T}, stretch, cmap, contrast, bias) w
                 RGBA{N0f8}(0,0,0,1)
             end
         else
-            RGBA{N0f8}(get(cmap, stretched, (false, true)))
+            if isnothing(cmap)
+                # true/false used as numerical values to prevent unucessary promotion
+                s = clamp(stretched, false, true)
+                RGBA{N0f8}(s,s,s,1)
+            else
+                # Look up colormap
+                RGBA{N0f8}(get(cmap, stretched, (false, true)))
+            end
         end
         return pix
     end
