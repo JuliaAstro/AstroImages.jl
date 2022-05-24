@@ -3,6 +3,8 @@ using AstroImages, FITSIO, Images, Random, WCS
 using Test, WCS
 using SHA: sha256
 
+using Statistics
+
 import AstroImages: _float, render
 
 @testset "Conversion to float and fixed-point" begin
@@ -78,7 +80,6 @@ end
 
     @testset "Opening AstroImage in different ways" begin
         data = rand(2,2)
-        wcs = WCSTransform(2;)
         FITS(fname, "w") do f
             write(f, data)
         end
@@ -87,8 +88,6 @@ end
         @test AstroImage(fname, 1) isa AstroImage
         @test AstroImage(f, 1) isa AstroImage
         @test AstroImage(data, header) isa AstroImage
-        @test AstroImage(data, wcs) isa AstroImage
-        @test AstroImage(data, wcs) isa AstroImage
         close(f)
     end
 
@@ -121,39 +120,183 @@ end
    @test length(AstroImage(rand(10,10))) == 100
 end
 
-# @testset "multi wcs AstroImage" begin
-#     fname = tempname() * ".fits"
-#     f = FITS(fname, "w")
-#     inhdr = FITSHeader(["CTYPE1", "CTYPE2", "RADESYS", "FLTKEY", "INTKEY", "BOOLKEY", "STRKEY", "COMMENT",
-#                         "HISTORY"],
-#                        ["RA---TAN", "DEC--TAN", "UNK", 1.0, 1, true, "string value", nothing, nothing],
-#                        ["",
-#                         "",
-#                         "",
-#                         "floating point keyword",
-#                         "",
-#                         "boolean keyword",
-#                         "string value",
-#                         "this is a comment",
-#                         "this is a history"])
+@testset "multi wcs AstroImage" begin
+    fname = tempname() * ".fits"
+    f = FITS(fname, "w")
+    inhdr = FITSHeader([
+            "FLTKEY", "INTKEY", "BOOLKEY", "STRKEY", "COMMENT", "HISTORY",
+            "CRVAL1a",
+            "CRVAL2a",
+            "CRPIX1a",
+            "CRPIX2a",
+            "CDELT1a",
+            "CDELT2a",
+            "CTYPE1a",
+            "CTYPE2a",
+            "CUNIT1a",
+            "CUNIT2a",
 
-#     indata = reshape(Float32[1:100;], 5, 20)
-#     write(f, indata; header=inhdr)
-#     write(f, indata; header=inhdr)
-#     close(f)
+            "CRVAL1b",
+            "CRVAL2b",
+            "CRPIX1b",
+            "CRPIX2b",
+            "CDELT1b",
+            "CDELT2b",
+            "CTYPE1b",
+            "CTYPE2b",
+            "CUNIT1b",
+            "CUNIT2b",
+        ],
+        [
+            1.0, 1, true, "string value", nothing, nothing,
+            0.5,
+            89.5,
+            1,
+            1,
+            1,
+            -1,
+            "RA---TAN",
+            "DEC--TAN",
+            "deg     ",
+            "deg     ",
 
-#     img = AstroImage(fname, (1,2))
-#     f = FITS(fname)
-#     @test length(img.wcs) == 2
-#     @test WCS.to_header(img.wcs[1]) === WCS.to_header(WCS.from_header(read_header(f[1], String))[1])
-#     @test WCS.to_header(img.wcs[2]) === WCS.to_header(WCS.from_header(read_header(f[2], String))[1])
+            0.5,
+            89.5,
+            1,
+            1,
+            1,
+            -1,
+            "RA---TAN",
+            "DEC--TAN",
+            "deg     ",
+            "deg     ",
+        ],
+        [
+            "floating point keyword", "", "boolean keyword", "string value", "this is a comment", "this is a history",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "Terrestrial East Longitude",
+            "Terrestrial North Latitude",
+            "",
+            "",
+            
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "Terrestrial East Longitude",
+            "Terrestrial North Latitude",
+            "",
+            "",
+        ])
 
-#     img = AstroImage(Gray, f, (1,2))
-#     @test length(img.wcs) == 2
-#     @test WCS.to_header(img.wcs[1]) === WCS.to_header(WCS.from_header(read_header(f[1], String))[1])
-#     @test WCS.to_header(img.wcs[2]) === WCS.to_header(WCS.from_header(read_header(f[2], String))[1])
-#     close(f)
-# end
+    indata = reshape(Float32[1:100;], 5, 20)
+    write(f, indata; header=inhdr)
+    close(f)
+
+    img = AstroImage(fname)
+    f = FITS(fname)
+    @test length(wcs(img)) == 2
+    @test WCS.to_header(wcs(img,1)) === WCS.to_header(WCS.from_header(read_header(f[1], String))[1])
+    @test WCS.to_header(wcs(img,2)) === WCS.to_header(WCS.from_header(read_header(f[1], String))[2])
+
+    img = AstroImage(f)
+    @test length(wcs(img)) == 2
+    @test WCS.to_header(wcs(img,1)) === WCS.to_header(WCS.from_header(read_header(f[1], String))[1])
+    @test WCS.to_header(wcs(img,2)) === WCS.to_header(WCS.from_header(read_header(f[1], String))[2])
+    close(f)
+end
+
+##
+@testset "imview" begin
+
+    arr1 = permutedims(reshape(1:9,3,3))
+    img = AstroImage(arr1)
+
+    @test imview(arr1) == imview(img)
+    @test imview(img) isa AstroImage
+    @test !(imview(arr1) isa AstroImage)
+
+    img_rendered_1 = imview(img, clims=(1,9), stretch=identity, contrast=1, bias=0.5, cmap=nothing)
+
+    # Image Orientation
+    @test CartesianIndex(3,1) == argmin(Gray.(img_rendered_1))
+    @test CartesianIndex(1,3) == argmax(Gray.(img_rendered_1))
+
+    # Rendering Basics
+    @test allunique(img_rendered_1)
+    # It is intended that the rendered image is flipped vs it's data
+    @test img_rendered_1[3,1] == RGBA(0,0,0,1)
+    @test img_rendered_1[1,3] == RGBA(1,1,1,1)
+    @test all(p -> p.r==p.g==p.b && p.alpha==1, img_rendered_1)
+
+    # Limits
+    img_rendered_2 = imview(img, clims=(3,7), stretch=identity, contrast=1, bias=0.5, cmap=nothing)
+    @test length(unique(img_rendered_2)) == 5
+    @test count(==(RGBA(0,0,0,1)), img_rendered_2) == 3
+    @test count(==(RGBA(1,1,1,1)), img_rendered_2) == 3
+
+    # Calculated limits
+    @test img_rendered_1 == imview(img, clims=extrema, stretch=identity, contrast=1, bias=0.5, cmap=nothing)
+    img_rendered_3 = imview(img, clims=Zscale(), stretch=identity, contrast=1, bias=0.5, cmap=nothing)
+    img_rendered_4 = imview(img, clims=Percent(100), stretch=identity, contrast=1, bias=0.5, cmap=nothing)
+    @test img_rendered_1 == img_rendered_3
+    @test img_rendered_1 == img_rendered_4
+
+    # Stretching
+    for stretchfunc in (sqrtstretch, asinhstretch, powerdiststretch, logstretch, powstretch, squarestretch, sinhstretch)
+        img_rendered_5 = imview(arr1, clims=(1,9), stretch=stretchfunc, contrast=1, bias=0.5, cmap=nothing)
+        @test extrema(Gray.(img_rendered_5)) == (0,1)
+        manual_stretch = stretchfunc.(AstroImages.clampednormedview(arr1,(1,9)))
+        @test Gray.(img_rendered_5) ≈ 
+            N0f8.((manual_stretch.-minimum(manual_stretch)) ./
+                (maximum(manual_stretch)-minimum(manual_stretch)))'[end:-1:begin,:]
+    end
+
+    # Contrast/Bias    
+    @test Gray.(imview(img, clims=extrema, stretch=identity, contrast=1, bias=0.6, cmap=nothing)) == 
+            N0f8.(clamp.(N0f8.(Gray.(img_rendered_1)) .- 0.1,false,true))
+    
+    img_rendered_5 = imview(arr1, clims=(1,9), stretch=sqrtstretch, contrast=0.5, bias=0.5, cmap=nothing)
+    
+    @show mean(diff(sort(Gray.(vec(img_rendered_1))))) ≈ 2mean(diff(sort(Gray.(vec(img_rendered_5)))))
+
+    # Missing/NaN
+    for m in (NaN, missing)
+        arr2 = [
+            1 2 3
+            4 m 6
+            7 8 9
+        ]
+        @test imview(arr2) == imview(AstroImage(arr2))
+        @test imview(arr2)[2,2].alpha == 0
+        @test 8 == count(img_rendered_1 .== imview(arr2, clims=(1,9), stretch=identity, contrast=1, bias=0.5, cmap=nothing))
+    end
+    
+    img_rendered_6 = imview([1, 2, NaN, missing, -Inf, Inf], clims=extrema)
+    img_rendered_6b = imview([1, 2], clims=extrema)
+
+    @test img_rendered_6[1] == img_rendered_6b[1]
+    @test img_rendered_6[2] == img_rendered_6b[2]
+    @test img_rendered_6[1].alpha == 1
+    @test img_rendered_6[2].alpha == 1
+    @test img_rendered_6[3].alpha == 0
+    @test img_rendered_6[4].alpha == 0
+    @test img_rendered_6[5] == RGBA(0,0,0,1)
+    @test img_rendered_6[6] == RGBA(1,1,1,1)
+end
+
+##
+
+1
+
+##
 
 # @testset "multi file AstroImage" begin
 #     fname1 = tempname() * ".fits"
