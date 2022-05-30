@@ -58,7 +58,7 @@ end
 Base.show(io::IO, z::Zscale; kwargs...) = print(io, "Zscale()", kwargs...)
 Base.broadcastable(z::Zscale) = Ref(z)
 
-const _default_cmap  = Base.RefValue{Union{Symbol,Nothing}}(:magma)#nothing)
+const _default_cmap  = Base.RefValue{Union{Symbol,Nothing}}(:magma)
 const _default_clims = Base.RefValue{Any}(Percent(99.5))
 const _default_stretch  = Base.RefValue{Any}(identity)
 
@@ -70,7 +70,9 @@ Alter the default color map used to display images when using
 `imview` or displaying an AstroImageMat.
 """
 function set_cmap!(cmap)
-    _default_cmap[] = _lookup_cmap(cmap)
+    # Ensure it's valid
+    _lookup_cmap(cmap)
+    _default_cmap[] = cmap
 end
 """
     set_clims!(clims::Tuple)
