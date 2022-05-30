@@ -1,4 +1,6 @@
 [deps]
+AstroImages = "fe3fc30c-9b16-11e9-1c73-17dabf39f4ad"
+DemoCards = "311a05b2-6137-4a5a-b473-18580a3d38b5"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 
 [compat]
