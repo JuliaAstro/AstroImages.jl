@@ -131,21 +131,14 @@ const dimnames = (
 
 const Spec = Dim{:Spec}
 const Pol = Dim{:Pol}
-# struct Wcs{N,T} <: DimensionalData.Dimension{T} 
-#     val::T
-# end
-# Wcs{N}(val::T) where {N,T} = Wcs{N,T}(val)
-# Wcs{N}() where N = Wcs{N}(:)
-# DimensionalData.name(::Type{<:Wcs{N}}) where N = Symbol("Wcs$N")
-# DimensionalData.basetypeof(::Type{<:Wcs{N}}) where N = Wcs{N}
-# # DimensionalData.key2dim(::Val{N}) where N<:Integer = Wcs{N}()
-# DimensionalData.dim2key(::Type{D}) where D<:Wcs{N} where N = Symbol("Wcs$N")
-# wcsax(::Wcs{N}) where N = N
 
 """
     wcsax(img, dim)
 
-Return the WCS axis number associated with a dimension.
+Return the WCS axis number associated with a dimension, even if the image
+has been slices or otherwise transformed.
+
+Internally, the order is stored in the field `wcsdims`.
 """
 function wcsax(img::AstroImage, dim)
     return findfirst(di->name(di)==name(dim), img.wcsdims)
