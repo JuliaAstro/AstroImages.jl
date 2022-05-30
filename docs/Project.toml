@@ -2,6 +2,8 @@
 AstroImages = "fe3fc30c-9b16-11e9-1c73-17dabf39f4ad"
 DemoCards = "311a05b2-6137-4a5a-b473-18580a3d38b5"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+ImageIO = "82e4d734-157c-48bb-816b-45c225c6df19"
+Images = "916415d5-f1e6-5110-898d-aaa5f9f070e0"
 
 [compat]
 Documenter = "0.27"

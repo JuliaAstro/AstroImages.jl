@@ -11,7 +11,7 @@ using AstroImages
 fname = download(
     "http://www.astro.uvic.ca/~wthompson/astroimages/fits/656nmos.fits",
     "eagle-656nmos.fits"
-) #hide
+);
 
 # Load the image by filename.
 # If unspecified, the image is loaded from the first image-HDU in the fits file.
