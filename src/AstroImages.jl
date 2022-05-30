@@ -41,6 +41,8 @@ export load,
     imview,
     arraydata,
     header,
+    copyheader,
+    shareheader,
     wcs,
     Comment,
     History,
@@ -50,7 +52,7 @@ export load,
     Pol,
     Ti,
     X, Y, Z, Dim,
-    At, Near, Between, ..,
+    At, Near, ..,
     dims, refdims,
     recenter,
     pix_to_world,
@@ -404,7 +406,6 @@ See also: [`shareheader`](@ref).
 """
 copyheader(img::AstroImage, data::AbstractArray) =
     AstroImage(data, dims(img), refdims(img), deepcopy(header(img)), copy(getfield(img, :wcs)), Ref(getfield(img, :wcs_stale)[]), getfield(img,:wcsdims))
-export copyheader
 
 """
     shareheader(img::AstroImage, data) -> imgnew
@@ -414,7 +415,6 @@ synchronized header; modifying one also affects the other.
 See also: [`copyheader`](@ref).
 """ 
 shareheader(img::AstroImage, data::AbstractArray) = AstroImage(data, dims(img), refdims(img), header(img), getfield(img, :wcs), Ref(getfield(img, :wcs_stale)[]), getfield(img,:wcsdims))
-export shareheader
 # Share header if an AstroImage, do nothing if AbstractArray
 maybe_shareheader(img::AstroImage, data) = shareheader(img, data)
 maybe_shareheader(::AbstractArray, data) = data
