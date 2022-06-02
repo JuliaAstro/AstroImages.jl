@@ -191,6 +191,25 @@ DimensionalData.metadata(::AstroImage) = DimensionalData.Dimensions.LookupArrays
 )
     return AstroImage(data, dims, refdims, header, wcs, Ref(wcs_stale), wcsdims)
 end
+# Keyword argument version. 
+# We have to define this since our struct contains additional field names.
+@inline function DimensionalData.rebuild(
+    img::AstroImage;
+    data,
+    # Fields for DimensionalData
+    dims::Tuple=DimensionalData.dims(img),
+    refdims::Tuple=DimensionalData.refdims(img),
+    name::Union{Symbol,DimensionalData.AbstractName,Nothing}=nothing,
+    metadata::Union{DimensionalData.LookupArrays.AbstractMetadata,Nothing}=nothing,
+    # FITS Header beloning to this image, if any
+    header::FITSHeader=deepcopy(header(img)),
+    # A cached WCSTransform object for this data
+    wcs::Vector{WCSTransform}=getfield(img, :wcs),
+    wcs_stale::Bool=getfield(img, :wcs_stale)[],
+    wcsdims::Tuple=(dims...,refdims...),
+)
+    return AstroImage(data, dims, refdims, header, wcs, Ref(wcs_stale), wcsdims)
+end
 @inline DimensionalData.rebuildsliced(
     f::Function,
     img::AstroImage,
