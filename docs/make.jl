@@ -38,5 +38,6 @@ postprocess_cb()
 
 deploydocs(
     repo = "github.com/sefffal/AstroImages.jl.git",
-    devbranch = "master"
+    devbranch = "master",
+    push_preview = true
 )
