@@ -144,8 +144,30 @@ function wcsax(img::AstroImage, dim)
 end
 
 # Accessors
+"""
+    header(img::AstroImage)
+
+Return the underlying FITSIO.FITSHeader object wrapped by an AstroImage.
+Note that this object has less flexible getindex and setindex methods.
+Indexing by symbol, Comment, History, etc are not supported.
+"""
 header(img::AstroImage) = getfield(img, :header)
+"""
+    header(array::AbstractArray)
+
+Returns an empty FITSIO.FITSHeader object when called with a non-AstroImage
+abstract array.
+"""
 header(::AbstractArray) = emptyheader()
+
+"""
+    wcs(img)
+
+Computes and returns a list of World Coordinate System WCSTransform objects from WCS.jl.
+The resultss are cached after the first call, so subsequent calls are fast.
+Modifying a WCS header invalidates this cache automatically, so users should call `wcs(...)`
+each time rather than keeping the WCSTransform object around.
+"""
 function wcs(img::AstroImage)
     if getfield(img, :wcs_stale)[]
         empty!(getfield(img, :wcs))
@@ -154,8 +176,24 @@ function wcs(img::AstroImage)
     end
     return getfield(img, :wcs)
 end
-wcs(arr::AbstractArray) = [emptywcs(arr)]
+"""
+    wcs(img, index)
+
+Computes and returns a World Coordinate System WCSTransform objects from WCS.jl by index.
+This is to support files with multiple WCS transforms specified.
+`wcs(img,1)` is useful for selecting selecting the first WCSTranform object.
+The resultss are cached after the first call, so subsequent calls are fast.
+Modifying a WCS header invalidates this cache automatically, so users should call `wcs(...)`
+each time rather than keeping the WCSTransform object around.
+"""
 wcs(img, ind) = wcs(img)[ind]
+"""
+wcs(array)
+
+Returns a list with a single basic WCSTransform object when called with a non-AstroImage
+abstract array.
+"""
+wcs(arr::AbstractArray) = [emptywcs(arr)]
 
 # Implement DimensionalData interface 
 Base.parent(img::AstroImage) = getfield(img, :data)

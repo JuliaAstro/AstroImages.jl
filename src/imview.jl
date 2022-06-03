@@ -1,22 +1,59 @@
 # These reproduce the behaviour of DS9 according to http://ds9.si.edu/doc/ref/how.html
+
+"""
+    logstretch(num,a=1000)
+
+A log-stretch as defined by the SAO DS9 application: http://ds9.si.edu/doc/ref/how.html
+"""
 logstretch(x,a=1000) = log(a*x+1)/log(a)
+"""
+    powstretch(num, a=1000)
+
+A power-stretch as defined by the SAO DS9 application: http://ds9.si.edu/doc/ref/how.html
+"""
 powstretch(x,a=1000) = (a^x - 1)/a
-sqrtstretch = sqrt
+"""
+    sqrtstretch(num)
+
+A square root stretch (simply defined as Base.sqrt)
+"""
+sqrtstretch(x) = sqrt(x)
+"""
+    squarestretch(num)
+
+A squarestretch-stretch as defined by the SAO DS9 application: http://ds9.si.edu/doc/ref/how.html
+"""
 squarestretch(x) = x^2
+"""
+    asinhstretch(num)
+
+A hyperbolic arcsin stretch as defined by the SAO DS9 application: http://ds9.si.edu/doc/ref/how.html.
+"""
 asinhstretch(x) = asinh(10x)/3
+"""
+    sinhstretch(num)
+
+A hyperbolic sin stretch as defined by the SAO DS9 application: http://ds9.si.edu/doc/ref/how.html
+"""
 sinhstretch(x) = sinh(3x)/10
 # These additional stretches reproduce behaviour from astropy
+"""
+    logstretch(num,a=1000)
+
+A power distance stretch as defined by astropy.
+"""
 powerdiststretch(x, a=1000) = (a^x - 1) / (a - 1)
 
 """
-    percent(99.5)
+    Percent(99.5)
 
 Returns a callable that calculates display limits that include the given 
 percent of the image data.
+Reproduces the behaviour of the SAO DS9 scale menu.
 
 Example:
 ```julia
-julia> imview(img, clims=percent(90))
+julia> imview(img, clims=Percent(90))
 ```
 This will set the limits to be the 5th percentile to the 95th percentile.
 """
@@ -33,7 +70,16 @@ Base.show(io::IO, p::Percent; kwargs...) = print(io, "Percent($(p.perc))", kwarg
 """
     Zscale(options)(data)
 
-Wraps PlotUtils.zscale to first collect iterators.
+Wraps PlotUtils.zscale in a callable with default parameters.
+This is a common algorithm for agressively stretching astronomical data
+to see faint structure that originated in IRAF: https://iraf.net/forum/viewtopic.php?showtopic=134139
+but is now seen in many other applications/libraries (DS9, Astropy, etc.)
+
+Usage:
+```
+imview(img, clims=Zscale())
+implot(img, clims=Zscale(contrast=0.1))
+```
 
 Default parameters:
 ```
