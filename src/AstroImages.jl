@@ -5,7 +5,7 @@ using FileIO
 # Rather than pulling in all of Images.jl, just grab the packages
 # we need to extend to our basic functionality.
 # We also need ImageShow so that user's images appear automatically.
-using ImageBase, ImageShow, ImageMetadata, ImageAxes
+using ImageBase, ImageShow#, ImageAxes
 
 using WCS
 using Statistics
@@ -18,6 +18,7 @@ using AstroAngles
 using Printf
 using PlotUtils: PlotUtils
 using PlotUtils: optimize_ticks, AbstractColorList
+using UUIDs # can remove once reigstered with FileIO
 
 
 export load,
@@ -511,14 +512,6 @@ function __init__()
         [:FITSIO => UUID("525bcba6-941b-5504-bd06-fd0dc1a4d2eb")],
         [:AstroImages => UUID("fe3fc30c-9b16-11e9-1c73-17dabf39f4ad")]
     )
-    # TODO: How to add FileIO support for fits.gz files? We can open these
-    # with AstroImage("...fits.gz") but not load, since the .gz takes precedence.
-    # add_format(format"FITS.GZ",
-    #     [0x1f, 0x8b, 0x08],
-    #     [".fits.gz", ".fts.gz", ".FIT.gz", ".FITS.gz", ".FTS.gz"],
-    #     [:FITSIO => UUID("525bcba6-941b-5504-bd06-fd0dc1a4d2eb")],
-    #     [:AstroImages => UUID("fe3fc30c-9b16-11e9-1c73-17dabf39f4ad")]
-    # )
     
 end
 
