@@ -36,7 +36,7 @@ makedocs(
 # 3. postprocess after makedocs
 postprocess_cb()
 
-# deploydocs(
-#     repo = "github.com/sefffal/AstroImages.jl.git",
-#     devbranch = "main"
-# )
+deploydocs(
+    repo = "github.com/sefffal/AstroImages.jl.git",
+    devbranch = "master"
+)
