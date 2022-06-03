@@ -260,8 +260,6 @@ end
     
     img_rendered_5 = imview(arr1, clims=(1,9), stretch=sqrtstretch, contrast=0.5, bias=0.5, cmap=nothing)
     
-    @show mean(diff(sort(Gray.(vec(img_rendered_1))))) ≈ 2mean(diff(sort(Gray.(vec(img_rendered_5)))))
-
     # Missing/NaN
     for m in (NaN, missing)
         arr2 = [
