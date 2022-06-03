@@ -22,7 +22,19 @@ makedocs(
     pages = [
         "Home" => "index.md",
         "Manual" => [
-            "Getting Started" => "getting-started.md"
+            "Getting Started" => "manual/getting-started.md",
+            "Loading & Saving Images" => "manual/loading-images.md",
+            "Displaying Images" => "manual/displaying-images.md",
+            "Dimensions and World Coordinates" => "manual/dimensions-and-world-coordinates.md",
+            "Polarization" => "manual/polarization.md",
+            "Spectral Axes" => "manual/spec.md",
+            "Conventions" => "manual/conventions.md",
+        ],
+        "Guides" => [
+            "Extracting Photometry" => "guide/photometry.md",
+            "Reprojecting Images" => "guide/reproject.md",
+            "Blurring & Filtering Images" => "guide/image-filtering.md",
+            "Transforming Images" => "guide/image-transformations.md",
         ],
         demopage,
         "API" => "api.md",
