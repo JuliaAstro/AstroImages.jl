@@ -18,7 +18,6 @@ using AstroAngles
 using Printf
 using PlotUtils: PlotUtils
 using PlotUtils: optimize_ticks, AbstractColorList
-using UUIDs
 
 
 export load,
@@ -27,7 +26,6 @@ export load,
     AstroImageVec,
     AstroImageMat,
     WCSGrid,
-    ccd2rgb,
     composecolors,
     Zscale,
     Percent,
@@ -39,6 +37,7 @@ export load,
     sinhstretch,
     powerdiststretch,
     imview,
+    render, # deprecated
     arraydata,
     header,
     copyheader,
@@ -533,27 +532,3 @@ function __init__()
 end
 
 end # module
-
-
-#=
-TODO:
-
-
-* properties?
-* contrast/bias?
-* interactive (Jupyter)
-* Plots & Makie recipes
-* RGB and other composites
-* tests
-* histogram equaization
-
-* FileIO Registration. 
-* fits.gz support
-* Table wrapper for TableHDUs that preserves comment access, units.
-* Reading/writing subbarrays
-* Specifying what kind of table, ASCII or TableHDU when wriring.
-
-* FITSIO PR/issue (performance)
-* PlotUtils PR/issue (zscale with iteratble)
-
-=#
