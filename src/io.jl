@@ -155,7 +155,7 @@ function writefits(fname, args...)
         end
     end
 end
-writearg(fits, img::AstroImage) = write(fits, arraydata(img), header=header(img))
+writearg(fits, img::AstroImage) = write(fits, parent(img), header=header(img))
 # Fallback for writing plain arrays
 writearg(fits, arr::AbstractArray) = write(fits, arr)
 # For table compatible data.

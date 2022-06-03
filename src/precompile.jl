@@ -22,7 +22,7 @@ for T in [Float32, Float64, Int, Int8, UInt8, N0f8]
         imview(i; stretch)
     end
     TI = typeof(i)
-    precompile(arraydata, (TI,))
+    precompile(parent, (TI,))
     precompile(header, (TI,))
     precompile(wcs, (TI,))
     precompile(getindex, (TI, Symbol))

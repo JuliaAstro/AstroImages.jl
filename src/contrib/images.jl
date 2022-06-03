@@ -1,5 +1,5 @@
 # function warp(img::AstroImageMat, args...; kwargs...)
-#     out = warp(arraydatat(img), args...; kwargs...)
+#     out = warp(parentt(img), args...; kwargs...)
 #     return copyheaders(img, out)
 # end
 
@@ -51,7 +51,7 @@ end
 # TODO: correct dimensions after restrict.
 ImageBase.restrict(img::AstroImage, ::Tuple{}) = img
 function ImageBase.restrict(img::AstroImage, region::Dims)
-    restricted = restrict(arraydata(img), region)
+    restricted = restrict(parent(img), region)
     steps = cld.(size(img), size(restricted))
     newdims = Tuple(d[begin:s:end] for (d,s) in zip(dims(img),steps))
     return rebuild(img, restricted, newdims)
@@ -72,4 +72,12 @@ ImageBase.pixelspacing(img::AstroImage) = step.(dims(img))
 # end
 
 
+
+
+# """
+#     ImageMetadata.parent(img::AstroImage)
+
+# Returns the underlying wrapped array of `img`.
+# """
+# ImageMetadata.parent(img::AstroImage) = getfield(img, :data)
 

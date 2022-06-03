@@ -4,7 +4,7 @@
 # If the user displays a AstroImageMat of colors (e.g. one created with imview)
 # fal through and display the data as an image
 Base.show(io::IO, mime::MIME"image/png", img::AstroImageMat{T}; kwargs...) where {T<:Colorant} =
-    show(io, mime, arraydata(img), kwargs...)
+    show(io, mime, parent(img), kwargs...)
 
 # Otherwise, call imview with the default settings.
 Base.show(io::IO, mime::MIME"image/png", img::AstroImageMat{T}; kwargs...) where {T<:Union{Number,Missing}} =

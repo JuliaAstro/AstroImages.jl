@@ -38,7 +38,6 @@ export load,
     powerdiststretch,
     imview,
     render, # deprecated
-    arraydata,
     header,
     copyheader,
     shareheader,
@@ -157,16 +156,8 @@ end
 wcs(arr::AbstractArray) = [emptywcs(arr)]
 wcs(img, ind) = wcs(img)[ind]
 
-"""
-    ImageMetadata.arraydata(img::AstroImage)
-
-Returns the underlying wrapped array of `img`.
-"""
-ImageMetadata.arraydata(img::AstroImage) = getfield(img, :data)
-
-
 # Implement DimensionalData interface 
-Base.parent(img::AstroImage) = arraydata(img)
+Base.parent(img::AstroImage) = getfield(img, :data)
 DimensionalData.dims(A::AstroImage) = getfield(A, :dims)
 DimensionalData.refdims(A::AstroImage) = getfield(A, :refdims)
 DimensionalData.data(A::AstroImage) = getfield(A, :data)
@@ -228,7 +219,7 @@ for f in [
     :(Base.view)
 ]
     # TODO: these functions are copying headers
-    @eval ($f)(img::AstroImage) = shareheader(img, $f(arraydata(img)))
+    @eval ($f)(img::AstroImage) = shareheader(img, $f(parent(img)))
 end
 
 
@@ -441,7 +432,7 @@ Base.copy(img::AstroImage) = rebuild(img, copy(parent(img)))
 Base.convert(::Type{AstroImage}, A::AstroImage) = A
 Base.convert(::Type{AstroImage}, A::AbstractArray) = AstroImage(A)
 Base.convert(::Type{AstroImage{T}}, A::AstroImage{T}) where {T} = A
-Base.convert(::Type{AstroImage{T}}, A::AstroImage) where {T} = shareheader(A, convert(AbstractArray{T}, arraydata(A)))
+Base.convert(::Type{AstroImage{T}}, A::AstroImage) where {T} = shareheader(A, convert(AbstractArray{T}, parent(A)))
 Base.convert(::Type{AstroImage{T}}, A::AbstractArray{T}) where {T} = AstroImage(A)
 Base.convert(::Type{AstroImage{T}}, A::AbstractArray) where {T} = AstroImage(convert(AbstractArray{T}, A))
 Base.convert(::Type{AstroImage{T,N,D,R,AT}}, A::AbstractArray{T,N}) where {T,N,D,R,AT} = AstroImage(convert(AbstractArray{T}, A))
