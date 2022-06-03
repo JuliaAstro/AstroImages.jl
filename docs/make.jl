@@ -1,5 +1,20 @@
 using Documenter, DemoCards, AstroImages
 
+# Deps for examples
+ENV["GKSwstype"] = "nul"
+using Plots, Photometry, ImageTransformations, ImageFiltering, WCS, Reproject
+
+setup = quote
+    using AstroImages
+    using Random
+    Random.seed!(123456)
+    
+    AstroImages.set_clims!(Percent(99.5))
+    AstroImages.set_cmap!(:magma)
+    AstroImages.set_stretch!(identity)
+end
+DocMeta.setdocmeta!(Photometry, :DocTestSetup, setup; recursive = true)
+
 # 1. generate demo files
 demopage, postprocess_cb, demo_assets = makedemos("examples") # this is the relative path to docs/
 

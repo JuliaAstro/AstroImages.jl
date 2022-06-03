@@ -104,3 +104,30 @@ julia> img = load("img.fits",1,(Y=1:1600,Z=1:1600))
 Other useful dimension names are `Spec` for spectral axes, `Pol` for polarization data, and `Ti` for time axes.
 
 These will be further discussed in Dimensions and World Coordinates.
+
+
+## Saving Images
+You can save one or more AstroImages and tables to a FITS file using the `save` function:
+
+```julia
+julia> save("abc.fits", astroimage1, astroimage2, table1)
+```
+
+You can also save individual images to traditional graphics formats by first rendering them with `imview` (for more on imview, see Displaying Images).
+```julia
+julia> save("abc.png", imview(astroimage1))
+```
+
+You can save animated GIFs by saving a 3D datacube that has been rendered with imview:
+```julia
+julia> cube =  imview(AstroImage(randn(100,100,10)));
+julia> save("abc.gif", cube, fps=10)
+
+julia> # Or a more complex example (changing color schemes each frame)
+julia> img = randn(10,10)
+julia> cube2 = [imview(img1, cmap=:magma) ;;; imview(img2, cmap=:plasma) ;;; imview(img3, cmap=:viridis)]
+julia> # Alternative syntax:
+julia> cube2 = cat(imview(img1, cmap=:magma), imview(img2, cmap=:plasma), imview(img3, cmap=:viridis), dims=3)
+julia> save("abc.gif", cube, fps=10)
+```
+
