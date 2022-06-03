@@ -8,7 +8,6 @@ AbstractFFTs = "621f4979-c628-5d54-868e-fcf4e3e8185c"
 AstroAngles = "5c4adb95-c1fc-4c53-b4ea-2a94080c53d2"
 ColorSchemes = "35d6a980-a343-548e-a6ea-1d62b119f2f4"
 DimensionalData = "0703355e-b756-11e9-17c0-8b28908087d0"
-ElectronDisplay = "d872a56f-244b-5cc9-b574-2017b5b909a8"
 FITSIO = "525bcba6-941b-5504-bd06-fd0dc1a4d2eb"
 FileIO = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
 ImageAxes = "2803e5a7-5153-5ecf-9a86-9b4c37f5f5ac"
@@ -41,12 +40,12 @@ WCS = "0.6"
 julia = "^1.6.0"
 
 [extras]
+FITSIO = "525bcba6-941b-5504-bd06-fd0dc1a4d2eb"
 ImageBase = "c817782e-172a-44cc-b673-b171935fbb9e"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 WCS = "15f3aee2-9e10-537f-b834-a6fb8bdb944d"
-FITSIO = "525bcba6-941b-5504-bd06-fd0dc1a4d2eb"
 
 [targets]
 test = ["Test", "WCS", "FITSIO", "Random", "Statistics", "ImageBase"]
