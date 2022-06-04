@@ -43,6 +43,7 @@ makedocs(
             "Dimensions and World Coordinates" => "manual/dimensions-and-world-coordinates.md",
             "Polarization" => "manual/polarization.md",
             "Spectral Axes" => "manual/spec.md",
+            "Preserving Wrapper" => "manual/preserving-wrapper.md",
             "Conventions" => "manual/conventions.md",
         ],
         "Guides" => [
