@@ -84,6 +84,20 @@ Very large Images are automatically downscaled to ensure consistent performance 
 `imview` is called automatically on `AstroImage{<:Number}` when using a Julia environment with rich graphical IO capabilities (e.g. VSCode, Jupyter, Pluto, etc.).
 The defaults for this case can be modified using `AstroImages.set_clims!(...)`, `AstroImages.set_cmap!(...)`, and `AstroImages.set_stretch!(...)`.
 
+## Note on Views
+The function `imview` has its name because it produces a "view" into the image. The result from calling `imview` is an object that lazily maps data values into RGBA intensities on the fly.
+This means that if you change the underlying data array, the view will update (the next time it is shown).
+If you have many data files to render, you may find it faster to create a single `imview` and then mutate the data in the underlying array. This is faster since `imview` only has to resolve colormaps and compute limits once.
+
+For example:
+```julia
+data = randn(100,100)
+iv = imview(data)
+display(iv)
+data[1:50,1:50] .= 0
+display(iv)
+```
+`iv` will reflect the changes to `data` when it is displayed the second time.
 
 ## `implot`
 

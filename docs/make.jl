@@ -47,10 +47,10 @@ makedocs(
             "Conventions" => "manual/conventions.md",
         ],
         "Guides" => [
-            "Extracting Photometry" => "guide/photometry.md",
-            "Reprojecting Images" => "guide/reproject.md",
             "Blurring & Filtering Images" => "guide/image-filtering.md",
             "Transforming Images" => "guide/image-transformations.md",
+            "Reprojecting Images" => "guide/reproject.md",
+            "Extracting Photometry" => "guide/photometry.md",
         ],
         demopage,
         "API" => "api.md",

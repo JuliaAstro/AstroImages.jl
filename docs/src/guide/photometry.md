@@ -51,8 +51,7 @@ plot(
     implot(clipped, title="Sigma-Clipped"),
     implot(bkg, title="Background"),
     implot(bkg_rms, title="Background RMS"),
-    layout=(2, 2),
-    ticks=false
+    layout=(2, 2)
 )
 ```
 ![](/assets/manual-photometry-2.png)
@@ -80,6 +79,6 @@ clims = extrema(vcat(vec(image), vec(subt)))
 plot(
     implot(image; title="Original", clims),
     implot(subt; title="Subtracted", clims),
-    size=(900,500)
+    size=(1600,1000)
 )
 ```
