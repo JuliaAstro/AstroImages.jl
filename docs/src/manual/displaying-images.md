@@ -85,7 +85,7 @@ Very large Images are automatically downscaled to ensure consistent performance 
 The defaults for this case can be modified using `AstroImages.set_clims!(...)`, `AstroImages.set_cmap!(...)`, and `AstroImages.set_stretch!(...)`.
 
 ## Note on Views
-The function `imview` has its name because it produces a "view" into the image. The result from calling `imview` is an object that lazily maps data values into RGBA intensities on the fly.
+The function `imview` has its name because it produces a "view" into the image. The result from calling `imview` is an object that lazily maps data values into RGBA colors on the fly.
 This means that if you change the underlying data array, the view will update (the next time it is shown).
 If you have many data files to render, you may find it faster to create a single `imview` and then mutate the data in the underlying array. This is faster since `imview` only has to resolve colormaps and compute limits once.
 
