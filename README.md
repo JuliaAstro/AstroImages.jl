@@ -146,6 +146,12 @@ julia> world_to_pix(img_slice, coords_world)
 [5.0,5.0] # approximately
 ```
 
+## Migrating from Pre-0.3
+This package has changed significantly between 0.2 and 0.3 with a new AstroImage type, new recipes, and a new approach to rendering.
+* Previously, one would construct an AstroImage out of a FITS HDU and a specific color that was used for display purposes. Now, display settings like color, contrast, and brightness are not stored in the AstroImage but are specified when calling the function `imview`, which returns a view with those settings applied.
+* `render` has been replaced by `imview`. 
+* The functionality of `ccd2rgb` has been subsumed into `composecolors`.
+
 License
 -------
 
@@ -155,3 +161,4 @@ original author is Mosè Giordano.
 
 [codecov-img]: http://codecov.io/github/JuliaAstro/AstroImages.jl/coverage.svg?branch=master
 [codecov-url]: http://codecov.io/github/JuliaAstro/AstroImages.jl?branch=master
+
