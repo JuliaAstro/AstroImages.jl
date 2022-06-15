@@ -1,71 +1,65 @@
-__precompile__()
-
 module AstroImages
 
-using FITSIO, FileIO, Images, Interact, Reproject, WCS, MappedArrays
+using FITSIO
+using FileIO
+# Rather than pulling in all of Images.jl, just grab the packages
+# we need to extend to our basic functionality.
+# We also need ImageShow so that user's images appear automatically.
+using ImageBase, ImageShow#, ImageAxes
 
-export load, AstroImage, ccd2rgb, set_brightness!, set_contrast!, add_label!, reset!
+using WCS
+using Statistics
+using MappedArrays
+using ColorSchemes
+using DimensionalData
+using Tables
+using RecipesBase
+using AstroAngles
+using Printf
+using PlotUtils: PlotUtils
+using PlotUtils: optimize_ticks, AbstractColorList
+using UUIDs # can remove once reigstered with FileIO
 
-_load(fits::FITS, ext::Int) = read(fits[ext])
-_load(fits::FITS, ext::NTuple{N, Int}) where {N} = ntuple(i-> read(fits[ext[i]]), N)
-_load(fits::NTuple{N, FITS}, ext::NTuple{N, Int}) where {N} = ntuple(i -> _load(fits[i], ext[i]), N)
 
-_header(fits::FITS, ext::Int) = WCS.from_header(read_header(fits[ext], String))[1]
-_header(fits::FITS, ext::NTuple{N, Int}) where {N} = 
-    ntuple(i -> WCS.from_header(read_header(fits[ext[i]], String))[1], N)
-_header(fits::NTuple{N, FITS}, ext::NTuple{N, Int}) where {N} = 
-    ntuple(i -> _header(fits[i], ext[i]), N)
-"""
-    load(fitsfile::String, n=1)
+export load,
+    save,
+    AstroImage,
+    AstroImageVec,
+    AstroImageMat,
+    WCSGrid,
+    composecolors,
+    Zscale,
+    Percent,
+    logstretch,
+    powstretch,
+    sqrtstretch,
+    squarestretch,
+    asinhstretch,
+    sinhstretch,
+    powerdiststretch,
+    imview,
+    render, # deprecated
+    header,
+    copyheader,
+    shareheader,
+    wcs,
+    Comment,
+    History,
+    # Dimensions
+    Centered,
+    Spec,
+    Pol,
+    Ti,
+    X, Y, Z, Dim,
+    At, Near, ..,
+    dims, refdims,
+    recenter,
+    pix_to_world,
+    pix_to_world!,
+    world_to_pix,
+    world_to_pix!
 
-Read and return the data from `n`-th extension of the FITS file.
 
-Second argument can also be a tuple of integers, in which case a 
-tuple with the data of each corresponding extension is returned.
-"""
-function FileIO.load(f::File{format"FITS"}, ext::Int=1)
-    fits = FITS(f.filename)
-    out = _load(fits, ext)
-    header = _header(fits,ext)
-    close(fits)
-    return out, header
-end
-
-function FileIO.load(f::File{format"FITS"}, ext::NTuple{N,Int}) where {N}
-    fits = FITS(f.filename)
-    out = _load(fits, ext)
-    header = _header(fits, ext)
-    close(fits)
-    return out, header
-end
-
-function FileIO.load(f::NTuple{N, String}) where {N}
-    fits = ntuple(i-> FITS(f[i]), N)
-    ext = indexer(fits)
-    out = _load(fits, ext)
-    header = _header(fits, ext)
-    for i in 1:N
-        close(fits[i])
-    end
-    return out, header
-end
-
-function indexer(fits::FITS)
-    ext = 0
-    for (i, hdu) in enumerate(fits)
-        if hdu isa ImageHDU && length(size(hdu)) >= 2	# check if Image is atleast 2D
-            ext = i
-            break
-        end
-    end
-    if ext > 1
-       	@info "Image was loaded from HDU $ext"
-    elseif ext == 0
-        error("There are no ImageHDU extensions in '$(fits.filename)'")
-    end
-    return ext
-end
-indexer(fits::NTuple{N, FITS}) where {N} = ntuple(i -> indexer(fits[i]), N)
 
 # Images.jl expects data to be either a float or a fixed-point number.  Here we define some
 # utilities to convert all data types supported by FITS format to float or fixed-point:
@@ -85,163 +79,478 @@ for n in (8, 16, 32, 64)
     end
 end
 
-mutable struct Properties{P <: Union{AbstractFloat, FixedPoint}}
-    rgb_image::MappedArrays.MultiMappedArray{RGB{P},2,Tuple{Array{P,2},Array{P,2},Array{P,2}},Type{RGB{P}},typeof(ImageCore.extractchannels)}
-    contrast::Float64
-    brightness::Float64
-    label::Array{Tuple{Tuple{Float64,Float64},String},1}
-    function Properties{P}(;kvs...) where P
-        obj = new{P}()
-        obj.contrast = 1.0
-        obj.brightness = 0.0
-        obj.label = Array{Tuple{Tuple{Float64,Float64},String}}(undef,0)
-        for (k,v) in kvs
-            setproperty!(obj, k, v)
+
+"""
+Provides access to a FITS image along with its accompanying 
+header and WCS information, if applicable.
+"""
+struct AstroImage{T,N,D<:Tuple,R<:Tuple,A<:AbstractArray{T,N},W<:Tuple} <: AbstractDimArray{T,N,D,A}
+    # Parent array we are wrapping
+    data::A
+    # Fields for DimensionalData
+    dims::D
+    refdims::R
+    # FITS Heads beloning to this image, if any
+    header::FITSHeader
+    # cached WCSTransform objects for this data.
+    wcs::Vector{WCSTransform}
+    # A flag that is set when a user modifies a WCS header.
+    # The next access to the wcs object will regenerate from
+    # the new header on demand.
+    wcs_stale::Base.RefValue{Bool}
+    # Correspondance between dims & refdims -> WCS Axis numbers
+    wcsdims::W
+end
+# Provide type aliases for 1D and 2D versions of our data structure.
+const AstroImageVec{T,D} = AstroImage{T,1} where {T}
+const AstroImageMat{T,D} = AstroImage{T,2} where {T}
+
+
+"""
+    Centered()
+
+Pass centered as a dimesion range to automatically center a dimension
+along that axis.
+
+Example:
+```julia
+cube = load("abc.fits", (X=Centered(), Y=Centered(), Pol=[:I, :Q, :U]))
+```
+
+In that case, cube will have dimsions with the centre of the image at 0
+in both the X and Y axes.
+"""
+struct Centered end
+
+# Default dimension names if none are provided
+const dimnames = (
+    X, Y, Z,
+    (Dim{i} for i in 4:10)...
+)
+
+const Spec = Dim{:Spec}
+const Pol = Dim{:Pol}
+
+"""
+    wcsax(img, dim)
+
+Return the WCS axis number associated with a dimension, even if the image
+has been slices or otherwise transformed.
+
+Internally, the order is stored in the field `wcsdims`.
+"""
+function wcsax(img::AstroImage, dim)
+    return findfirst(di->name(di)==name(dim), img.wcsdims)
+end
+
+# Accessors
+"""
+    header(img::AstroImage)
+
+Return the underlying FITSIO.FITSHeader object wrapped by an AstroImage.
+Note that this object has less flexible getindex and setindex methods.
+Indexing by symbol, Comment, History, etc are not supported.
+"""
+header(img::AstroImage) = getfield(img, :header)
+"""
+    header(array::AbstractArray)
+
+Returns an empty FITSIO.FITSHeader object when called with a non-AstroImage
+abstract array.
+"""
+header(::AbstractArray) = emptyheader()
+
+"""
+    wcs(img)
+
+Computes and returns a list of World Coordinate System WCSTransform objects from WCS.jl.
+The resultss are cached after the first call, so subsequent calls are fast.
+Modifying a WCS header invalidates this cache automatically, so users should call `wcs(...)`
+each time rather than keeping the WCSTransform object around.
+"""
+function wcs(img::AstroImage)
+    if getfield(img, :wcs_stale)[]
+        empty!(getfield(img, :wcs))
+        append!(getfield(img, :wcs), wcsfromheader(img))
+        getfield(img, :wcs_stale)[] = false
+    end
+    return getfield(img, :wcs)
+end
+"""
+    wcs(img, index)
+
+Computes and returns a World Coordinate System WCSTransform objects from WCS.jl by index.
+This is to support files with multiple WCS transforms specified.
+`wcs(img,1)` is useful for selecting selecting the first WCSTranform object.
+The resultss are cached after the first call, so subsequent calls are fast.
+Modifying a WCS header invalidates this cache automatically, so users should call `wcs(...)`
+each time rather than keeping the WCSTransform object around.
+"""
+wcs(img, ind) = wcs(img)[ind]
+"""
+wcs(array)
+
+Returns a list with a single basic WCSTransform object when called with a non-AstroImage
+abstract array.
+"""
+wcs(arr::AbstractArray) = [emptywcs(arr)]
+
+# Implement DimensionalData interface 
+Base.parent(img::AstroImage) = getfield(img, :data)
+DimensionalData.dims(A::AstroImage) = getfield(A, :dims)
+DimensionalData.refdims(A::AstroImage) = getfield(A, :refdims)
+DimensionalData.data(A::AstroImage) = getfield(A, :data)
+DimensionalData.name(::AstroImage) = DimensionalData.NoName()
+DimensionalData.metadata(::AstroImage) = DimensionalData.Dimensions.LookupArrays.NoMetadata()
+
+@inline function DimensionalData.rebuild(
+    img::AstroImage,
+    data,
+    # Fields for DimensionalData
+    dims::Tuple=DimensionalData.dims(img),
+    refdims::Tuple=DimensionalData.refdims(img),
+    name::Union{Symbol,DimensionalData.AbstractName,Nothing}=nothing,
+    metadata::Union{DimensionalData.LookupArrays.AbstractMetadata,Nothing}=nothing,
+    # FITS Header beloning to this image, if any
+    header::FITSHeader=deepcopy(header(img)),
+    # A cached WCSTransform object for this data
+    wcs::Vector{WCSTransform}=getfield(img, :wcs),
+    wcs_stale::Bool=getfield(img, :wcs_stale)[],
+    wcsdims::Tuple=(dims...,refdims...),
+)
+    return AstroImage(data, dims, refdims, header, wcs, Ref(wcs_stale), wcsdims)
+end
+# Keyword argument version. 
+# We have to define this since our struct contains additional field names.
+@inline function DimensionalData.rebuild(
+    img::AstroImage;
+    data,
+    # Fields for DimensionalData
+    dims::Tuple=DimensionalData.dims(img),
+    refdims::Tuple=DimensionalData.refdims(img),
+    name::Union{Symbol,DimensionalData.AbstractName,Nothing}=nothing,
+    metadata::Union{DimensionalData.LookupArrays.AbstractMetadata,Nothing}=nothing,
+    # FITS Header beloning to this image, if any
+    header::FITSHeader=deepcopy(header(img)),
+    # A cached WCSTransform object for this data
+    wcs::Vector{WCSTransform}=getfield(img, :wcs),
+    wcs_stale::Bool=getfield(img, :wcs_stale)[],
+    wcsdims::Tuple=(dims...,refdims...),
+)
+    return AstroImage(data, dims, refdims, header, wcs, Ref(wcs_stale), wcsdims)
+end
+@inline DimensionalData.rebuildsliced(
+    f::Function,
+    img::AstroImage,
+    data,
+    I,
+    header=deepcopy(header(img)),
+    wcs=getfield(img, :wcs),
+    wcs_stale=getfield(img, :wcs_stale)[],
+    wcsdims=getfield(img, :wcsdims),
+) = rebuild(img, data, DimensionalData.slicedims(f, img, I)..., nothing, nothing, header, wcs, wcs_stale, wcsdims)
+
+# Return result wrapped in AstroImage
+# For these functions that return lazy wrappers, we want to share header
+for f in [
+    :(Base.adjoint),
+    :(Base.transpose),
+    :(Base.view)
+]
+    # TODO: these functions are copying headers
+    @eval ($f)(img::AstroImage) = shareheader(img, $f(parent(img)))
+end
+
+
+"""
+    AstroImage(img::AstroImage)
+
+Returns its argument. Useful to ensure an argument is converted to an
+AstroImage before proceeding.
+"""
+AstroImage(img::AstroImage) = img
+
+
+"""
+    AstroImage(data::AbstractArray, [header::FITSHeader,] [wcs::WCSTransform,])
+
+Create an AstroImage from an array, and optionally header or header and a 
+WCSTransform.
+"""
+function AstroImage(
+    data::AbstractArray{T,N},
+    dims::Union{Tuple,NamedTuple}=(),
+    refdims::Union{Tuple,NamedTuple}=(),
+    header::FITSHeader=emptyheader(),
+    wcs::Union{WCSTransform,Nothing}=nothing;
+    wcsdims=nothing
+) where {T, N}
+    wcs_stale = isnothing(wcs)
+    if isnothing(wcs)
+        wcs = [emptywcs(data)]
+    end
+    # If the user passes in a WCSTransform of their own, we use it and mark
+    # wcs_stale=false. It will be kept unless they manually change a WCS header.
+    # If they don't pass anything, we start with empty WCS information regardless
+    # of what's in the header but we mark it as stale.
+    # If/when the WCS info is accessed via `wcs(img)` it will be computed and cached.
+    # This avoids those computations if the WCS transform is not needed.
+    # It also allows us to create images with invalid WCS header,
+    # only erroring when/if they are used.
+
+    # Fields for DimensionalData.
+    # TODO: cleanup logic
+    if dims == ()
+        # if wcsdims
+            # ourdims = Tuple(Wcs{i} for i in 1:ndims(data))
+        # else
+            ourdims = dimnames[1:ndims(data)]
+        # end
+        dims = map(ourdims, axes(data)) do dim, ax
+            dim(ax)
         end
-        return obj
+    end
+    # Replace any occurences of Centered() with an automatic range
+    # from the data.
+    dimvals = map(dims, axes(data)) do dim, ax
+        if dim isa Centered
+            ax .- mean(ax)
+        else
+            dim
+        end
+    end
+    if dims isa NamedTuple
+        dims = NamedTuple{keys(dims)}(dimvals)
+    elseif !(dims isa NTuple{N,Dimensions.Dimension} where N) &&
+        !(all(d-> d isa Union{UnionAll,DataType} && d <: Dimensions.Dimension, dims))
+        k = name.(dimnames[1:ndims(data)])
+        dims = NamedTuple{k}(dimvals)
+    end
+    dims = DimensionalData.format(dims, data)
+    if length(dims) != ndims(data)
+        error("Number of dims does not match the shape of the data")
+    end
+
+    if isnothing(wcsdims)
+        wcsdims = (dims...,refdims...)
+    end
+
+    return AstroImage(data, dims, refdims, header, wcs, Ref(wcs_stale), wcsdims)
+end
+function AstroImage(
+    darr::AbstractDimArray,
+    header::FITSHeader=emptyheader(),
+    wcs::Union{Vector{WCSTransform},Nothing}=nothing;
+)
+    wcs_stale = isnothing(wcs)
+    if isnothing(wcs)
+        wcs = [emptywcs(darr)]
+    end
+    wcsdims = (dims(darr)..., refdims(darr)...)
+    return AstroImage(parent(darr), dims(darr), refdims(darr), header, wcs, Ref(wcs_stale), wcsdims)
+end
+AstroImage(
+    data::AbstractArray,
+    dims::Union{Tuple,NamedTuple},
+    header::FITSHeader,
+    wcs::Union{Vector{WCSTransform},Nothing}=nothing;
+) = AstroImage(data, dims, (), header, wcs)
+AstroImage(
+    data::AbstractArray,
+    header::FITSHeader,
+    wcs::Union{Vector{WCSTransform},Nothing}=nothing;
+) = AstroImage(data, (), (), header, wcs)
+
+
+# TODO: ensure this gets WCS dims.
+AstroImage(data::AbstractArray, wcs::Vector{WCSTransform}) = AstroImage(data, emptyheader(), wcs)
+
+
+"""
+Index for accessing a comment associated with a header keyword
+or COMMENT entry.
+
+Example:
+```
+img = AstroImage(randn(10,10))
+img["ABC"] = 1
+img["ABC", Comment] = "A comment describing this key"
+
+push!(img, Comment, "The purpose of this file is to demonstrate comments")
+img[Comment] # ["The purpose of this file is to demonstrate comments")]
+```
+"""
+struct Comment end
+
+"""
+Allows accessing and setting HISTORY header entries
+
+img = AstroImage(randn(10,10))
+push!(img, History, "2023-04-19: Added history entry.")
+img[History] # ["2023-04-19: Added history entry."]
+"""
+struct History end
+
+
+# We might want getproperty for header access in future.
+# function Base.getproperty(img::AstroImage, ::Symbol)
+#     error("getproperty reserved for future use.")
+# end
+
+# Getting and setting comments
+Base.getindex(img::AstroImage, inds::AbstractString...) = getindex(header(img), inds...) # accesing header using strings
+function Base.setindex!(img::AstroImage, v, ind::AbstractString)  # modifying header using a string
+    setindex!(header(img), v, ind)
+    # Mark the WCS object as being out of date if this was a WCS header keyword
+    if ind ∈ WCS_HEADERS
+        getfield(img, :wcs_stale)[] = true
     end
 end
+Base.getindex(img::AstroImage, inds::Symbol...) = getindex(img, string.(inds)...) # accessing header using symbol
+Base.setindex!(img::AstroImage, v, ind::Symbol) = setindex!(img, v, string(ind))
+Base.getindex(img::AstroImage, ind::AbstractString, ::Type{Comment}) = get_comment(header(img), ind) # accesing header comment using strings
+Base.setindex!(img::AstroImage, v,  ind::AbstractString, ::Type{Comment}) = set_comment!(header(img), ind, v) # modifying header comment using strings
+Base.getindex(img::AstroImage, ind::Symbol, ::Type{Comment}) = get_comment(header(img), string(ind)) # accessing header comment using symbol
+Base.setindex!(img::AstroImage,  v, ind::Symbol, ::Type{Comment}) = set_comment!(header(img), string(ind), v) # modifying header comment using Symbol
 
-struct AstroImage{T<:Real,C<:Color, N, P}
-    data::NTuple{N, Matrix{T}}
-    minmax::NTuple{N, Tuple{T,T}}
-    wcs::NTuple{N, WCSTransform}
-    property::Properties{P}
+# Support for special HISTORY and COMMENT entries
+function Base.getindex(img::AstroImage, ::Type{History})
+    hdr = header(img)
+    ii = findall(==("HISTORY"), hdr.keys)
+    return view(hdr.comments, ii)
+end
+function Base.getindex(img::AstroImage, ::Type{Comment})
+    hdr = header(img)
+    ii = findall(==("COMMENT"), hdr.keys)
+    return view(hdr.comments, ii)
+end
+# Adding new comment and history entries
+function Base.push!(img::AstroImage, ::Type{Comment}, history::AbstractString)
+    hdr = header(img)
+    push!(hdr.keys, "COMMENT")
+    push!(hdr.values, nothing)
+    push!(hdr.comments, history)
+end
+function Base.push!(img::AstroImage, ::Type{History}, history::AbstractString)
+    hdr = header(img)
+    push!(hdr.keys, "HISTORY")
+    push!(hdr.values, nothing)
+    push!(hdr.comments, history)
 end
 
 """
-    AstroImage([color=Gray,] data::Matrix{Real})
-    AstroImage(color::Type{<:Color}, data::NTuple{N, Matrix{T}}) where {T<:Real, N}
-
-Construct an `AstroImage` object of `data`, using `color` as color map, `Gray` by default.
+    copyheader(img::AstroImage, data) -> imgnew
+Create a new image copying the header of `img` but
+using the data of the AbstractArray `data`. Note that changing the
+header of `imgnew` does not affect the header of `img`.
+See also: [`shareheader`](@ref).
 """
-AstroImage(color::Type{<:Color}, data::Matrix{T}, wcs::WCSTransform) where {T<:Real} =
-    AstroImage{T,color, 1, Float64}((data,), (extrema(data),), (wcs,), Properties{Float64}())
-function AstroImage(color::Type{<:AbstractRGB}, data::NTuple{N, Matrix{T}}, wcs::NTuple{N, WCSTransform}) where {T <: Union{AbstractFloat, FixedPoint}, N}
-    if N == 3
-        img = ccd2rgb((data[1], wcs[1]),(data[2], wcs[2]),(data[3], wcs[3]))
-        return AstroImage{T,color,N, widen(T)}(data, ntuple(i -> extrema(data[i]), N), wcs, Properties{widen(T)}(rgb_image = img))
-    end
-end
-function AstroImage(color::Type{<:AbstractRGB}, data::NTuple{N, Matrix{T}}, wcs::NTuple{N, WCSTransform}) where {T<:Real, N}
-    if N == 3
-        img = ccd2rgb((data[1], wcs[1]),(data[2], wcs[2]),(data[3], wcs[3]))
-        return AstroImage{T,color,N, Float64}(data, ntuple(i -> extrema(data[i]), N), wcs, Properties{Float64}(rgb_image = img))
-    end
-end
-function AstroImage(color::Type{<:Color}, data::NTuple{N, Matrix{T}}, wcs::NTuple{N, WCSTransform}) where {T<:Real, N}
-    return AstroImage{T,color, N, Float64}(data, ntuple(i -> extrema(data[i]), N), wcs, Properties{Float64}())
-end
-AstroImage(data::Matrix{T}) where {T<:Real} = AstroImage{T,Gray,1, Float64}((data,), (extrema(data),), (WCSTransform(2),), Properties{Float64}())
-AstroImage(data::NTuple{N, Matrix{T}}) where {T<:Real, N} = AstroImage{T,Gray,N, Float64}(data, ntuple(i -> extrema(data[i]), N), ntuple(i-> WCSTransform(2), N), Properties{Float64}())
-AstroImage(data::Matrix{T}, wcs::WCSTransform) where {T<:Real} = AstroImage{T,Gray,1, Float64}((data,), (extrema(data),), (wcs,), Properties{Float64}())
-AstroImage(data::NTuple{N, Matrix{T}}, wcs::NTuple{N, WCSTransform}) where {T<:Real, N} = AstroImage{T,Gray,N, Float64}(data, ntuple(i -> extrema(data[i]), N), wcs, Properties{Float64}())
+copyheader(img::AstroImage, data::AbstractArray) =
+    AstroImage(data, dims(img), refdims(img), deepcopy(header(img)), copy(getfield(img, :wcs)), Ref(getfield(img, :wcs_stale)[]), getfield(img,:wcsdims))
 
 """
-    AstroImage([color=Gray,] filename::String, n::Int=1)
-    AstroImage(color::Type{<:Color}, file::String, n::NTuple{N, Int}) where {N}
+    shareheader(img::AstroImage, data) -> imgnew
+Create a new image reusing the header dictionary of `img` but
+using the data of the AbstractArray `data`. The two images have
+synchronized header; modifying one also affects the other.
+See also: [`copyheader`](@ref).
+""" 
+shareheader(img::AstroImage, data::AbstractArray) = AstroImage(data, dims(img), refdims(img), header(img), getfield(img, :wcs), Ref(getfield(img, :wcs_stale)[]), getfield(img,:wcsdims))
+# Share header if an AstroImage, do nothing if AbstractArray
+maybe_shareheader(img::AstroImage, data) = shareheader(img, data)
+maybe_shareheader(::AbstractArray, data) = data
+maybe_copyheader(img::AstroImage, data) = copyheader(img, data)
+maybe_copyheader(::AbstractArray, data) = data
 
-Create an `AstroImage` object by reading the `n`-th extension from FITS file `filename`.
 
-Use `color` as color map, this is `Gray` by default.
-"""
-AstroImage(color::Type{<:Color}, file::String, ext::Int) =
-    AstroImage(color, file, (ext,))
-AstroImage(color::Type{<:Color}, file::String, ext::NTuple{N, Int}) where {N} =
-    AstroImage(color, load(file, ext)...)
+Base.promote_rule(::Type{AstroImage{T}}, ::Type{AstroImage{V}}) where {T,V} = AstroImage{promote_type{T,V}}
 
-AstroImage(file::String, ext::Int) = AstroImage(Gray, file, ext)
-AstroImage(file::String, ext::NTuple{N, Int}) where {N} = AstroImage(Gray, file, ext)
 
-AstroImage(color::Type{<:Color}, fits::FITS, ext::Int) =
-    AstroImage(color, _load(fits, ext), WCS.from_header(read_header(fits[ext],String))[1])
-AstroImage(color::Type{<:Color}, fits::FITS, ext::NTuple{N, Int}) where {N} =
-    AstroImage(color, _load(fits, ext), ntuple(i -> WCS.from_header(read_header(fits[ext[i]], String))[1], N))
-AstroImage(color::Type{<:Color}, fits::NTuple{N, FITS}, ext::NTuple{N, Int}) where {N} =
-    AstroImage(color, ntuple(i -> _load(fits[i], ext[i]), N), ntuple(i -> WCS.from_header(read_header(fits[i][ext[i]], String))[1], N))
 
-AstroImage(files::NTuple{N,String}) where {N} = 
-    AstroImage(Gray, load(files)...)
-AstroImage(color::Type{<:Color}, files::NTuple{N,String}) where {N} = 
-    AstroImage(color, load(files)...)
-AstroImage(file::String) = AstroImage((file,))
+Base.copy(img::AstroImage) = rebuild(img, copy(parent(img)))
+Base.convert(::Type{AstroImage}, A::AstroImage) = A
+Base.convert(::Type{AstroImage}, A::AbstractArray) = AstroImage(A)
+Base.convert(::Type{AstroImage{T}}, A::AstroImage{T}) where {T} = A
+Base.convert(::Type{AstroImage{T}}, A::AstroImage) where {T} = shareheader(A, convert(AbstractArray{T}, parent(A)))
+Base.convert(::Type{AstroImage{T}}, A::AbstractArray{T}) where {T} = AstroImage(A)
+Base.convert(::Type{AstroImage{T}}, A::AbstractArray) where {T} = AstroImage(convert(AbstractArray{T}, A))
+Base.convert(::Type{AstroImage{T,N,D,R,AT}}, A::AbstractArray{T,N}) where {T,N,D,R,AT} = AstroImage(convert(AbstractArray{T}, A))
 
-# Lazily reinterpret the image as a Matrix{Color}, upon request.
-function render(img::AstroImage{T,C,N}, header_number = 1) where {T,C,N}
-    imgmin, imgmax = extrema(img.minmax[header_number])
-    # Add one to maximum to work around this issue:
-    # https://github.com/JuliaMath/FixedPointNumbers.jl/issues/102
-    f = scaleminmax(_float(imgmin), _float(max(imgmax, imgmax + one(T))))
-    return colorview(C, f.(_float.(img.data[header_number])))
-end
+# TODO: share headers in View. Needs support from DimensionalData.
 
 """
-    set_brightness!(img::AstroImage, value::AbstractFloat)
+    emptyheader()
 
-Sets brightness of `rgb_image` to value.
+Convenience function to create a FITSHeader with no keywords set.
 """
-function set_brightness!(img::AstroImage, value::AbstractFloat)
-    if isdefined(img.property, :rgb_image)
-        diff = value - img.property.brightness
-        img.property.brightness = value
-        img.property.rgb_image .+= RGB{typeof(value)}(diff, diff, diff)
-    else
-        throw(DomainError(value, "Can't apply operation. AstroImage dosen't contain :rgb_image"))
-    end
+emptyheader() = FITSHeader(String[],[],String[])
+
+
+"""
+	recenter(img::AstroImage, newcentx, newcenty, ...)
+
+Adjust the dimensions of an AstroImage so that they are centered on the pixel locations given by `newcentx`, .. etc.
+
+This does not affect the underlying array, it just updates the dimensions associated with it by the AstroImage.
+
+Example:
+```julia
+a = AstroImage(randn(11,11))
+a[1,1] # Bottom left
+a[At(1),At(1)] # Bottom left
+r = recenter(a, 6, 6)
+r[1,1] # Still bottom left
+r[At(1),At(1)] # Center pixel
+```
+"""
+function recenter(img::AstroImage, centers::Number...)
+	newdims = map(dims(img), axes(img), centers) do d, a, c
+		return AstroImages.name(d) => a .- c
+	end
+	newdimsformatted = AstroImages.DimensionalData.format(NamedTuple(newdims), parent(img))
+	l = length(newdimsformatted)
+	if l < ndims(img)
+		newdimsformatted = (newdimsformatted..., dims(img)[l+1:end]...)
+	end
+	AstroImages.rebuild(img, parent(img), newdimsformatted)
 end
 
-"""
-    set_contrast!(img::AstroImage, value::AbstractFloat)
 
-Sets contrast of rgb_image to value.
-"""
-function set_contrast!(img::AstroImage, value::AbstractFloat)
-    if isdefined(img.property, :rgb_image)
-        diff = (value / img.property.contrast)
-        img.property.contrast = value
-        img.property.rgb_image = colorview(RGB, red.(img.property.rgb_image) .* diff, green.(img.property.rgb_image) .* diff,
-                                                blue.(img.property.rgb_image) .* diff)
-    else
-        throw(DomainError(value, "Can't apply operation. AstroImage dosen't contain :rgb_image"))
-    end
-end
-
-"""
-    add_label!(img::AstroImage, x::Real, y::Real, label::String)
-
-Stores label to coordinates (x,y) in AstroImage's property label.
-"""
-function add_label!(img::AstroImage, x::Real, y::Real, label::String)
-    push!(img.property.label, ((x,y), label))
-end
-
-"""
-    reset!(img::AstroImage)
-
-Resets AstroImage property fields.
-
-Sets brightness to 0.0, contrast to 1.0, empties label
-and form a fresh rgb_image without any brightness, contrast operations on it.
-"""
-function reset!(img::AstroImage{T,C,N}) where {T,C,N}
-    img.property.contrast = 1.0
-    img.property.brightness = 0.0
-    img.property.label = []
-    if N == 3 && C == RGB
-        shape_out = size(img.property.rgb_image)
-        img.property.rgb_image = ccd2rgb((img.data[1], img.wcs[1]),(img.data[2], img.wcs[2]),(img.data[3], img.wcs[3]),
-                                            shape_out = shape_out)
-    end
-end
-
-Images.colorview(img::AstroImage) = render(img)
-
-Base.size(img::AstroImage) = Base.size.(img.data)
-
-Base.length(img::AstroImage{T,C,N}) where {T,C,N} = N
-
+include("wcs.jl")
+include("io.jl")
+include("imview.jl")
 include("showmime.jl")
 include("plot-recipes.jl")
+
+include("contrib/images.jl")
+include("contrib/abstract-ffts.jl")
+# include("contrib/reproject.jl")
+
 include("ccd2rgb.jl")
+include("precompile.jl")
+
+function __init__()
+
+    # You can only `imview` 2D slices. Add an error hint if the user
+    # tries to display a cube.
+    if isdefined(Base.Experimental, :register_error_hint)
+        Base.Experimental.register_error_hint(MethodError) do io, exc, argtypes, kwargs
+            if exc.f == imview && first(argtypes) <: AbstractArray && ndims(first(argtypes)) != 2
+                print(io, "\nThe `imview` function only supports 2D images. If you have a cube, try viewing one slice at a time: imview(cube[:,:,1])\n")
+            end
+        end
+    end
+
+    # TODO: This should be registered correctly with FileIO
+    del_format(format"FITS")
+    add_format(format"FITS",
+        # See https://www.loc.gov/preservation/digital/formats/fdd/fdd000317.shtml#sign
+        [0x53,0x49,0x4d,0x50,0x4c,0x45,0x20,0x20,0x3d,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x54],
+        [".fit", ".fits", ".fts", ".FIT", ".FITS", ".FTS", ".fit",],
+        [:FITSIO => UUID("525bcba6-941b-5504-bd06-fd0dc1a4d2eb")],
+        [:AstroImages => UUID("fe3fc30c-9b16-11e9-1c73-17dabf39f4ad")]
+    )
+    
+end
 
 end # module
