@@ -66,7 +66,7 @@ makedocs(
 postprocess_cb()
 
 deploydocs(
-    repo = "github.com/sefffal/AstroImages.jl.git",
+    repo = "github.com/JuliaAstro/AstroImages.jl.git",
     devbranch = "master",
     push_preview = true
 )
