@@ -82,3 +82,44 @@ plot(
     size=(1600,1000)
 )
 ```
+
+## Source Extraction
+From the background-subtracted image, we can detect all sources in the image:
+```@example phot
+# We specify the uncertainty in the pixel data. We'll set it equal to zero.
+errs = zeros(axes(subt))
+sources = extract_sources(PeakMesh(), subt, errs, true) # sort from brightest to darkest
+```
+There's over 60,000 sources!
+
+We'll define a circular apperture for each source:
+```@example phot
+aps = CircularAperture.(sources.x, sources.y, 6)[1:1000] # just brightest thousand point sources
+```
+
+We can overplot them on our original image. The coordinate sytem used by the Photometry.jl plot recipes (but not the actual return values) doesn't match AstroImages, so we must transpose our image:
+```@example phot
+implot(subt', colorbar=false)
+plot!(aps) 
+```
+
+Finally we can extract the source photometry 
+```@example phot
+table = photometry(aps, subt)
+```
+
+And plot them: 
+```@example phot
+scatter(
+    table.xcenter,
+    table.ycenter,
+    aspectratio=1,
+    marker_z=table.aperture_sum,
+    #markersize=table.aperture_sum./maximum(table.aperture_sum).*10,
+    markerstrokewidth=0,
+    label="",
+    framestyle=:box,
+    background_inside=:black,
+    color=:white
+)
+```

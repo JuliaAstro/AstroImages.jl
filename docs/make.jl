@@ -1,8 +1,8 @@
-using Documenter, DemoCards, AstroImages
+using Documenter, AstroImages
 
 # Deps for examples
 ENV["GKSwstype"] = "nul"
-using Plots, Photometry, ImageTransformations, ImageFiltering, WCS, Reproject
+using Plots, Photometry, ImageTransformations, ImageFiltering, WCS, Reproject, Images, FileIO, DimensionalData
 
 setup = quote
     using AstroImages
@@ -13,23 +13,7 @@ setup = quote
     AstroImages.set_cmap!(:magma)
     AstroImages.set_stretch!(identity)
 end
-DocMeta.setdocmeta!(Photometry, :DocTestSetup, setup; recursive = true)
-
-# 1. generate demo files
-demopage, postprocess_cb, demo_assets = makedemos("examples") # this is the relative path to docs/
-
-# if there are generated css assets, pass it to Documenter.HTML
-assets = []
-isnothing(demo_assets) || (push!(assets, demo_assets))
-
-# 2. normal Documenter usage
-format = Documenter.HTML(assets = assets)
-makedocs(format = format,
-         pages = [
-            "Home" => "index.md",
-            demopage,
-         ],
-         sitename = "Awesome demos")
+DocMeta.setdocmeta!(AstroImages, :DocTestSetup, setup; recursive = true)
 
 
 makedocs(
@@ -46,6 +30,8 @@ makedocs(
             "Spectral Axes" => "manual/spec.md",
             "Preserving Wrapper" => "manual/preserving-wrapper.md",
             "Conventions" => "manual/conventions.md",
+            "Converting to RGB" => "manual/converting-to-rgb.md",
+            "Converting from RGB" => "manual/converting-from-rgb.md",
         ],
         "Guides" => [
             "Blurring & Filtering Images" => "guide/image-filtering.md",
@@ -53,17 +39,20 @@ makedocs(
             "Reprojecting Images" => "guide/reproject.md",
             "Extracting Photometry" => "guide/photometry.md",
         ],
-        demopage,
         "API" => "api.md",
     ],
     format = Documenter.HTML(
         prettyurls = get(ENV, "CI", nothing) == "true"
     ),
-    workdir=".."
+    workdir="..",
+    # Specify several modules since we want to include docstrings from functions we've extended
+    modules=[AstroImages, Images, FileIO, DimensionalData, WCS],
+    # However we have to turnoff doctests since otherwise a failing test in those other packages (e.g. caused by us not setting up their test environement correctly) leads to *our* docs failing to build.
+    doctest=false,
+    # We still want strict on though since we want to catch typos.
+    # strict=true  # will change to false once DimensionalData registers 0.20.8
 )
 
-# 3. postprocess after makedocs
-postprocess_cb()
 
 deploydocs(
     repo = "github.com/JuliaAstro/AstroImages.jl.git",

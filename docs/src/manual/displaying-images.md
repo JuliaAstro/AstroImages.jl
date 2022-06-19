@@ -32,7 +32,7 @@ Or pass a function/callable object to calculate them for us:
 imview(img; clims=Zscale())
 ```
 
-We turn off the colormap and use it in grayscale mode:
+We can turn off the colormap and use it in grayscale mode:
 ```@example 1
 imview(img; cmap=nothing)
 ```
@@ -109,6 +109,13 @@ using Plots
 
 `implot` accepts all the arguments `imview` does for controlling how data is rendered to the screen.
 
-```@example
+```@example 1
 implot(img; clims=Percent(99.5), cmap=:magma, stretch=identity, contrast=1.0, bias=0.5)
+```
+
+
+
+```@doc
+imview
+implot
 ```

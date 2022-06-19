@@ -19,7 +19,6 @@ Z
 Dim
 At
 Near
-..
 header
 wcs
 WCSGrid

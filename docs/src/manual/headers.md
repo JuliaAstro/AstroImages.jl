@@ -45,3 +45,12 @@ history_strings = img[History]
 Note that floating point values are formatted as ASCII strings when written to the FITS files, so the precision may be limited. 
 
 `AstroImage` objects wrap a FITSIO.jl `FITSHeader`. If necessary, you can recover it using `header(img)`; however, in most cases you can access header keywords directly from the image.
+
+
+
+
+```@doc
+Comment
+History
+header
+```
