@@ -42,7 +42,7 @@ or ImageInTerminal.jl.
 
 ## Reading extensions from FITS file
 
-You can load and read the the first extension of a FITS file with the `load`
+You can load and read the the first *image* extension of a FITS file with the `load`
 function, from [`FileIO.jl`](https://github.com/JuliaIO/FileIO.jl):
 
 ```julia
@@ -51,8 +51,8 @@ julia> load("file.fits")
 [...]
 ```
 
-The second argument of this `load` method is the number of the extension to
-read.  Read the third extension of the file with:
+You may also pass an explicit extension number to load, which will return the data of that extension (image or table)
+Read the third extension of the file with:
 
 ```julia
 julia> load("file.fits", 3)
@@ -60,11 +60,10 @@ julia> load("file.fits", 3)
 [...]
 ```
 
-If unspecified, the first image HDU will be loaded.
 
 ## AstroImage type
 
-The package provides a new type, `AstroImage` to integrate FITS images with
+The package provides a  type, `AstroImage` to integrate FITS images with
 Julia packages for plotting and image processing.  The `AstroImage` function has
 the same syntax as `load`.  This command:
 
@@ -73,11 +72,13 @@ julia> img = AstroImage("file.fits")
 ```
 
 will read the first valid extension from the `file.fits` file.
+`AstroImage` also works if the file extension is not `.fit` or `.fits`, e.g. if it's a compressed FITS file with extension `.fits.gz`.
+You can load data in any format supported by [FITSIO.jl](https://juliaastro.github.io/FITSIO.jl/stable/) / [the FITSIO c library](https://heasarc.gsfc.nasa.gov/fitsio/).
 
 If you are working in a Jupyter notebook, an `AstroImage` object is
 automatically rendered as a PNG image.
 
-`AstroImage` automatically extracts and store `wcs` information of images in a `NTuple{N, WCSTransform}`.
+You can extract a WCSTransform object from the image using `wcs(img,1)`.
 
 ## Headers
 FITS Headers can be accessed directly from an AstroImage:
