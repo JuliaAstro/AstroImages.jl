@@ -38,8 +38,8 @@ composecolors([radioimage, xrayimage], [:magma, :viridis], clims=[Percent(99), Z
 function composecolors(
     images,
     cmap=nothing;
-    clims=_default_clims[],
-    stretch=_default_stretch[],
+    clims=Percent(99.5),
+    stretch=identity,
     contrast=1.0,
     bias=0.5,
     multiplier=1.0
