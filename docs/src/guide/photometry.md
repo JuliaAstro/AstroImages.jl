@@ -103,6 +103,7 @@ implot(subt', colorbar=false)
 plot!(aps) 
 ```
 
+## Measuring Photometry
 Finally we can extract the source photometry 
 ```@example phot
 table = photometry(aps, subt)
@@ -115,7 +116,6 @@ scatter(
     table.ycenter,
     aspectratio=1,
     marker_z=table.aperture_sum,
-    #markersize=table.aperture_sum./maximum(table.aperture_sum).*10,
     markerstrokewidth=0,
     label="",
     framestyle=:box,

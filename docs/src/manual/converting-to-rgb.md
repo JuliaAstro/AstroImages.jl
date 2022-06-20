@@ -30,6 +30,10 @@ antgreen = AstroImage(download("http://www.astro.uvic.ca/~wthompson/astroimages/
 antblue = AstroImage(download("http://www.astro.uvic.ca/~wthompson/astroimages/fits/antenae/blue.fits"))
 ``` 
 
+```@example 1
+anthalph = AstroImage(download("http://www.astro.uvic.ca/~wthompson/astroimages/fits/antenae/hydrogen.fits")); # Hydrogen-Alpha; we'll revisit later
+```
+
 The images will have to be aligned and cropped to the same size before making a color composite.
 
 In order to compose these images, we'll have to match the relative intensity scales and clip outlying values.
@@ -55,13 +59,18 @@ This looks okay but saturates the galaxy cores.
 
 Let's take care of that gash through the image by just blanking it out.
 ```@example 1
-mask = antgreen .== antgreen[begin,end]
+mask = antgreen .== antgreen[end,begin]
+# remove holes in the mask
+using ImageFiltering, Statistics
+mask = BitMatrix(mapwindow(median, mask, (3,3)))
+imview(mask)
 ```
 
 ```@example 1
 antred[mask] .= NaN
 antgreen[mask] .= NaN
 antblue[mask] .= NaN
+anthalph[mask] .= NaN;
 ```
 
 Typically we need to perform a "gamma correction" aka non-lienar stretch to map the wide dynamic range of astronomical images into a narrower human visible range. We can do this using the `stretch` keyword. An `asinhstretch` is typically recommended when preparing RGB images:
@@ -89,8 +98,6 @@ rgb4 = composecolors(
 That's better! Let's go one step further, and incorporate a fourth chanel: Hydrogen Alpha. Hydrogen Alpha is a narrow filter centered around one of the emission lines of Hydrogen atoms. It traces locations with hot gas; mostly star-formation regions in this case.
 
 ```@example 1
-anthalph = AstroImage(download("http://www.astro.uvic.ca/~wthompson/astroimages/fits/antenae/hydrogen.fits"))
-anthalph[mask] .= NaN
 imview(anthalph, cmap=:magma, clims=Zscale())
 ```
 
@@ -102,7 +109,7 @@ rgb5 = composecolors(
     [antred, antgreen, antblue, anthalph],
     ["red", "green", "blue", "maroon1"],
     stretch=asinhstretch,
-    multiplier=[1,1.7,1,1]
+    multiplier=[1,1.7,1,0.8]
 )
 ```
 
@@ -127,7 +134,16 @@ Finally, we can crop the image and save it as a PNG.
 crop = rgb6[200:end-100,50:end-50]
 ```
 ```julia
-save("antenae-composite.png", )
+save("antenae-composite.png", crop)
 ```
 
 If you want to save it in a format like `JPG` that doesn't support transparent pixels, you could replace the masked area with zeros instead of `NaN`.
+
+
+```@setup
+# restore package defaults
+using AstroImages
+AstroImages.set_clims!(Percent(99.5))
+AstroImages.set_cmap!(:magma)
+AstroImages.set_stretch!(identity)
+``` 

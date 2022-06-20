@@ -42,7 +42,8 @@ makedocs(
         "API" => "api.md",
     ],
     format = Documenter.HTML(
-        prettyurls = get(ENV, "CI", nothing) == "true"
+        prettyurls = get(ENV, "CI", nothing) == "true",
+        assets = ["assets/theme.css"],
     ),
     workdir="..",
     # Specify several modules since we want to include docstrings from functions we've extended

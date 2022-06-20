@@ -14,6 +14,10 @@ an AstroImage{RGBA} will be returned that retains headers, WCS information, etc.
 ```@setup 1
 using AstroImages
 using Plots
+
+AstroImages.set_clims!(Percent(99.5))
+AstroImages.set_cmap!(:magma)
+AstroImages.set_stretch!(identity)
 ```
 
 The defaults for the `imview` function are:
@@ -111,11 +115,4 @@ using Plots
 
 ```@example 1
 implot(img; clims=Percent(99.5), cmap=:magma, stretch=identity, contrast=1.0, bias=0.5)
-```
-
-
-
-```@doc
-imview
-implot
 ```

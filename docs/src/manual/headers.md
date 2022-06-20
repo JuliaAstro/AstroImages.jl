@@ -48,9 +48,7 @@ Note that floating point values are formatted as ASCII strings when written to t
 
 
 
-
-```@doc
-Comment
-History
-header
-```
+API docs:
+[`Comment`](@ref Comment)
+[`History`](@ref History)
+[`header`](@ref header)
