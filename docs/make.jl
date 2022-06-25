@@ -24,6 +24,7 @@ makedocs(
             "Getting Started" => "manual/getting-started.md",
             "Loading & Saving Images" => "manual/loading-images.md",
             "Displaying Images" => "manual/displaying-images.md",
+            "Array Operations" => "manual/array.md",
             "Headers" => "manual/headers.md",
             "Dimensions and World Coordinates" => "manual/dimensions-and-world-coordinates.md",
             "Polarization" => "manual/polarization.md",
