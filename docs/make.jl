@@ -39,6 +39,7 @@ makedocs(
             "Transforming Images" => "guide/image-transformations.md",
             "Reprojecting Images" => "guide/reproject.md",
             "Extracting Photometry" => "guide/photometry.md",
+            "Plotting Contours" => "guide/contours.md",
         ],
         "API" => "api.md",
     ],

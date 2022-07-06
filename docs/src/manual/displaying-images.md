@@ -111,8 +111,11 @@ display(iv)
 using Plots
 ```
 
-`implot` accepts all the arguments `imview` does for controlling how data is rendered to the screen.
+`implot` accepts all the arguments `imview` does for controlling how data is rendered to the screen:
 
 ```@example 1
 implot(img; clims=Percent(99.5), cmap=:magma, stretch=identity, contrast=1.0, bias=0.5)
 ```
+
+
+For more on `implot`, including offset dimensions and world coordinates, see [Dimensions and World Coordinates](@ref).

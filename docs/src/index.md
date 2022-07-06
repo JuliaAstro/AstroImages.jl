@@ -1,11 +1,8 @@
 # Home
 
-[GitHub link](https://github.com/JuliaAstro/AstroImages.jl)
+[![GitHub](https://img.shields.io/badge/Code-GitHub-black.svg)](https://github.com/JuliaAstro/AstroImages.jl)
+[![Build Status](https://github.com/juliaastro/AstroImages.jl/workflows/CI/badge.svg?branch=master)](https://github.com/juliaastro/AstroImages.jl/actions)
 
+`AstroImage.jl` is a Julia package for loading, manipulating, and visualizing astronomical images.
 
-`AstroImage.jl` allows you to plot images from an
-astronomical [`FITS`](https://en.wikipedia.org/wiki/FITS) file using the
-popular [`Images.jl`](https://github.com/JuliaImages/Images.jl)
-and [`Plots.jl`](https://github.com/JuliaPlots/Plots.jl) Julia packages.
-`AstroImage.jl` uses [`FITSIO.jl`](https://github.com/JuliaAstro/FITSIO.jl) to
-read FITS files.
+It supports FITS files ([FITSIO.jl](https://github.com/JuliaAstro/FITSIO.jl)), world coordinates  ([WCS.jl](https://github.com/JuliaAstro/WCS.jl)), rendering images ([Images.jl](https://github.com/JuliaImages/Images.jl)), and plot recipes ([Plots.jl](https://github.com/JuliaPlots/Plots.jl)).
