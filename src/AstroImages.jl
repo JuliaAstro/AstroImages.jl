@@ -531,16 +531,6 @@ include("precompile.jl")
 
 function __init__()
 
-    # You can only `imview` 2D slices. Add an error hint if the user
-    # tries to display a cube.
-    if isdefined(Base.Experimental, :register_error_hint)
-        Base.Experimental.register_error_hint(MethodError) do io, exc, argtypes, kwargs
-            if exc.f == imview && first(argtypes) <: AbstractArray && ndims(first(argtypes)) != 2
-                print(io, "\nThe `imview` function only supports 2D images. If you have a cube, try viewing one slice at a time: imview(cube[:,:,1])\n")
-            end
-        end
-    end
-
     # TODO: This should be registered correctly with FileIO
     del_format(format"FITS")
     add_format(format"FITS",
