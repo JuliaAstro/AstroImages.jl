@@ -487,11 +487,12 @@ emptyheader() = FITSHeader(String[],[],String[])
 
 
 """
+	recenter(img::AstroImage)
 	recenter(img::AstroImage, newcentx, newcenty, ...)
 
 Adjust the dimensions of an AstroImage so that they are centered on the pixel locations given by `newcentx`, .. etc.
-
 This does not affect the underlying array, it just updates the dimensions associated with it by the AstroImage.
+If no `newcent` arguments are provided, center the image in all dimensions to the middle pixel (or fractional pixel).
 
 Example:
 ```julia
@@ -504,9 +505,15 @@ r[At(1),At(1)] # Center pixel
 ```
 """
 function recenter(img::AstroImage, centers::Number...)
-	newdims = map(dims(img), axes(img), centers) do d, a, c
-		return AstroImages.name(d) => a .- c
-	end
+    if length(centers) == 0
+        newdims = map(dims(img), axes(img)) do d, a
+            return AstroImages.name(d) => a .- mean(a)
+        end
+    else
+        newdims = map(dims(img), axes(img), centers) do d, a, c
+            return AstroImages.name(d) => a .- c
+        end
+    end
 	newdimsformatted = AstroImages.DimensionalData.format(NamedTuple(newdims), parent(img))
 	l = length(newdimsformatted)
 	if l < ndims(img)
