@@ -18,6 +18,8 @@ radio and optical data using two different colormaps.
 `clims`, `stretch`, `contrast`, and `bias` are passed on to `imview`. They can be a single value or
 a list of different values for each image.
 
+The headers of the returned image are copied from the first image.
+
 Examples:
 ```julia
 # Basic RGB
@@ -72,6 +74,6 @@ function composecolors(
             clamp(pxblended.alpha,0,1)
         )
     end
-    return combined
+    return copyheader(first(images), combined)
 end
 export composechannels
