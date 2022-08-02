@@ -1,21 +1,21 @@
-title: "My JuliaCon proceeding"
+title: "AstroImages.jl"
 keywords:
   - Julia
-  - Optimization
-  - Game theory
-  - Compiler
+  - Astronomy
+  - Images
+  - World Coordinates
 authors:
-  - name: 1st author
-    orcid: 0000-0003-1361-440X
+  - name: William Thompson
+    orcid: 0000-0001-5684-4593
     affiliation: 1
-  - name: 2nd author
+  - name: Mosè Giordano
     affiliation: 1, 2
   - name: 3rd author
     affiliation: 2
 affiliations:
-  - name: University
+  - name: University of Victoria
     index: 1
-  - name: National Lab
+  - name: Advanced Research Computing, UCL
     index: 2
-date: 24 April 2019
+date: 02 August 2022
 bibliography: ref.bib
