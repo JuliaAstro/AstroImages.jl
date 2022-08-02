@@ -149,7 +149,7 @@ img = load("jwst-carina.fits")
 By default, this will load the first image HDU from the file. If a different HDU or a table HDU is desired, the HDU number can be passed explicitly as a second argument.
 Multiple HDUs can be loaded at once by passing a tuple of HDU numbers or \verb|:|. As we will see, this command will also automtically display a downscaled version of the image HDU if it is two dimensional and the user's interactive prompt supports rich output.
 
-The values returned from \verb|load| are \verb|AstroImage| objects which combine a parent array, a FITS header, and implements the \verb|DimensionalData| \verb|AbstractDimArray| interface.%, a subtype of Julia's \verb|AbstractArray|.
+The values returned from \verb|load| are \verb|AstroImage| objects which combine a parent array, a FITS header, and implements the \verb|DimensionalData| \verb|AbstractDimArray| interface.
 Any array type can be wrapped in an \verb|AstroImage| by passing it to the contructor.
 
 By implementing the \verb|AbstractDimArray| interface, the dimensions of each axis of the array can be named and paired with coordinates to enable concise indexing of multi-dimensional cubes.
