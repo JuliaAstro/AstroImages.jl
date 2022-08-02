@@ -8,28 +8,13 @@
 \input{header}
 
 
-
 \title{AstroImages.jl}
 
 \maketitle
 
-% \begin{abstract}
-
-%     To study the cosmos, astronomers examine images captured of light exceeding human-visible colours and dynamic range.
-%     AstroImages.jl makes it easy to load, manipulate, and visualize astronomical data intuitively and efficiently using arbitrary colour-schemes,
-%     stretched colour scales, colour composites, rendering to traditional image formats,
-%     and \verb|Plots.jl| recipes.
-%     AstroImages.jl further simplifies handling of FITS image headers, world coodinate
-%     system (WCS) projections, and tracks physical pixel locations through indexing
-%     and slicing.
-
-% \end{abstract}
-
-
 To study the cosmos, astronomers use data cubes with many dimensions representing images with axes for sky position, time, wavelength, polarization, and more. Since these large datasets often span many orders of magnitude in intensity and typically include colours invisible to humans, astronomers like to visualize their images using a variety of non-linear stretching and contrast adjustments.
 Additionally, images may contain metadata specifying arbitrary mappings of pixel positions to multiple celestial coordinate systems.
 Julia\cite{bezanson2017julia} is a powerful language for processing astronomical data, but these visualization tasks are a challenge for any tool.
-%  Built on \verb|Images.jl|, \verb|DimensionalData.jl|, \verb|FITSIO.jl|, \verb|WCS.jl|, and \verb|Plots.jl|, \verb|AstroImages.jl| makes it easy to load, manipulate, and visualize astronomical data intuitively and efficiently with support for arbitrary colourschemes, stretched colour scales, RGB composites, lazy image rendering, and plot recipes.
 
 \vspace{0.2cm}
 \emph{Background.}
@@ -44,12 +29,6 @@ headers are stored in a plain text ASCII format and are followed by data.
 The data may be in the format of an N-dimensional binary array (an ``image'' HDU),
 a binary table,
 or an ASCII table (``table HDUs'').
-% The data itself from image and binary tables are stored in big endian floating point or integer formats.
-
-% Many FITS implementations support compressed data,
-% either by tiling the image data and applying a selectable compression algorithm,
-% or by simply reading and writing to \verb|Gzip| compressed files.
-% The former option is sometimes preferred since it allows querying headers or small sub-ranges of images from large compressed files without having to decompress the entire file.
 
 The metadata described by FITS headers are quite rich.
 A header consists of \verb|KEY = VALUE / COMMENT| entries, long form \verb|COMMENT| sections,
@@ -76,46 +55,6 @@ The comparatively low dynamic range of electronic displays is often be compensat
 % The term ``gamma-correction'' is sometimes used to describe this step in the computer graphics community, but since matching human visual perception is less important, the stretches applied may be quite arbitrary.
 Once the data is normalized to a reasonable intensity level, one typically presents a grayscale image or applies a false colour map.
 Finally, one may also create a colour composite image combining multiple information layers, especially when preparing data for public consumption.
-% Through all these steps, it's important to record the mapping from raw numerical value to final colour data so that presented colours can be referenced to physical values using e.g. a colour bar.
-
-% \lstset{ 
-%   basicstyle=\fontsize{3}{3.1}\lstbasicfont,
-% }
-% \begin{lstlisting}
-% SIMPLE  =                    T / conforms to FITS standard                      
-% BITPIX  =                    8 / array data type                                
-% EXTEND  =                    T                                                  
-% DATE    = '2022-07-13T02:38:42.725' / UTC date file created                     
-% ORIGIN  = 'STSCI   '           / Organization responsible for creating file 
-
-%     Program information                                                     
-                                                                            
-% TITLE   = 'JWST Early Release Observation 5' / Proposal title                   
-% PI_NAME = 'Pontoppidan, Klaus M.' / Principal investigator name   
-% DATE-OBS= '2022-06-03'         / [yyyy-mm-dd] UTC date at start of exposure  
-% ...
-% XTENSION= 'IMAGE   '           / Image extension                                
-% BITPIX  =                  -32 / array data type                                
-% NAXIS   =                    2 / number of array dimensions                     
-% NAXIS1  =                14436                                                  
-% NAXIS2  =                 8568      
-% ...
-% WCSAXES =                    2 / number of World Coordinate System axes         
-% CRPIX1  =     7207.71617070004 / axis 1 coordinate of the reference pixel       
-% CRPIX2  =    4288.042402356642 / axis 2 coordinate of the reference pixel       
-% CRVAL1  =    159.2126559272385 / first axis value at the reference pixel        
-% CRVAL2  =    -58.6204163449266 / second axis value at the reference pixel       
-% CTYPE1  = 'RA---TAN'           / first axis coordinate type                     
-% CTYPE2  = 'DEC--TAN'           / second axis coordinate type                    
-% CUNIT1  = 'deg     '           / first axis units                               
-% CUNIT2  = 'deg     '           / second axis units                              
-% CDELT1  = 8.58814615662299E-06 / first axis increment per pixel                 
-% CDELT2  = 8.58814615662299E-06 / second axis increment per pixel                
-% PC1_1   =   0.2252361564194466 / linear transformation matrix element           
-% PC1_2   =   0.9743041998479708 / linear transformation matrix element           
-% PC2_1   =   0.9743041998479708 / linear transformation matrix element           
-% PC2_2   =  -0.2252361564194466 / linear transformation matrix element
-% \end{lstlisting}
 
 \vspace{0.2cm}
 \emph{Existing Tools.}
@@ -125,7 +64,6 @@ the \verb|Images| packages support generating and displaying RGB images;
 and the the \verb|WCS| package supports converting between pixel and world coordinates given a FITS header.
 The Julia package ecosystem lacks, however, a package that combines these tools into a high-level interface for loading and visualizing astronomical image data.
 
-% \vspace{0.2cm}
 \clearpage
 \emph{The AstroImages.jl package.}
 The aim of \verb|AstroImages.jl| is to tie together relevant utility packages from the Julia ecosystem to facilitate the loading, manipulation, analysis, and visualization of astronomical data.
@@ -145,7 +83,8 @@ img = load("jwst-carina.fits")
 \FloatBarrier 
 
 By default, this will load the first image HDU from the file. If a different HDU or a table HDU is desired, the HDU number can be passed explicitly as a second argument.
-Multiple HDUs can be loaded at once by passing a tuple of HDU numbers or \verb|:|. As we will see, this command will also automtically display a downscaled version of the image HDU if it is two dimensional and the user's interactive prompt supports rich output.
+Multiple HDUs can be loaded at once by passing a tuple of HDU numbers or \verb|:|. 
+% As we will see, this command will also automtically display a downscaled version of the image HDU if it is two dimensional and the user's interactive prompt supports rich output.
 
 The values returned from \verb|load| are \verb|AstroImage| objects which combine a parent array, a FITS header, and implements the \verb|DimensionalData| \verb|AbstractDimArray| interface.
 Any array type can be wrapped in an \verb|AstroImage| by passing it to the contructor.
@@ -164,16 +103,8 @@ Finally, when the user wishes to display an \verb|AstroImage|, they may use eith
 imview(img; clims=Percent(95), cmap=:magma,
     stretch=asinhstretch, contrast=1.2, bias=0.4)
 \end{lstlisting}
-% \begin{figure}[hbt!]
-%     \centerline{\includegraphics[width=\columnwidth]{imview-options.png}}
-%     \caption{Adjusted rendering options.}
-%       \label{fig:imview-options}
-%     \end{figure}
-%     \FloatBarrier 
 
-% imview example here
-
-\verb|imview| is also called automatically with default values whenever an \verb|AstroImage| is displayed.
+\verb|imview| is also called automatically with configurable default values whenever an \verb|AstroImage| is displayed.
 In this case, the output is automatically downscaled to a reasonable size using \verb|ImageTransformations.restrict|.
 For example, all that's needed to display a 2D image HDU from a FITS file is to type \verb|load("filename.fits")| at an interactive prompt provided that prompt supports rich outputs.
 
@@ -188,7 +119,7 @@ HIcube = load("HIdat.fits")
 slice = HIcube[Z=228]
 implot(slice; cmap=:turbo, stretch=asinh)
 \end{lstlisting}
-\vspace{-0.8cm}
+\vspace{-0.5cm}
 \begin{figure}[hbt!]
     \centerline{\includegraphics[width=\columnwidth]{hidatplot.pdf}}
     \caption{implot augments an image with world coordinates and automatically labelled axes, titles, and colourbar. Image is a slice through galactic latitude, longitude, and velocity space of neutral Hydrogen density (HI4PI survey \cite{2016A&A...594A.116H}).}
@@ -197,8 +128,6 @@ implot(slice; cmap=:turbo, stretch=asinh)
 \FloatBarrier 
 
 
-
-% Finally, the \verb|composecolors| function can be used to create colour composites.
 
 
 \input{bib.tex}
