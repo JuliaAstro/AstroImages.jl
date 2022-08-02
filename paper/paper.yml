@@ -9,13 +9,12 @@ authors:
     orcid: 0000-0001-5684-4593
     affiliation: 1
   - name: Mosè Giordano
-    affiliation: 1, 2
-  - name: 3rd author
+    orcid: 0000-0002-7218-2873
     affiliation: 2
 affiliations:
   - name: University of Victoria
     index: 1
-  - name: Advanced Research Computing, UCL
+  - name: Advanced Research Computing, University College London
     index: 2
 date: 02 August 2022
 bibliography: ref.bib
