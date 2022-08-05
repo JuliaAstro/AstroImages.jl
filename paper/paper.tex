@@ -51,7 +51,7 @@ In many instances, image HDUs contain 3, 4, or even 5 dimensional data cubes, an
 For image data itself, FITS files do not in general store colour information that can be displayed directly. In contrast to digital cameras, astronomical data is almost invariably captured outside the human visible range or at least with filters that are not well matched to human colour perception.
 Instead, astronomers use visualizations that maps raw numerical data to a false colour image.
 These steps include a linear transformation from arbitrary numerical ranges to a standard 0 to 255 display range that produces a desired contrast and brightness at an intensity level of interest.
-The comparatively low dynamic range of electronic displays is often be compensated for by applying non-linear mapping, or ``stretching'' such as $\log$ scales or $\mathrm{arcsinh}$ scales.
+The comparatively low dynamic range of electronic displays is often compensated for by applying non-linear mapping, or ``stretching'' such as $\log$ scales or $\mathrm{arcsinh}$ scales.
 % The term ``gamma-correction'' is sometimes used to describe this step in the computer graphics community, but since matching human visual perception is less important, the stretches applied may be quite arbitrary.
 Once the data is normalized to a reasonable intensity level, one typically presents a grayscale image or applies a false colour map.
 Finally, one may also create a colour composite image combining multiple information layers, especially when preparing data for public consumption.
@@ -91,7 +91,7 @@ Any array type can be wrapped in an \verb|AstroImage| by passing it to the contr
 
 By implementing the \verb|AbstractDimArray| interface, the dimensions of each axis of the array can be named and paired with coordinates to enable concise indexing of multi-dimensional cubes.
 
-Once loaded, the user should be able to pass the AstroImage through any analysis code that excepts an AbstractArray unmodified. Indexing and slicing are tracked using \verb|DimensionalData.jl| so that pixel locations in the originating parent data cube are recoverable.
+Once loaded, the user should be able to pass the AstroImage through any analysis code that accepts an AbstractArray. Indexing and slicing are tracked using \verb|DimensionalData.jl| so that pixel locations in the originating parent data cube are recoverable.
 
 FITS header keys can be accessed by indexing the image with a string key, the \verb|Comment| type, and or the \verb|History| type to read and write to the header. \verb|WCS.jl| \verb|Transformation| objects can be generated using the \verb|wcs(img, wcsnum)| function and are cached unless/until the user modifies a relevant header field.
 
@@ -108,7 +108,7 @@ imview(img; clims=Percent(95), cmap=:magma,
 In this case, the output is automatically downscaled to a reasonable size using \verb|ImageTransformations.restrict|.
 For example, all that's needed to display a 2D image HDU from a FITS file is to type \verb|load("filename.fits")| at an interactive prompt provided that prompt supports rich outputs.
 
-The \verb|implot| Plots.jl recipe supports additional functionality. It uses \verb|imview| to first render the image and then create an image series.
+The \verb|implot| Plots.jl recipe supports additional functionality. It uses \verb|imview| to first render the image and then uses Plots.jl to present an image series.
 
 The plot recipe automatically applies WCS grid lines (which may be arbitrarily tilted and warped) and labels the axes with their coordinate types. It also creates a custom colour bar labelled with ticks at the correct, possibly non-linear spacing caused by chosen stretch.
 When applied to slices of multi-dimensional cubes, \verb|implot| further titles the plot with the slice's location along the other axes.
@@ -127,6 +127,7 @@ implot(slice; cmap=:turbo, stretch=asinh)
 \end{figure}
 \FloatBarrier 
 
+\verb|AstroImages.jl| is a complete, high-level package for working with astronomical data in Julia.
 
 
 
