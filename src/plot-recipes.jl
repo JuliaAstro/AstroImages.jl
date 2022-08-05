@@ -211,8 +211,8 @@
             yticks := cbticks
             yguide := colorbar_title
             xguide := ""
-            xlims := Tuple(axes(cbimg, 2))
-            ylims := Tuple(axes(cbimg, 2))
+            xlims := Tuple(extrema(axes(cbimg, 2)))
+            ylims := Tuple(extrema(axes(cbimg, 2)))
             title := ""
             # Views of images are not currently supported by plotly so we have to collect them
             # view(cbimg, reverse(axes(cbimg,1)),:)
@@ -274,8 +274,8 @@
                 yticks := ([first(ax), mean(ax), last(ax)], ["-π", "0", "π"])
                 yguide := colorbar_title
                 xguide := ""
-                xlims := Tuple(axes(cbimg, 2))
-                ylims := Tuple(axes(cbimg, 2))
+                xlims := Tuple(extrema(axes(cbimg, 2)))
+                ylims := Tuple(extrema(axes(cbimg, 2)))
                 title := ""
                 view(cbimg, reverse(axes(cbimg,1)),:)
             end    
