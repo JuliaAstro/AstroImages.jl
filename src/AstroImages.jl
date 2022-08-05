@@ -536,18 +536,5 @@ include("contrib/abstract-ffts.jl")
 include("ccd2rgb.jl")
 include("precompile.jl")
 
-function __init__()
-
-    # TODO: This should be registered correctly with FileIO
-    del_format(format"FITS")
-    add_format(format"FITS",
-        # See https://www.loc.gov/preservation/digital/formats/fdd/fdd000317.shtml#sign
-        [0x53,0x49,0x4d,0x50,0x4c,0x45,0x20,0x20,0x3d,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x54],
-        [".fit", ".fits", ".fts", ".FIT", ".FITS", ".FTS", ".fit",],
-        [:FITSIO => UUID("525bcba6-941b-5504-bd06-fd0dc1a4d2eb")],
-        [:AstroImages => UUID("fe3fc30c-9b16-11e9-1c73-17dabf39f4ad")]
-    )
-    
-end
 
 end # module
