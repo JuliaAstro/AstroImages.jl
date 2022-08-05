@@ -222,9 +222,10 @@ DimensionalData.metadata(::AstroImage) = DimensionalData.Dimensions.LookupArrays
 end
 # Keyword argument version. 
 # We have to define this since our struct contains additional field names.
+# We can't use the automatic version from ConstructionBase.
 @inline function DimensionalData.rebuild(
     img::AstroImage;
-    data,
+    data=parent(img),
     # Fields for DimensionalData
     dims::Tuple=DimensionalData.dims(img),
     refdims::Tuple=DimensionalData.refdims(img),
