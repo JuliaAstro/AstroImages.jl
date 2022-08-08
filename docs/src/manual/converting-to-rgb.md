@@ -140,7 +140,7 @@ save("antenae-composite.png", crop)
 If you want to save it in a format like `JPG` that doesn't support transparent pixels, you could replace the masked area with zeros instead of `NaN`.
 
 
-```@setup
+```@setup 1
 # restore package defaults
 using AstroImages
 AstroImages.set_clims!(Percent(99.5))
