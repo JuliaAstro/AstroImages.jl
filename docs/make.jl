@@ -26,7 +26,7 @@ makedocs(
     ),
     workdir="..",
     # Specify several modules since we want to include docstrings from functions we've extended
-    modules=requiredmods,#[AstroImages, Images, FileIO, DimensionalData, WCS],
+    modules= [eval(:(using $mod;$mod)) for mod in requiredmods],#[AstroImages, Images, FileIO, DimensionalData, WCS],
     # However we have to turnoff doctests since otherwise a failing test in those other packages (e.g. caused by us not setting up their test environement correctly) leads to *our* docs failing to build.
     doctest=false,
     # We still want strict on though since we want to catch typos.
