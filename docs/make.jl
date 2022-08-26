@@ -15,41 +15,18 @@ setup = quote
 end
 DocMeta.setdocmeta!(AstroImages, :DocTestSetup, setup; recursive = true)
 
+include("pages.jl")
 
 makedocs(
     sitename="AstroImages.jl",
-    pages = [
-        "Home" => "index.md",
-        "Manual" => [
-            "Getting Started" => "manual/getting-started.md",
-            "Loading & Saving Images" => "manual/loading-images.md",
-            "Displaying Images" => "manual/displaying-images.md",
-            "Array Operations" => "manual/array.md",
-            "Headers" => "manual/headers.md",
-            "Dimensions and World Coordinates" => "manual/dimensions-and-world-coordinates.md",
-            "Polarization" => "manual/polarization.md",
-            "Spectral Axes" => "manual/spec.md",
-            "Preserving Wrapper" => "manual/preserving-wrapper.md",
-            "Conventions" => "manual/conventions.md",
-            "Converting to RGB" => "manual/converting-to-rgb.md",
-            "Converting from RGB" => "manual/converting-from-rgb.md",
-        ],
-        "Guides" => [
-            "Blurring & Filtering Images" => "guide/image-filtering.md",
-            "Transforming Images" => "guide/image-transformations.md",
-            "Reprojecting Images" => "guide/reproject.md",
-            "Extracting Photometry" => "guide/photometry.md",
-            "Plotting Contours" => "guide/contours.md",
-        ],
-        "API" => "api.md",
-    ],
+    pages=pages,
     format = Documenter.HTML(
         prettyurls = get(ENV, "CI", nothing) == "true",
         assets = ["assets/theme.css"],
     ),
     workdir="..",
     # Specify several modules since we want to include docstrings from functions we've extended
-    modules=[AstroImages, Images, FileIO, DimensionalData, WCS],
+    modules=requiredmods,#[AstroImages, Images, FileIO, DimensionalData, WCS],
     # However we have to turnoff doctests since otherwise a failing test in those other packages (e.g. caused by us not setting up their test environement correctly) leads to *our* docs failing to build.
     doctest=false,
     # We still want strict on though since we want to catch typos.
