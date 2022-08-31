@@ -36,9 +36,20 @@
     end
 
     # Use package defaults if not user provided.
-    clims   --> _default_clims[]
-    stretch --> _default_stretch[]
-    cmap    --> _default_cmap[]
+    clims   = get(plotattributes, :clims, _default_clims[])
+    stretch = get(plotattributes, :stretch, _default_stretch[])
+    cmap    = get(plotattributes, :cmap, _default_cmap[])
+    # Plotly is now failing if the user passes through a function as a keyword value
+    # even if that function is only used by the recipe. Guard against this.
+    if haskey(plotattributes, :clims)
+        delete!(plotattributes, :clims)
+    end
+    if haskey(plotattributes, :stretch)
+        delete!(plotattributes, :stretch)
+    end
+    if haskey(plotattributes, :cmap)
+        delete!(plotattributes, :cmap)
+    end
 
     bias = get(plotattributes, :bias, 0.5)
     contrast = get(plotattributes, :contrast, 1)
@@ -53,9 +64,6 @@
     if T <: Colorant
         imgv = data
     else
-        clims   = plotattributes[:clims]
-        stretch = plotattributes[:stretch]
-        cmap    = plotattributes[:cmap]
         if T <: Complex
             img = abs.(data)
             img["UNIT"] = "magnitude"
