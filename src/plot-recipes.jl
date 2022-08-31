@@ -212,7 +212,7 @@
             yguide := colorbar_title
             xguide := ""
             xlims := Tuple(extrema(axes(cbimg, 2)))
-            ylims := Tuple(extrema(axes(cbimg, 2)))
+            ylims := Tuple(extrema(axes(cbimg, 1)))
             title := ""
             # Views of images are not currently supported by plotly so we have to collect them
             # view(cbimg, reverse(axes(cbimg,1)),:)
@@ -275,7 +275,7 @@
                 yguide := colorbar_title
                 xguide := ""
                 xlims := Tuple(extrema(axes(cbimg, 2)))
-                ylims := Tuple(extrema(axes(cbimg, 2)))
+                ylims := Tuple(extrema(axes(cbimg, 1)))
                 title := ""
                 view(cbimg, reverse(axes(cbimg,1)),:)
             end    
