@@ -243,8 +243,8 @@ end
 @inline DimensionalData.rebuildsliced(
     f::Function,
     img::AstroImage,
-    data,
-    I,
+    data::AbstractArray,
+    I::Tuple,
     header=deepcopy(header(img)),
     wcs=getfield(img, :wcs),
     wcs_stale=getfield(img, :wcs_stale)[],
