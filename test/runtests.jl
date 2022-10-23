@@ -312,6 +312,13 @@ end
         6  5  4
         3  2  1
     ]
+
+
+    # https://github.com/JuliaAstro/AstroImages.jl/issues/33
+    dark = AstroImage(zeros(1, 10, 10));
+    raw = AstroImage(ones(5, 10, 10));
+    @test size(dark .- raw) == size(raw)
+
 end
 ##
 
