@@ -240,7 +240,7 @@ function imview(
     # Origin is centre of pixel (1,1) at bottom left.
     if ndims(img) == 2
         imgT = view(
-            permutedims(img,(2,1)),
+            permuteddimsview(img,(2,1)),
             reverse(axes(img,2)),
             :,
         )
@@ -248,13 +248,14 @@ function imview(
         newdims = (2,1, 3:ndims(img)...)
         ds = Tuple(((:) for _ in 2:ndims(img)))
         imgT = view(
-            permutedims(img,newdims),
+            permuteddimsview(img,newdims),
             reverse(axes(img,2)),
             ds...,
         )
     else
         imgT = img
     end
+
     isempt = isempty(imgT)
     if isempt
         @warn "imview called with empty argument"
@@ -273,18 +274,7 @@ function imview(
     return _imview(imgT, normed, stretch, _lookup_cmap(cmap), contrast, bias)
 end
 
-# Unwrap AstroImages before view, then rebuild. 
-# We have to permute the dimensions of the image to get the origin at the bottom left.
-# But we don't want this to affect the dimensions of the array.
-# Also, this reduces the number of methods we need to compile for imview by standardizing types
-# earlier on. The compiled code for showing an array is the same as an array wrapped by an
-# AstroImage, except for one unwrapping step.
-function imview(
-    img::AstroImage;
-    kwargs...
-)
-    return shareheader(img, imview(parent(img); kwargs...))
-end
+
 
 # Special handling for complex images
 """
@@ -307,8 +297,26 @@ function imview(img::AbstractArray{T}; kwargs...) where {T<:Complex}
     vcat(mag_view,angle_view)
 end
 
-function _imview(img, normed::AbstractArray{T}, stretch, cmap, contrast, bias) where T
+# Unwrap AstroImages before view, then rebuild. 
+# We have to permute the dimensions of the image to get the origin at the bottom left.
+# But we don't want this to affect the dimensions of the array.
+# Also, this reduces the number of methods we need to compile for imview by standardizing types
+# earlier on. The compiled code for showing an array is the same as an array wrapped by an
+# AstroImage, except for one unwrapping step.
+function _imview(
+    img::AstroImage, normed::AbstractArray{T}, stretch, cmap, contrast, bias
+) where T
     
+    p = parent(img)
+    out = _imview(p, normed, stretch, cmap, contrast, bias)
+    # out = shareheader(img, v)
+    return out
+end
+
+
+
+
+function _imview(img, normed::AbstractArray{T}, stretch, cmap, contrast, bias) where T
     function colormap(pixr, pixn)::RGBA{N0f8}
         if ismissing(pixr) || !isfinite(pixr) || ismissing(pixn) || !isfinite(pixn)
             # We check pixr in addition to pixn because we want to preserve if the pixels
@@ -341,8 +349,7 @@ function _imview(img, normed::AbstractArray{T}, stretch, cmap, contrast, bias) w
         return pix
     end
     mapper = mappedarray(colormap, img, normed)
-
-    return maybe_copyheader(img, mapper)
+    return mapper
 end
 
 
