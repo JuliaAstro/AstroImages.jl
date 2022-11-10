@@ -26,7 +26,7 @@ download(
     "http://www.astro.uvic.ca/~wthompson/astroimages/fits/656nmos.fits",
     "eagle-656nmos.fits"
 );
-eagle = AstroImage("eagle-656nmos.fits")
+eagle = load("eagle-656nmos.fits")
 ```
 
 
@@ -131,7 +131,7 @@ Let's see how this works with a 3D cube.
 ```@example coords
 using AstroImages
 
-HIcube = AstroImage(download("http://www.astro.uvic.ca/~wthompson/astroimages/fits/HIdat.fits"))
+HIcube = load(download("http://www.astro.uvic.ca/~wthompson/astroimages/fits/HIdat.fits"))
 ```
 
 Notice how the cube is not displayed automatically. We have to pick a specific slice:

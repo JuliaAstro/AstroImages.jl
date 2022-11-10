@@ -43,9 +43,10 @@ Or, if you have Plots loaded:
 ```@example phot
 using Plots
 
-    AstroImages.set_clims!(Percent(99.5))
-    AstroImages.set_cmap!(:magma)
-    AstroImages.set_stretch!(identity)
+AstroImages.set_clims!(Percent(99.5))
+AstroImages.set_cmap!(:magma)
+AstroImages.set_stretch!(identity)
+
 plot(
     implot(image, title="Original"),
     implot(clipped, title="Sigma-Clipped"),
