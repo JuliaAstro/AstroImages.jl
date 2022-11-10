@@ -71,6 +71,7 @@
             img = data
         end
         imgv = imview(img; clims, stretch, cmap, contrast, bias)
+        imgv = shareheader(img, imgv)
     end
 
     # Reduce large images using the same heuristic as Images.jl
@@ -516,7 +517,6 @@ function WCSGrid(img::AstroImageMat, wcsn=1)
     miny = first(dims(img,1))
     maxy = last(dims(img,1))
     extent = (minx-0.5, maxx+0.5, miny-0.5, maxy+0.5)
-    @show extent
     return WCSGrid(img, extent, wcsn)
 end
 

@@ -211,13 +211,17 @@ end
 ##
 @testset "imview" begin
 
-    arr1 = permutedims(reshape(1:9,3,3))
+    arr1 = collect(permutedims(reshape(1:9,3,3)))
     img = AstroImage(arr1)
 
     @test imview(arr1) == imview(img)
-    @test imview(img) isa AstroImage
-    @test !(imview(arr1) isa AstroImage)
 
+    ## Test view functionality
+    ivimg = imview(img, clims=(0,9))
+    img[1] = 0
+    @test imview(img, clims=(0,9)) == ivimg # Should have updated
+    img[1] = 1
+        
     img_rendered_1 = imview(img, clims=(1,9), stretch=identity, contrast=1, bias=0.5, cmap=nothing)
 
     # Image Orientation
@@ -312,6 +316,13 @@ end
         6  5  4
         3  2  1
     ]
+
+
+    # https://github.com/JuliaAstro/AstroImages.jl/issues/33
+    dark = AstroImage(zeros(1, 10, 10));
+    raw = AstroImage(ones(5, 10, 10));
+    @test size(dark .- raw) == size(raw)
+
 end
 ##
 

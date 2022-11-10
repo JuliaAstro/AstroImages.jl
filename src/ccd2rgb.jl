@@ -74,6 +74,6 @@ function composecolors(
             clamp(pxblended.alpha,0,1)
         )
     end
-    return copyheader(first(images), combined)
+    return combined
 end
 export composechannels

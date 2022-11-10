@@ -240,16 +240,19 @@ end
 )
     return AstroImage(data, dims, refdims, header, wcs, Ref(wcs_stale), wcsdims)
 end
-@inline DimensionalData.rebuildsliced(
+
+@inline function DimensionalData.rebuildsliced(
     f::Function,
-    img::AstroImage,
-    data,
-    I,
-    header=deepcopy(header(img)),
-    wcs=getfield(img, :wcs),
-    wcs_stale=getfield(img, :wcs_stale)[],
-    wcsdims=getfield(img, :wcsdims),
-) = rebuild(img, data, DimensionalData.slicedims(f, img, I)..., nothing, nothing, header, wcs, wcs_stale, wcsdims)
+    A::AstroImage,
+    data::AbstractArray,
+    I::Tuple,
+    header=header(A),
+    wcs=getfield(A, :wcs),
+    wcs_stale=getfield(A, :wcs_stale)[],
+    wcsdims=getfield(A, :wcsdims),)
+    sd = DimensionalData.slicedims(f, A, I)
+    rebuild(A; data, dims=sd[1], refdims=sd[2], header, wcs, wcs_stale, wcsdims)
+end
 
 # Return result wrapped in AstroImage
 # For these functions that return lazy wrappers, we want to share header
@@ -448,6 +451,8 @@ See also: [`shareheader`](@ref).
 """
 copyheader(img::AstroImage, data::AbstractArray) =
     AstroImage(data, dims(img), refdims(img), deepcopy(header(img)), copy(getfield(img, :wcs)), Ref(getfield(img, :wcs_stale)[]), getfield(img,:wcsdims))
+copyheader(img::AstroImage, data::AstroImage) =
+    AstroImage(data, dims(data), refdims(data), deepcopy(header(img)), copy(getfield(img, :wcs)), Ref(getfield(img, :wcs_stale)[]), getfield(img,:wcsdims))
 
 """
     shareheader(img::AstroImage, data) -> imgnew
@@ -457,6 +462,7 @@ synchronized header; modifying one also affects the other.
 See also: [`copyheader`](@ref).
 """ 
 shareheader(img::AstroImage, data::AbstractArray) = AstroImage(data, dims(img), refdims(img), header(img), getfield(img, :wcs), Ref(getfield(img, :wcs_stale)[]), getfield(img,:wcsdims))
+shareheader(img::AstroImage, data::AstroImage) = AstroImage(data, dims(data), refdims(data), header(img), getfield(img, :wcs), Ref(getfield(img, :wcs_stale)[]), getfield(img,:wcsdims))
 # Share header if an AstroImage, do nothing if AbstractArray
 maybe_shareheader(img::AstroImage, data) = shareheader(img, data)
 maybe_shareheader(::AbstractArray, data) = data

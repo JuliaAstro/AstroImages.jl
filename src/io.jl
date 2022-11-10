@@ -45,13 +45,13 @@ function AstroImage(filename::AbstractString, exts::Union{NTuple{N,<:Integer},Ab
         end
     end
 end
-function AstroImage(filename::AbstractString; kwargs...) where {N}
+function AstroImage(filename::AbstractString; kwargs...)
     return FITS(filename, "r") do fits
         ext = indexer(fits)
         return AstroImage(fits[ext]; kwargs...)
     end
 end
-function AstroImage(filename::AbstractString, ::Colon, args...; kwargs...) where {N}
+function AstroImage(filename::AbstractString, ::Colon, args...; kwargs...)
     return FITS(filename, "r") do fits
         return map(fits) do hdu
             return AstroImage(hdu, args...; kwargs...)
@@ -84,7 +84,7 @@ returned as AstroImage, and TableHDUs are returned as column tables.
 
 !!! Currently any header on TableHDUs are not supported and are ignored.
 """
-function fileio_load(f::File{format"FITS"}, ext::Union{Int,Nothing}=nothing, args...; kwargs...) where {N}
+function fileio_load(f::File{format"FITS"}, ext::Union{Int,Nothing}=nothing, args...; kwargs...)
     return FITS(f.filename, "r") do fits
         if isnothing(ext)
             ext = indexer(fits)
@@ -99,7 +99,7 @@ function fileio_load(f::File{format"FITS"}, exts::Union{NTuple{N,<:Integer},Abst
         end
     end
 end
-function fileio_load(f::File{format"FITS"}, ::Colon, args...; kwargs...) where {N}
+function fileio_load(f::File{format"FITS"}, ::Colon, args...; kwargs...)
     return FITS(f.filename, "r") do fits
         exts_resolved = 1:length(fits)
         map(exts_resolved) do ext
