@@ -211,13 +211,17 @@ end
 ##
 @testset "imview" begin
 
-    arr1 = permutedims(reshape(1:9,3,3))
+    arr1 = collect(permutedims(reshape(1:9,3,3)))
     img = AstroImage(arr1)
 
     @test imview(arr1) == imview(img)
-    @test imview(img) isa AstroImage
-    @test !(imview(arr1) isa AstroImage)
 
+    ## Test view functionality
+    ivimg = imview(img, clims=(0,9))
+    img[1] = 0
+    @test imview(img, clims=(0,9)) == ivimg # Should have updated
+    img[1] = 1
+        
     img_rendered_1 = imview(img, clims=(1,9), stretch=identity, contrast=1, bias=0.5, cmap=nothing)
 
     # Image Orientation
