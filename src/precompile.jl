@@ -1,7 +1,7 @@
 
-using SnoopPrecompile
+using PrecompileTools
 
-@precompile_setup begin
+@setup_workload begin
     types = [Float32, Float64, Int, Int8, UInt8, N0f8]
     arrays = [rand(T, 5, 5) for T in types]
     stretches = [
@@ -13,7 +13,7 @@ using SnoopPrecompile
         sinhstretch,
         powerdiststretch
     ]
-    @precompile_all_calls begin
+    @compile_workload begin
             for a in arrays
                 i = AstroImage(a)
                 for stretch in stretches
