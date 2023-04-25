@@ -2,7 +2,7 @@
 
 | **Documentation** | **Build Status**                          | **Code Coverage**               |
 |:------------------|:-----------------------------------------:|:-------------------------------:|
-| [![](https://img.shields.io/badge/docs-dev-blue.svg)](https://juliaastro.github.io/AstroImages.jl/dev/) | ![Build status](https://github.com/JuliaAstro/AstroImages/actions/workflows/ci.yml/badge.svg) | [![][codecov-img]][codecov-url] |
+| [![](https://img.shields.io/badge/docs-dev-blue.svg)](http://juliaastro.org/dev/modules/AstroImages/) | ![Build status](https://github.com/JuliaAstro/AstroImages/actions/workflows/ci.yml/badge.svg) | [![][codecov-img]][codecov-url] |
 
 Introduction
 ------------
