@@ -4,3 +4,7 @@ sub build_header {
 }
 
 build_header()
+
+
+$success_cmd = 'cat paper.log';
+$failure_cmd = 'cat paper.log';
