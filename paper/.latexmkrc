@@ -7,4 +7,4 @@ build_header()
 
 
 $success_cmd = 'cat paper.log';
-$failure_cmd = 'cat paper.log';
+$failure_cmd = 'cat paper.log && exit 125';
