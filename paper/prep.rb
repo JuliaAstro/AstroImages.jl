@@ -15,32 +15,32 @@ volume = ENV["JLCON_VOLUME"] === nil ? 1 : ENV["JLCON_VOLUME"]
 year = ENV["JLCON_YEAR"] === nil ? 2022 : ENV["JLCON_YEAR"]
 journal_name = "Proceedings of JuliaCon" # hard-coded for now
 
-open('header.tex', 'w') do |f|
-  f << "% **************GENERATED FILE, DO NOT EDIT**************\n\n"
-  f << "\\title{#{metadata["title"]}}\n\n"
-  for auth in metadata["authors"]
-    f << "\\author[#{auth["affiliation"]}]{#{auth["name"]}}\n"
-  end
-  for aff in metadata["affiliations"]
-    f << "\\affil[#{aff["index"]}]{#{aff["name"]}}\n"
-  end
-  f << "\n\\keywords{"
-  for i in 0...metadata["keywords"].length-1
-    f << "#{metadata["keywords"][i]}, "
-  end
-  f << metadata["keywords"].last
-  f << "}\n\n"
+# open('header.tex', 'w') do |f|
+#   f << "% **************GENERATED FILE, DO NOT EDIT**************\n\n"
+#   f << "\\title{#{metadata["title"]}}\n\n"
+#   for auth in metadata["authors"]
+#     f << "\\author[#{auth["affiliation"]}]{#{auth["name"]}}\n"
+#   end
+#   for aff in metadata["affiliations"]
+#     f << "\\affil[#{aff["index"]}]{#{aff["name"]}}\n"
+#   end
+#   f << "\n\\keywords{"
+#   for i in 0...metadata["keywords"].length-1
+#     f << "#{metadata["keywords"][i]}, "
+#   end
+#   f << metadata["keywords"].last
+#   f << "}\n\n"
 
-	# hypersetup
-	f << "\\hypersetup{\n"
-	f << "pdftitle = {#{metadata["title"]}},\n"
-	f << "pdfsubject = {JuliaCon #{year} Proceedings},\n"
-	author_list = metadata['authors'].map { |a| a['name'] }.join(', ')
-	f << "pdfauthor = {#{author_list}},\n"
-	keyword_list = metadata['keywords'].join(', ')
-	f << "pdfkeywords = {#{keyword_list}},\n"
-	f << "}\n\n"
-end
+# 	# hypersetup
+# 	f << "\\hypersetup{\n"
+# 	f << "pdftitle = {#{metadata["title"]}},\n"
+# 	f << "pdfsubject = {JuliaCon #{year} Proceedings},\n"
+# 	author_list = metadata['authors'].map { |a| a['name'] }.join(', ')
+# 	f << "pdfauthor = {#{author_list}},\n"
+# 	keyword_list = metadata['keywords'].join(', ')
+# 	f << "pdfkeywords = {#{keyword_list}},\n"
+# 	f << "}\n\n"
+# end
 
 open('journal_dat.tex', 'w') do |f|
   f << "% **************GENERATED FILE, DO NOT EDIT**************\n\n"
