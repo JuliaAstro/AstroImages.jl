@@ -183,9 +183,10 @@ to Colors according to `clims`, `stretch`, and `cmap`.
 
 The data is first clamped to `clims`, which can either be a tuple of (min, max)
 values or a function accepting an iterator of pixel values that returns (min, max).
-By default, `clims=extrema` i.e. the minimum and maximum of `img`.
+By default, `clims=Percent(99.5)` which sets the display min and max to the central
+99.5 percentile range of pixel values.
 Convenient functions to use for `clims` are:
-`extrema`, `zscale`, and `percent(p)`
+`extrema`, `Zscale`, and `Percent(p)`
 
 Next, the data is rescaled to [0,1] and remapped according to the function `stretch`.
 Stretch can be any monotonic fuction mapping values in the range [0,1] to some range [a,b].
@@ -223,7 +224,7 @@ or black if.
 The view returned by `imview` can be saved using general `FileIO.save` methods.
 Example:
 ```julia
-v = imview(data, cmap=:magma, stretch=asinhstretch, clims=percent(95))
+v = imview(data, cmap=:magma, stretch=asinhstretch, clims=Percent(95))
 save("output.png", v)
 ```
 """
