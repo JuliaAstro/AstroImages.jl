@@ -46,6 +46,20 @@ For most coordinate schemes, pixel coordinates are encoded using an affine trans
 In many instances, image HDUs contain 3, 4, or even 5 dimensional data cubes, and thanks to the affine transformation matrix, moving along any one of these dimensions can shift the coordinates along the other dimesions. This point is important since it means that the full coordinates of a given pixel are needed to calculate it's physical position along any one axis.
 
 
+\begin{figure}[t]
+  \centerline{\includegraphics[width=\columnwidth]{fits-schematic.pdf}}
+  \caption{Conceptual schematic of a FITS file containing a 2D image HDU, a 3D hyperspectral image HDU, and a table HDU.}
+      \label{fig:fits-schematic}
+\end{figure}
+
+For image data itself, FITS files do not in general store colour information that can be displayed directly. In contrast to digital cameras, astronomical data is almost invariably captured outside the human visible range or at least with filters that are not well matched to human colour perception.
+Instead, astronomers use visualizations that maps raw numerical data to a false colour image.
+These steps include a linear transformation from arbitrary numerical ranges to a standard 0 to 255 display range that produces a desired contrast and brightness at an intensity level of interest.
+The comparatively low dynamic range of electronic displays is often compensated for by applying non-linear mapping, or ``stretching'' such as $\log$ scales or $\mathrm{arcsinh}$ scales.
+% The term ``gamma-correction'' is sometimes used to describe this step in the computer graphics community, but since matching human visual perception is less important, the stretches applied may be quite arbitrary.
+Once the data is normalized to a reasonable intensity level, one typically presents a grayscale image or applies a false colour map.
+Finally, one may also create a colour composite image combining multiple information layers, especially when preparing data for public consumption.
+
 \section{Introduction}
 
 The \LaTeX{} document preparation system is a special version of the
