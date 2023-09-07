@@ -11,3 +11,5 @@ Manifest.toml
 
 # built docs
 /docs/build
+
+/fits

@@ -1,0 +1,25 @@
+\begin{thebibliography}{1}
+
+\bibitem{bezanson2017julia}
+Jeff Bezanson, Alan Edelman, Stefan Karpinski, and Viral~B Shah.
+Julia: A fresh approach to numerical computing.
+{\em SIAM review}, 59(1):65--98, 2017.
+\href{http://dx.doi.org/10.1137/141000671}{doi:10.1137/141000671}.
+
+\bibitem{fitsstandard}
+{FITS Working Group}.
+Definition of the flexible image transport system {(FITS)}.
+Technical report, International Astronomical Union, 2016.
+
+\bibitem{HI4PI}
+{HI4PI Collaboration}, N.~{Ben Bekhti}, L.~{Fl{\"o}er}, R.~{Keller}, J.~{Kerp},
+  D.~{Lenz}, B.~{Winkel}, J.~{Bailin}, M.~R. {Calabretta}, L.~{Dedes}, H.~A.
+  {Ford}, B.~K. {Gibson}, U.~{Haud}, S.~{Janowiecki}, P.~M.~W. {Kalberla},
+  F.~J. {Lockman}, N.~M. {McClure-Griffiths}, T.~{Murphy}, H.~{Nakanishi},
+  D.~J. {Pisano}, and L.~{Staveley-Smith}.
+{HI4PI: A full-sky H I survey based on EBHIS and GASS}.
+{\em \aap}, 594:A116, October 2016.
+\href{http://dx.doi.org/10.1051/0004-6361/201629178}{doi:10.1051/0004-6361/201629178}.
+1610.06175.
+
+\end{thebibliography}
