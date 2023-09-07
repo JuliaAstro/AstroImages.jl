@@ -5,146 +5,536 @@
 
 \begin{document}
 
-% \input{header}
-
-\title{AstroImages.jl}
-
-\author[1]{William Thompson}
-\author[2]{Mosè Giordano}
-\affil[1]{University of Victoria}
-\affil[2]{Advanced Research Computing, University College London}
-
-\keywords{Julia, Astronomy, Images, World Coordinates}
-
-\hypersetup{
-pdftitle = {AstroImages.jl},
-pdfsubject = {JuliaCon 2019 Proceedings},
-pdfauthor = {William Thompson, Mosè Giordano},
-pdfkeywords = {Julia, Optimization, Game theory, Compiler},
-}
-
-\title{AstroImages.jl}
+\input{header}
 
 \maketitle
 
-To study the cosmos, astronomers use data cubes with many dimensions representing images with axes for sky position, time, wavelength, polarization, and more. Since these large datasets often span many orders of magnitude in intensity and typically include colours invisible to humans, astronomers like to visualize their images using a variety of non-linear stretching and contrast adjustments.
-Additionally, images may contain metadata specifying arbitrary mappings of pixel positions to multiple celestial coordinate systems.
-Julia\cite{bezanson2017julia} is a powerful language for processing astronomical data, but these visualization tasks are a challenge for any tool.
+\begin{abstract}
 
-\vspace{0.2cm}
-\emph{Background.}
-One of the most ubiquitous data formats used in astronomy is FITS, or the Flexible Image Transport System.
-Compared to a traditional raster image formats, FITS files are more like containers or small filesystems.
-Each file contains one or more header data units (HDUs) that pair a dataset with a header.
-The FITS format and header conventions have developed organically over several decades, first by convention,
-and then in a series of papers proposing new extensions and standardizing existing behaviour now summarized in \cite{fitsstandard}.
+This is a guide for authors who are preparing papers for JuliaCon using the \LaTeX{} document
+preparation system and the \verb|juliacon|  class file.
 
-In each HDU,
-headers are stored in a plain text ASCII format and are followed by data.
-The data may be in the format of an N-dimensional binary array (an ``image'' HDU),
-a binary table,
-or an ASCII table (``table HDUs'').
+\end{abstract}
 
-The metadata described by FITS headers are quite rich.
-A header consists of \verb|KEY = VALUE / COMMENT| entries, long form \verb|COMMENT| sections,
-and long form \verb|HISTORY| sections used to desrcibe the sequence of transformations used to generate the data.
-FITS headers often contain several hundred header entries most of which are specific to the instrument and software packages used to record and process the data.
-A subset of these are standardized and used to describe the physical units and coordinates of pixels in the image, called world coordinate system (WCS) header entries.
+\section{Introduction}
+
+The \LaTeX{} document preparation system is a special version of the
+\TeX; typesetting program where-in a collection of \TeX; commands
+are added to \LaTeX{} to simplify typesetting. Importantly, it allows
+the author to concentrate on the logical structure of the document
+rather than its visual layout.\vskip 6pt
+Moreover, \LaTeX{} provides a consistent and comprehensive document
+preparation interface. There are simple-to-use commands for
+generating a table of contents, lists of figures and/or tables, and indexes.
+\LaTeX{} can automatically number list entries, equations, figures,
+tables, and footnotes, as well as articles, sections, and subsections.
+Using this numbering system, bibliographic citations, page
+references, and cross references to any other numbered entity (e.g.
+article, section, equation, figure, list entry, etc.) become quite simple
+and straightforward. The use of \LaTeX{} document classes allows
+a simple change of class to transform the appearance of your document.\vskip 6pt
+\LaTeX{} is a powerful tool for managing long and complex documents.
+In particular, partial processing enables long documents to
+be produced article by article without losing sequential information.
+The use of document classes allows a simple change of style
+(or style option) to transform the appearance of your document.
 
 
-These WCS entries record pixel locations in one or more celestial coordinate systems including, right ascension and declination, galactic coordinates, velocity, frequency, wavelength, polarization, and more.
-For most coordinate schemes, pixel coordinates are encoded using an affine transformation matrix combined with a \verb|CTYPE| specifier. Images are typically sampled regularly in the plane of a detector; however, coordinate projections are in general non-linear, and the physical coordinates of each pixel, spacings between pixels, etc. may vary across the image.
-In many instances, image HDUs contain 3, 4, or even 5 dimensional data cubes, and thanks to the affine transformation matrix, moving along any one of these dimensions can shift the coordinates along the other dimesions. This point is important since it means that the full coordinates of a given pixel are needed to calculate it's physical position along any one axis.
+
+\section{The JuliaCon Article Class}
+\label{sec:documentclass}
+%
+The juliacon class file preserves the standard LATEX{} interface such
+that any document that can be produced using the standard LATEX{}
+article class can also be produced with the class file.\vskip 6pt
+It is likely that the make up will change after file submission. For
+this reason, we ask you to ignore details such as slightly long lines,
+page stretching, or figures falling out of synchronization, as these
+details can be dealt with at a later stage.\vskip 6pt
+Use should be made of symbolic references (\verb|\ref| ) in order to
+protect against late changes of order, etc.
+
+\section{USING THE JuliaCon Article CLASS FILE}
+
+If the file \verb|juliacon.cls|  is not already in the appropriate system directory
+for \LaTeX{} files, either arrange for it to be put there or copy
+it to your working directory. The \verb|juliacon|  document class is implemented
+as a complete class, not a document style option. In order to
+use the \verb|juliacon  document class, replace \verb|article|  by \verb|juliacon|  in the
+\verb|\documentclass|  command at the beginning of your document:
+\vskip 6pt
+\begin{centering}
+    \verb|\documentclass{article}|  \end{centering}
+\vskip 6pt
+replace by
+\vskip 6pt
+ \verb|\documentclass{juliacon}|  \vskip 6pt
+In general, the following standard document \verb|style|  options should
+{ \itshape not} be used with the {\footnotesize \itshape article} class file:
+\begin{enumerate}
+\item[(1)] \verb|10pt|,  \verb|11pt|,  \verb|12pt|   ? unavailable;
+\item[(2)] \verb|twoside|  (no associated style file) ? \verb|twoside|  is the default;
+\item[(3)] \verb|fleqn|, \verb|leqno|, \verb|titlepage| ? should not be used;
+\end{enumerate}
+
+\section{Additional Document Style Options}
+\label{sec:additional_doc}
+%
+The following additional style option is available with the \verb|juliacon|  class file:
+\vskip 6pt
+Please place any additional command definitions at the very start of
+the \LaTeX{} file, before the \verb|\begin{document}|. For example, user-defined
+\verb|\def|  and \verb|\newcommand|   commands that define macros for
+technical expressions should be placed here. Other author-defined
+macros should be kept to a minimum.
+\vskip 6pt
+Commands that differ from the standard \LaTeX{} interface, or that
+are provided in addition to the standard interface, are explained in
+this guide. This guide is not a substitute for the \LaTeX{} manual itself.
+Authors planning to submit their papers in \LaTeX{} are advised to use
+\verb|juliacon.cls|  as early as possible in the creation of their files.
+
+%
+%
+%
+%
+\begin{table*}[t]
+\tabcolsep22pt
+\tbl{If necessary, the tables can be extended both columns.}{
+\begin{tabular}{|l|l|c|c|}\hline
+Label & \multicolumn{1}{c|}{Description}
+& Number of Users &
+Number of Queries\\\hline
+Test 1 & Training Data &
+\smash{\raise-7pt\hbox{70}} & 104\\
+\cline{1-2}\cline{4-4}
+Test 2 & Testing Data I & & 105\\\hline
+Test 3 & Testing Data II & 30 & 119\\\hline
+& Total & 100 & 328\\\hline
+\end{tabular}}
+\label{tab:symbols}
+\begin{tabnote}
+This is an example of table footnote.
+\end{tabnote}
+\end{table*}
+% \begin{figure*}[t]
+% \centerline{\includegraphics[width=11cm]{juliagraphs.png}}
+% \caption{If necessary, the images can be extended both columns.}
+%   \label{fig:sample_image}
+% \end{figure*}
+
+\section{Additional features}
+\label{sec:additional_faci}
+In addition to all the standard \LaTeX{} design elements, the \verb|juliacon|  class file includes the following features:
+In general, once you have used the additional \verb|juliacon.cls| facilities
+in your document, do not process it with a standard \LaTeX{} class
+file.
+
+\subsection{Titles, Author's Name, and Affiliation}
+\label{subsub:title_auth}
+The title of the article, author's name, and affiliation are used at the
+beginning of the article (for the main title). These can be produced
+using the following code:
+
+\begin{verbatim}
+\title{ This is an example of article title} }
+\author{
+   \large 1st Author \\[-3pt]
+   \normalsize 1st author's affiliation  \\[-3pt]
+    \normalsize 1st line of address \\[-3pt]
+    \normalsize 2nd line of address \\[-3pt]
+    \normalsize	1st author's email address \\[-3pt]
+  \and
+   \large 2nd Author \\[-3pt]
+   \normalsize 2nd author's affiliation  \\[-3pt]
+    \normalsize 1st line of address \\[-3pt]
+    \normalsize 2nd line of address \\[-3pt]
+    \normalsize	2nd author's email address \\[-3pt]
+\and
+   \large 3rd Author \\[-3pt]
+   \normalsize 3rd author's affiliation  \\[-3pt]
+    \normalsize 1st line of address \\[-3pt]
+    \normalsize 2nd line of address \\[-3pt]
+    \normalsize	3rd author's email address \\[-3pt]
+}
+\maketitle
+\end{verbatim}
+
+\subsection{Writing Julia code}
+
+A special environment is already defined for Julia code,
+built on top of \textit{listings} and \textit{jlcode}.
+
+\begin{verbatim}
+\begin{lstlisting}[
+    language = Julia, 
+    numbers=left, 
+    label={lst:exmplg}, 
+    caption={Example Code Block.}
+]
+using Plots
+
+x = -3.0:0.01:3.0
+y = rand(length(x))
+plot(x, y)
+\end{lstlisting}
+\end{verbatim}
+\begin{lstlisting}[
+    language = Julia, 
+    numbers=left, 
+    label={lst:exmplg}, 
+    caption={Example Code Block.}
+]
+using Plots
+
+x = -3.0:0.01:3.0
+y = rand(length(x))
+plot(x, y)
+\end{lstlisting}
 
 
+\subsection{Abstracts, Key words, term etc...}
+\label{subsub:abs_key_etc}
+
+At the beginning of your article, the title should be generated
+in the usual way using the \verb|\maketitle|  command. For genaral tem and keywords use
+\verb|\terms|,
+\verb|\keywords|  commands respectively. The abstract should be enclosed
+within an abstract environment, All these environment
+can be produced using the following code:
+\begin{verbatim}
+\terms{Experimentation, Human Factors}
+
+\keywords{Face animation, image-based modelling...}
+
+\begin{abstract}
+In this paper, we propose a new method for the
+systematic determination of the model's base of
+time varying delay system. This method based on
+the construction of the classification data related
+to the considered system. The number, the orders,
+the time delay and the parameters of the local
+models are generated automatically without any
+knowledge about the full operating range of the
+process. The parametric identification of the local
+models is realized by a new recursive algorithm for
+on line identification of systems with unknown time
+delay. The proposed algorithm allows simultaneous
+estimation of time delay and parameters of
+discrete-time systems. The effectiveness of
+the new method has been illustrated through
+simulation.
+\end{abstract}
+
+\end{verbatim}
+
+\section{Some guidelines}
+\label{sec:some_guide}
+The following notes may help you achieve the best effects with the
+\verb|juliacon|  class file.
+
+\subsection{Sections}
+\label{subsub:sections}
+\LaTeXe{}  provides four levels of section headings and they are all
+defined in the \verb|juliacon|  class file:
+\begin{itemize}
+\item \verb|\section|
+\item \verb|\subsection|
+\item \verb|\subsubsection|
+\item \verb|\paragraph|
+\end{itemize}
+Section headings are automatically converted to allcaps style.
+\subsection{Lists}
+\label{sec:lists}
+%
+The \verb|juliacon|   class file provides unnumbered lists using the
+\verb|unnumlist|  environment for example,
+
+\begin{unnumlist}
+\item First unnumbered item which has no label and is indented from the
+left margin.
+\item Second unnumbered item.
+\item Third unnumbered item.
+\end{unnumlist}
+The unnumbered list which has no label and is indented from the
+left margin. was produced by:
+\begin{verbatim}
+\begin{unnumlist}
+\item First unnumbered item...
+\item Second unnumbered item...
+\item Third unnumbered item...
+\end{unnumlist}
+\end{verbatim}
+
+The \verb|juliacon|  class file also provides hyphen list using the
+\verb|itemize|  environment for example,
+\begin{itemize}
+\item First unnumbered bulleted item which has no label and is indented
+from the left margin.
+\item Second unnumbered bulleted item.
+\item Third unnumbered bulleted item which has no label and is indented
+from the left margin.
+\end{itemize}
+was produced by:
+\begin{verbatim}
+\begin{itemize}
+\item First item...
+\item Second item...
+\item Third item...
+\end{itemize}
+\end{verbatim}
+
+Numbered list is also provided in acmtog class file using the
+enumerate environment for example,
+\begin{enumerate}
+\item The attenuated and diluted stellar radiation.
+\item Scattered radiation, and
+\item Reradiation from other grains.
+\end{enumerate}
+
+was produced by:
+\begin{verbatim}
+\begin{enumerate}
+\item The attenuated...
+\item Scattered radiation, and...
+\item Reradiation from other grains...
+\end{enumerate}
+\end{verbatim}
+\subsection{Illustrations (or figures)}
+\label{subsub:sec_Illus}
+The \verb|juliacon|  class file will cope with most of the positioning of
+your illustrations and you should not normally use the optional positional
+qualifiers on the \verb|figure|  environment that would override
+these decisions.
+\vskip 6pt
+
+%
 \begin{figure}[t]
-    \centerline{\includegraphics[width=\columnwidth]{fits-schematic.pdf}}
-    \caption{Conceptual schematic of a FITS file containing a 2D image HDU, a 3D hyperspectral image HDU, and a table HDU.}
-        \label{fig:fits-schematic}
+\centerline{\includegraphics[width=4cm]{juliagraphs.png}}
+\caption{This is example of the image in a column.}
+	\label{fig:sample_figure}
 \end{figure}
 
-For image data itself, FITS files do not in general store colour information that can be displayed directly. In contrast to digital cameras, astronomical data is almost invariably captured outside the human visible range or at least with filters that are not well matched to human colour perception.
-Instead, astronomers use visualizations that maps raw numerical data to a false colour image.
-These steps include a linear transformation from arbitrary numerical ranges to a standard 0 to 255 display range that produces a desired contrast and brightness at an intensity level of interest.
-The comparatively low dynamic range of electronic displays is often compensated for by applying non-linear mapping, or ``stretching'' such as $\log$ scales or $\mathrm{arcsinh}$ scales.
-% The term ``gamma-correction'' is sometimes used to describe this step in the computer graphics community, but since matching human visual perception is less important, the stretches applied may be quite arbitrary.
-Once the data is normalized to a reasonable intensity level, one typically presents a grayscale image or applies a false colour map.
-Finally, one may also create a colour composite image combining multiple information layers, especially when preparing data for public consumption.
+The figure \ref{fig:sample_figure} is taken from the JuliaGraphs
+organization \footnote{https://github.com/JuliaGraphs}.
 
-\vspace{0.2cm}
-\emph{Existing Tools.}
-Julia has a robust package ecosystem for loading FITS files (\verb|FITSIO.jl|), manupulating images (\verb|Images.jl| ecosystem), calculating world coordinates (\verb|WCS.jl|), and plotting (e.g. \verb|Plots.jl|).
-For instance, the \verb|FITSIO| package is capable of reading and writing FITS files, headers, image HDUs, and table HDUs;
-the \verb|Images| packages support generating and displaying RGB images; 
-and the the \verb|WCS| package supports converting between pixel and world coordinates given a FITS header.
-The Julia package ecosystem lacks, however, a package that combines these tools into a high-level interface for loading and visualizing astronomical image data.
+Figure captions should be \emph{below} the figure itself, therefore the
+\verb|\caption|  command should appear after the figure or space left for
+an illustration. For example, Figure 1 is produced using the following
+commands:
 
-\clearpage
-\emph{The AstroImages.jl package.}
-The aim of \verb|AstroImages.jl| is to tie together relevant utility packages from the Julia ecosystem to facilitate the loading, manipulation, analysis, and visualization of astronomical data.
-
-\verb|AstroImages.jl| is registered with \verb|FileIO.jl| so that images and tables can be loaded from FITS files with the \verb|load| and \verb|save| functions.
-\begin{lstlisting}[language = Julia]
-using AstroImages
-img = load("jwst-carina.fits")
-\end{lstlisting}
-
-\vspace{-0.4cm}
-\begin{figure}[hbt!]
-\centerline{\includegraphics[width=\columnwidth]{carina.png}}
-\caption{AstroImage automatically rendered as a PNG. Image of the Carina nebula from JWST commisioning data (NASA, ESA, and CSA).}
-  \label{fig:jwst-carina}
+\begin{verbatim}
+\begin{figure}
+\centerline{\includegraphics[width=20pc]{Graphics.eps}}
+\caption{An example of the testing process for a
+binary tree. The globa null hypothesis is tested
+first at level $\alpha$ (a), and the level of
+individual variables is reached last (d). Note
+that individual hypotheses can be tested at
+level $\alpha/4$ and not $\alpha/8$ as one might
+expect at first.}
+\label{sample-figure_2}
 \end{figure}
-\FloatBarrier 
+\end{verbatim}
+Figures can be resized using first and second argument of
+\verb|\includegraphics|   command. First argument is used for modifying
+figure height and the second argument is used for modifying
+figure width respectively.
+\vskip 6pt
+Cross-referencing of figures, tables, and numbered, displayed
+equations using the \verb|\label|  and \verb|\ref|   commands is encouraged.
+For example, in referencing Figure 1 above, we used
+\verb|Figure~\ref{sample-figure}|
 
-By default, this will load the first image HDU from the file. If a different HDU or a table HDU is desired, the HDU number can be passed explicitly as a second argument.
-Multiple HDUs can be loaded at once by passing a tuple of HDU numbers or \verb|:|. 
-% As we will see, this command will also automtically display a downscaled version of the image HDU if it is two dimensional and the user's interactive prompt supports rich output.
+ \subsection{Tables}
+\label{subsub:sec_Tab}
+The \verb|juliacon|   class file will cope with most of the positioning of
+your tables and you should not normally use the optional positional qualifiers on the table environment which would override these
+decisions. Table captions should be at the top.
+\begin{verbatim}
+\begin{table}
+\tbl{Tuning Set and Testing Set}{
+\begin{tabular}{|l|l|c|c|}\hline
+Label & \multicolumn{1}{c|}{Description}
+& Number of Users &
+Number of Queries\\\hline
+Train70 & Training Data &
+\smash{\raise-7pt\hbox{70}} & 104\\
+\cline{1-2}\cline{4-4}
+Test70 & Testing Data I & & 105\\\hline
+Test30 & Testing Data II & 30 & 119\\\hline
+& Total & 100 & 328\\\hline
+\end{tabular}}
+\end{table}
+\end{verbatim}
 
-The values returned from \verb|load| are \verb|AstroImage| objects which combine a parent array, a FITS header, and implements the \verb|DimensionalData| \verb|AbstractDimArray| interface.
-Any array type can be wrapped in an \verb|AstroImage| by passing it to the contructor.
+\begin{table}
+\tbl{Tuning Set and Testing Set}{
+\begin{tabular}{|l|l|c|c|}\hline
+Label & \multicolumn{1}{c|}{Description}
+& Number of Users &
+Number of Queries\\\hline
+Test 1 & Training Data &
+\smash{\raise-7pt\hbox{70}} & 104\\
+\cline{1-2}\cline{4-4}
+Test 2 & Testing Data I & & 105\\\hline
+Test 3 & Testing Data II & 30 & 119\\\hline
+& Total & 100 & 328\\\hline
+\end{tabular}}
+\end{table}
+\subsection{Landscaping Pages}
+\label{subsub:landscaping_pages}
+If a table is too wide to fit the standard measure, it may be turned,
+with its caption, to 90 degrees. Landscape tables cannot be produced
+directly using the \verb|juliacon|   class file because \TeX{} itself cannot
+turn the page, and not all device drivers provide such a facility.
+The following procedure can be used to produce such pages.
+\vskip 6pt
+Use the package \verb|rotating|   in your document and change the coding
+from
+\begin{verbatim}
+\begin{table}...\end{table}
+to
+\begin{sidewaystable}...\end{sidewaystable}
+and for figures
+\begin{figure}...\end{figure}
+to
+\begin{sidewaysfigure}...\end{sidewaysfigure}
+\end{verbatim}
 
-By implementing the \verb|AbstractDimArray| interface, the dimensions of each axis of the array can be named and paired with coordinates to enable concise indexing of multi-dimensional cubes.
+environments in your document to turn your table on the appropriate
+page of your document. For instance, the following code prints
+a page with the running head, a message half way down and the
+table number towards the bottom.
+\begin{verbatim}
+\begin{sidewaystable}
+\tbl{Landscape table caption to go here.}{...}
+\label{landtab}
+\end{sidewaystable}
+\end{verbatim}
 
-Once loaded, the user should be able to pass the AstroImage through any analysis code that accepts an AbstractArray. Indexing and slicing are tracked using \verb|DimensionalData.jl| so that pixel locations in the originating parent data cube are recoverable.
+\subsection{Double Column Figure and Tables}
+\label{subsub:double_fig_tab}
+For generating the output of figures and tables in double column
+we can use the following coding:
 
-FITS header keys can be accessed by indexing the image with a string key, the \verb|Comment| type, and or the \verb|History| type to read and write to the header. \verb|WCS.jl| \verb|Transformation| objects can be generated using the \verb|wcs(img, wcsnum)| function and are cached unless/until the user modifies a relevant header field.
+\begin{enumerate}
+\item For Figures:
+\begin{verbatim}
+\begin{figure*}...\end{figure*}
+\end{verbatim}
+\item For landscape figures:
+\begin{verbatim}
+\begin{sidewaysfigure*}...\end{sidewaysfigure*}
+\end{verbatim}
+\item For Tables:
+\begin{verbatim}
+\begin{table*}...\end{table*}
+\end{verbatim}
+\item For landscape tables:
+\begin{verbatim}
+\begin{sidewaystable*}...\end{sidewaystable*}
+\end{verbatim}
+\end{enumerate}
 
-Finally, when the user wishes to display an \verb|AstroImage|, they may use either 
-\verb|imview| to create a lazy mapping to RGB data or the \verb|implot| Plots.jl recipe. 
-\verb|imview| accepts keyword arguments for controlling the image stretching, colour limits, colour scheme, bias, and contrast:
+\subsection{Typesetting Mathematics}
+\label{subsub:type_math}
+The \verb|juliacon| class file will set displayed mathematics with center to
+the column width, provided that you use the \LaTeXe{} standard of
+open and closed square brackets as delimiters.
+The equation
+\[
+\sum_{i=1}^p \lambda_i = (S)
+\]
 
-\begin{lstlisting}[language = Julia]
-imview(img; clims=Percent(95), cmap=:magma,
-    stretch=asinhstretch, contrast=1.2, bias=0.4)
-\end{lstlisting}
+was typeset using the acmtog class file with the commands
 
-\verb|imview| is also called automatically with configurable default values whenever an \verb|AstroImage| is displayed.
-In this case, the output is automatically downscaled to a reasonable size using \verb|ImageTransformations.restrict|.
-For example, all that's needed to display a 2D image HDU from a FITS file is to type \verb|load("filename.fits")| at an interactive prompt provided that prompt supports rich outputs.
+\begin{verbatim}
+\[
+\sum_{i=1}^p \lambda_i = (S)
+\]
+\end{verbatim}
 
-The \verb|implot| Plots.jl recipe supports additional functionality. It uses \verb|imview| to first render the image and then uses Plots.jl to present an image series.
-
-The plot recipe automatically applies WCS grid lines (which may be arbitrarily tilted and warped) and labels the axes with their coordinate types. It also creates a custom colour bar labelled with ticks at the correct, possibly non-linear spacing caused by chosen stretch.
-When applied to slices of multi-dimensional cubes, \verb|implot| further titles the plot with the slice's location along the other axes.
-
-\begin{lstlisting}[language = Julia]
-using AstroImages, Plots
-HIcube = load("HIdat.fits")
-slice = HIcube[Z=228]
-implot(slice; cmap=:turbo, stretch=asinh)
-\end{lstlisting}
-\vspace{-0.5cm}
-\begin{figure}[hbt!]
-    \centerline{\includegraphics[width=\columnwidth]{hidatplot.pdf}}
-    \caption{implot augments an image with world coordinates and automatically labelled axes, titles, and colourbar. Image is a slice through galactic latitude, longitude, and velocity space of neutral Hydrogen density (HI4PI survey \cite{2016A&A...594A.116H}).}
-      \label{fig:cube-slice}
-\end{figure}
-\FloatBarrier 
-
-\verb|AstroImages.jl| is a complete, high-level package for working with astronomical data in Julia.
+For display equations, cross-referencing is encouraged. For example,
+\begin{verbatim}
+\begin{equation}
+(n-1)^{-1} \sum^n_{i=1} (X_i - \overline{X})^2.
+\label{eq:samplevar}
+\end{equation}
+Equation~(\ref{eq:samplevar}) gives the formula for
+sample variance.
+\end{verbatim}
+The following output is generated with the above coding:
+\begin{equation}
+(n-1)^{-1} \sum^n_{i=1} (X_i - \overline{X})^2.
+\label{eq:samplevar}
+\end{equation}
+Equation~(\ref{eq:samplevar}) gives the formula for
+sample variance.
 
 
+\subsection{Enunciations}
+\label{subsub:enunciation}
+The \verb|juliacon|   class file generates the enunciations with the help of
+the following commands:
+\begin{verbatim}
+\begin{theorem}...\end{theorem}
+\begin{strategy}...\end{strategy}
+\begin{property}...\end{property}
+\begin{proposition}...\end{proposition}
+\begin{lemma}...\end{lemma}
+\begin{example}...\end{example}
+\begin{proof}...\end{proof}
+\begin{definition}...\end{definition}
+\begin{algorithm}...\end{algorithm}
+\begin{remark}...\end{remark}
+\end{verbatim}
+The above-mentioned coding can also include optional arguments
+such as
+\begin{verbatim}
+\begin{theorem}[...]. Example for theorem:
+\begin{theorem}[Generalized Poincare Conjecture]
+Four score and seven ... created equal.
+\end{theorem}
+\end{verbatim}
+
+\begin{theorem}[Generalized Poincare Conjecture]
+Four score and seven years ago our fathers brought forth,
+upon this continent, a new nation, conceived in Liberty,
+ and dedicated to the proposition that all men are
+created equal.
+\end{theorem}
+
+
+\subsection{Extract}
+\label{subsub:extract}
+Extract environment should be coded within
+\begin{verbatim}
+\begin{extract}..\end{extract}
+\end{verbatim}
+
+\subsection{Balancing column at last page}
+\label{subsub:Balance}
+For balancing the both column length at last page use :
+\begin{verbatim}
+\vadjust{\vfill\pagebreak}
+\end{verbatim}
+
+%\vadjust{\vfill\pagebreak}
+
+at appropriate place in your \TeX{} file or in bibliography file.
+
+\section{Handling references}
+\label{subsub:references}
+References are most easily (and correctly) generated using the
+BIBTEX, which is easily invoked via
+\begin{verbatim}
+\bibliographystyle{juliacon}
+\bibliography{ref}
+\end{verbatim}
+When submitting the document source (.tex) file to external
+parties, the ref.bib file should be sent with it.
+\cite{bezanson2017julia}
 
 \input{bib.tex}
 
