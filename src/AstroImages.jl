@@ -417,6 +417,10 @@ Base.setindex!(img::AstroImage, v,  ind::AbstractString, ::Type{Comment}) = set_
 Base.getindex(img::AstroImage, ind::Symbol, ::Type{Comment}) = get_comment(header(img), string(ind)) # accessing header comment using symbol
 Base.setindex!(img::AstroImage,  v, ind::Symbol, ::Type{Comment}) = set_comment!(header(img), string(ind), v) # modifying header comment using Symbol
 
+# Ambiguity fixes for 0-dimensional AstroImages
+Base.getindex(img::AstroImage) = getindex(parent(img))
+Base.setindex!(img::AstroImage, v) = setindex!(parent(img),v)
+
 # Support for special HISTORY and COMMENT entries
 function Base.getindex(img::AstroImage, ::Type{History})
     hdr = header(img)
