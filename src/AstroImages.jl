@@ -161,6 +161,17 @@ abstract array.
 header(::AbstractArray) = emptyheader()
 
 """
+    haskey(img::AstroImage, key::String)
+    haskey(img::AstroImage, key::Symbol)
+
+Check if an image has a given header key.
+"""
+Base.haskey(img::AstroImage, key::String) = haskey(header(img), key)
+Base.haskey(img::AstroImage, key::Symbol) = haskey(header(img), String(key))
+
+
+
+"""
     wcs(img)
 
 Computes and returns a list of World Coordinate System WCSTransform objects from WCS.jl.
