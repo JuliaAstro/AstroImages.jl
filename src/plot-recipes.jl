@@ -38,7 +38,11 @@
     # Use package defaults if not user provided.
     clims   = get(plotattributes, :clims, _default_clims[])
     stretch = get(plotattributes, :stretch, _default_stretch[])
-    cmap    = get(plotattributes, :cmap, _default_cmap[])
+    # cmap now gets normalized to `seriescolor` where it didn't previously
+    # Check for both.
+    cmap    = get(plotattributes, :seriescolor, _default_cmap[])
+    cmap    = get(plotattributes, :cmap, cmap)
+
     # Plotly is now failing if the user passes through a function as a keyword value
     # even if that function is only used by the recipe. Guard against this.
     if haskey(plotattributes, :clims)
