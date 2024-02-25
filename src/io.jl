@@ -155,7 +155,9 @@ function writefits(fname, args...)
         end
     end
 end
-writearg(fits, img::AstroImage) = write(fits, parent(img), header=header(img))
+parent_recurse(img::AbstractArray) = img
+parent_recurse(img::AstroImage) = parent_recurse(parent(img))
+writearg(fits, img::AstroImage) = write(fits, parent_recurse(img), header=header(img))
 # Fallback for writing plain arrays
 writearg(fits, arr::AbstractArray) = write(fits, arr)
 # For table compatible data.
