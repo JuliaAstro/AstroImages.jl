@@ -413,6 +413,7 @@ struct History end
 # end
 
 # Getting and setting comments
+const HeaderValUnion = Union{Float64,String,Nothing,Int64}
 Base.getindex(img::AstroImage, inds::AbstractString...) = getindex(header(img), inds...) # accesing header using strings
 function Base.setindex!(img::AstroImage, v, ind::AbstractString)  # modifying header using a string
     setindex!(header(img), v, ind)
@@ -421,7 +422,7 @@ function Base.setindex!(img::AstroImage, v, ind::AbstractString)  # modifying he
         getfield(img, :wcs_stale)[] = true
     end
 end
-Base.getindex(img::AstroImage, inds::Symbol...) = getindex(img, string.(inds)...) # accessing header using symbol
+Base.getindex(img::AstroImage, inds::Symbol...) = getindex(img, string.(inds)...)::HeaderValUnion # accessing header using symbol
 Base.setindex!(img::AstroImage, v, ind::Symbol) = setindex!(img, v, string(ind))
 Base.getindex(img::AstroImage, ind::AbstractString, ::Type{Comment}) = get_comment(header(img), ind) # accesing header comment using strings
 Base.setindex!(img::AstroImage, v,  ind::AbstractString, ::Type{Comment}) = set_comment!(header(img), ind, v) # modifying header comment using strings
