@@ -9,7 +9,7 @@ FileIO will import AstroImages automatically.
 Alternatively, you can use the `AstroImage` contructor instead of load. This will work on fits files with any file extension, including compressed
 files (e.g. ".fits.gz").
 
-```julia
+```julia-repl
 julia> img = load("myfitsimg.fits")
 1600×1600 AstroImage{Float32,2} with dimensions:
   X Sampled Base.OneTo(1600) ForwardOrdered Regular Points,
@@ -29,7 +29,7 @@ rendered to images and displayed. You can see this plain text output by explicit
 `show(stdout, MIME("text/plain"), img)`.
 
 Or:
-```julia
+```julia-repl
  julia> img = AstroImage("myfitsimg.fits.gz")
 1600×1600 AstroImage{Float32,2} with dimensions:
   X Sampled Base.OneTo(1600) ForwardOrdered Regular Points,
@@ -49,7 +49,7 @@ When you call load or AstroImage with a file name and no other arguments, the pa
 and return the first image HDU. That is, it will skip any FITS tables or empty HDUs with only headers.
 
 You can also specify an HDU number explicitly:
-```julia
+```julia-repl
 julia> img = load("myfitsimg.fits",1)
 1600×1600 AstroImage{Float32,2} with dimensions:
   X Sampled Base.OneTo(1600) ForwardOrdered Regular Points,
@@ -60,7 +60,7 @@ This way, you can load specific images from multi-extension files.
 
 You can load all HDUs simultaneously by passing `:`:
 
-```julia
+```julia-repl
 julia> hdus = load("multiext.fits", :);
 julia> hdus[2] # Second HDU as an AstroImage
 10×10 AstroImage{Float64,2} with dimensions:
@@ -95,8 +95,8 @@ AstroImages are based on [Dimensional Data](https://github.com/rafaqz/Dimensiona
 and the indices are tracked.
 The automatic dimension names are `X`, `Y`, `Z`, `Dim{4}`, `Dim{5}`, and so on; however you can pass in other names or orders to the load function and/or AstroImage contructor:
 
-```julia
-julia> img = load("img.fits",1,(Y=1:1600,Z=1:1600))
+```julia-repl
+julia> img = load("img.fits", 1, (Y=1:1600,Z=1:1600))
 1600×1600 AstroImage{Float32,2} with dimensions:
   Y Sampled 1:1600 ForwardOrdered Regular Points,
   Z Sampled 1:1600 ForwardOrdered Regular Points
@@ -109,17 +109,17 @@ These will be further discussed in Dimensions and World Coordinates.
 ## Saving Images
 You can save one or more AstroImages and tables to a FITS file using the `save` function:
 
-```julia
+```julia-repl
 julia> save("abc.fits", astroimage1, astroimage2, table1)
 ```
 
 You can also save individual images to traditional graphics formats by first rendering them with `imview` (for more on imview, see Displaying Images).
-```julia
+```julia-repl
 julia> save("abc.png", imview(astroimage1))
 ```
 
 You can save animated GIFs by saving a 3D datacube that has been rendered with imview:
-```julia
+```julia-repl
 julia> cube =  imview(AstroImage(randn(100,100,10)));
 julia> save("abc.gif", cube, fps=10)
 
