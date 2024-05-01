@@ -86,6 +86,9 @@ plot(
 World coordinate queries from that slice are aware of their position in the parent image:
 ```@example coords
 @show pix_to_world(slice1, [1,1])
+```
+
+```@example coords
 @show pix_to_world(slice2, [1,1])
 ```
 
@@ -100,15 +103,15 @@ Each dimension of an AstroImage is named.
 The automatic dimension names are `X`, `Y`, `Z`, `Dim{4}`, `Dim{5}`, and so on; however you can pass in other names or orders to the load function and/or AstroImage contructor:
 
 
-```julia
-julia> img = load("eagle-656nmos.fits",1,(Y,Z))
+```julia-repl
+julia> img = load("eagle-656nmos.fits", 1, (Y,Z))
 1600×1600 AstroImage{Float32,2} with dimensions:
   Y Sampled 1:1600 ForwardOrdered Regular Points,
   Z Sampled 1:1600 ForwardOrdered Regular Points
 ```
 Other useful dimension names are `Spec` for spectral axes, `Pol` for polarization data, and `Ti` for time axes.
-These are tracked the same was as the automatic dimension names and interact smoothly with any WCS headers.
-You can give an arbitrary name using as a `Dim{Symbol}`, e.g. `Dim{:Velocity}`.
+These are tracked the same way as the automatic dimension names and interact smoothly with any WCS headers.
+You can give a dimension an arbitrary name using `Dim{Symbol}`, e.g., `Dim{:Velocity}`.
 
 You can access AstroImages using dimension names:
 ```@example coords
@@ -161,7 +164,7 @@ implot(HIcube[Y=45],  cmap=:turbo, aspectratio=0.3)
 
 ## Custom Dimensions
 
-```julia
+```julia-repl
 julia> img = load("img.fits",1,(Y=1:1600,Z=1:1600))
 1600×1600 AstroImage{Float32,2} with dimensions:
   Y Sampled 1:1600 ForwardOrdered Regular Points,
@@ -173,7 +176,7 @@ These are tracked the same was as the automatic dimension names and interact smo
 Often times we have images or cubes that we want to index with physical coordinates where setting up a full WCS transform is overkill. In these cases, it's easier to leverage custom dimensions.
 
 For example, one may wish to 
-```julia
+```julia-repl
 julia> img = load("img.fits",1,(X=801:2400,Y=1:2:3200))
 1600×1600 AstroImage{Float32,2} with dimensions:
   X Sampled 801:2400 ForwardOrdered Regular Points,
@@ -183,7 +186,7 @@ julia> img = load("img.fits",1,(X=801:2400,Y=1:2:3200))
 
 Unlike OffsetArrays, the usual indexing remains so `img[1,1]` is still the bottom left of the image;
 however, data can be looked up according to the offset dimensions using specifiers:
-```julia
+```julia-repl
 julia> img[X=Near(2000),Y=1..100]
 50-element AstroImage{Float32,1} with dimensions:
   Y Sampled 1:2:99 ForwardOrdered Regular Points
@@ -198,7 +201,7 @@ You can adjust the center of an image's dimensions using [`recenter`](@ref recen
 eagle_cen = recenter(eagle, 801, 801);
 ```
 
-Unlike an OffsetArray, `eagle_cen[1,1]` still refers to the bottom left of the image. This also has no effect on broadcasting, `eagle_cen .+ ones(1600,1600)` is perfectly valid.
+Unlike an OffsetArray, `eagle_cen[1,1]` still refers to the bottom left of the image. This also has no effect on broadcasting; `eagle_cen .+ ones(1600,1600)` is perfectly valid.
 However, we see the new centered dimensions when we go to plot the image:
 ```@example coords
 implot(eagle_cen, wcsticks=false)
