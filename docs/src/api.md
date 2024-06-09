@@ -5,6 +5,7 @@
 
 load
 save
+query
 
 AstroImage
 imview
@@ -40,4 +41,5 @@ sinhstretch
 powerdiststretch
 copyheader
 shareheader
+recenter
 ```
