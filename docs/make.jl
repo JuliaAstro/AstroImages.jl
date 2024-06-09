@@ -2,7 +2,16 @@ using Documenter, AstroImages
 
 # Deps for examples
 ENV["GKSwstype"] = "nul"
-using Plots, Photometry, ImageTransformations, ImageFiltering, WCS, Reproject, Images, FileIO, DimensionalData
+
+using Photometry, Reproject, Images
+
+requiredmods = Symbol[
+    # :Photometry, :Reproject, :Images
+    :Images, :FileIO, :DimensionalData, :ImageTransformations, :ImageFiltering, :WCS, :Plots
+]
+for mod in requiredmods
+    eval(:(using $mod))
+end
 
 setup = quote
     using AstroImages
@@ -27,7 +36,7 @@ makedocs(
     workdir = "..",
 
     # Specify several modules since we want to include docstrings from functions we've extended
-    modules= [eval(:(using $mod;$mod)) for mod in requiredmods],#[AstroImages, Images, FileIO, DimensionalData, WCS],
+    modules = [eval(mod) for mod in requiredmods],#[AstroImages, Images, FileIO, DimensionalData, WCS],
 
     # However we have to turnoff doctests since otherwise a failing test in
     # those other packages (e.g. caused by us not setting up their test

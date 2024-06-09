@@ -23,8 +23,3 @@ pages = [
     ],
     "API" => "api.md",
 ]
-
-requiredmods = Symbol[
-#     # :Photometry, :ImageTransformations, :ImageFiltering, :WCS, :Reproject, :Images, :FileIO,
-    :Images, :FileIO, :DimensionalData, :ImageTransformations, :ImageFiltering, :WCS, :Plots
-]
