@@ -46,6 +46,14 @@ makedocs(
 
     # We still want strict on though since we want to catch typos.
     # strict=true  # will change to false once DimensionalData registers 0.20.8
+
+    warnonly = [
+        # some docstrings from foreign packages may link to other functions in
+        # that package
+        :cross_references,
+        # we don't want to display *all* docstrings from FileIO, e.g.
+        :missing_docs
+    ],
 )
 
 
