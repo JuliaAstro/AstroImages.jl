@@ -2,7 +2,7 @@
 
 The following examples are adapted from [Photometry.jl](https://github.com/JuliaAstro/Photometry.jl/) to show the same examples
 combined with AstroImages.jl.
-To learn how to measure background levels, perform aperture photometry, etc see the [Photometry.jl documentation](https://juliaastro.github.io/Photometry.jl/dev/).
+To learn how to measure background levels, perform aperture photometry, etc see the [Photometry.jl documentation](https://juliaastro.org/Photometry.jl/dev/).
 
 
 ## Background Estimation
