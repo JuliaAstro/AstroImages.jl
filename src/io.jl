@@ -1,6 +1,6 @@
 
 """
-AstroImage(fits::FITS, ext::Int=1)
+    AstroImage(fits::FITS, ext::Int=1)
 
 Given an open FITS file from the FITSIO library,
 load the HDU number `ext` as an AstroImage.
@@ -8,14 +8,14 @@ load the HDU number `ext` as an AstroImage.
 AstroImage(fits::FITS, ext::Int=1, args...; kwargs...) = AstroImage(fits[ext], args...; kwargs...)
 
 """
-AstroImage(hdu::HDU)
+    AstroImage(hdu::HDU)
 
 Given an open FITS HDU, load it as an AstroImage.
 """
 AstroImage(hdu::HDU, args...; kwargs...) = AstroImage(read(hdu), args..., read_header(hdu); kwargs...)
 
 """
-img = AstroImage(filename::AbstractString, ext::Integer=1)
+    img = AstroImage(filename::AbstractString, ext::Integer=1)
 
 Load an image HDU `ext` from the  FITS file at `filename` as an AstroImage.
 """
@@ -25,7 +25,7 @@ function AstroImage(filename::AbstractString, ext::Integer, args...; kwargs...)
     end
 end
 """
-img1, img2 = AstroImage(filename::AbstractString, exts)
+    img1, img2 = AstroImage(filename::AbstractString, exts)
 
 Load multiple image HDUs `exts` from an FITS file at `filename` as an AstroImage.
 `exts` must be a tuple, range, :, or array of Integers.
@@ -38,7 +38,11 @@ imgs = AstroImage("abc.fits", 1:3) # loads the first three HDUs as images.
 imgs = AstroImage("abc.fits", :) # loads all HDUs as images.
 ```
 """
-function AstroImage(filename::AbstractString, exts::Union{NTuple{N,<:Integer},AbstractArray{<:Integer}}, args...; kwargs...) where {N}
+function AstroImage(
+        filename::AbstractString,
+        exts::Union{NTuple{N,<:Integer}, AbstractArray{<:Integer}},
+        args...;
+        kwargs...) where {N}
     return FITS(filename, "r") do fits
         return map(exts) do ext
             return AstroImage(fits[ext], args...; kwargs...)
@@ -61,23 +65,23 @@ end
 
 
 """
-load(fitsfile::String)
+    load(fitsfile::String)
 
 Read and return the data from the first ImageHDU in a FITS file
 as an AstroImage. If no ImageHDUs are present, an error is returned.
 
-load(fitsfile::String, ext::Int)
+    load(fitsfile::String, ext::Int)
 
 Read and return the data from the HDU `ext`. If it is an ImageHDU,
 as AstroImage is returned. If it is a TableHDU, a plain Julia
 column table is returned.
 
-load(fitsfile::String, :)
+    load(fitsfile::String, :)
 
 Read and return the data from each HDU in an FITS file. ImageHDUs are
 returned as AstroImage, and TableHDUs are returned as column tables.
 
-load(fitsfile::String, exts::Union{NTuple, AbstractArray})
+    load(fitsfile::String, exts::Union{NTuple, AbstractArray})
 
 Read and return the data from the HDUs given by `exts`. ImageHDUs are
 returned as AstroImage, and TableHDUs are returned as column tables.
@@ -141,12 +145,13 @@ indexer(fits::NTuple{N,FITS}) where {N} = ntuple(i -> indexer(fits[i]), N)
 function fileio_save(f::File{format"FITS"}, args...)
     return writefits(f.filename, args...)
 end
+
 """
     writefits("abc.fits", img1, img2, table1,...)
 
 Write arguments to a FITS file.
 
-See also `Fileio.save`
+See also [`FileIO.save`](@ref)
 """
 function writefits(fname, args...)
     FITS(fname, "w") do fits
@@ -161,7 +166,7 @@ writearg(fits, img::AstroImage) = write(fits, parent_recurse(img), header=header
 # Fallback for writing plain arrays
 writearg(fits, arr::AbstractArray) = write(fits, arr)
 # For table compatible data.
-# This allows users to round trip: dat = load("abc.fits", :); write("abc", dat) 
+# This allows users to round trip: dat = load("abc.fits", :); write("abc", dat)
 # when it contains FITS tables.
 function writearg(fits, table)
     if !Tables.istable(table)

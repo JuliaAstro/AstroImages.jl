@@ -9,7 +9,9 @@ To learn how to measure background levels, perform aperture photometry, etc see 
 
 From Photometry.jl:
 > Estimating backgrounds is an important step in performing photometry. Ideally, we could perfectly describe the background with a scalar value or with some distribution. Unfortunately, it's impossible for us to precisely separate the background and foreground signals. Here, we use mixture of robust statistical estimators and meshing to let us get the spatially varying background from an astronomical photo.
+>
 > Let's show an example
+> [...]
 > Now let's try and estimate the background using estimate_background. First, we'll si gma-clip to try and remove the signals from the stars. Then, the background is broken down into boxes, in this case of size (50, 50). Within each box, the given statistical estimators get the background value and RMS. By default, we use SourceExtractorBackground and StdRMS. This creates a low-resolution image, which we then need to resize. We can accomplish this using an interpolator, by default a cubic-spline interpolator via ZoomInterpolator. The end result is a smooth estimate of the spatially varying background and background RMS.
 
 ```@setup phot
@@ -58,7 +60,7 @@ plot(
 ![](/assets/manual-photometry-2.png)
 
 
-> We could apply a median filter, too, by specifying filter_size
+> We could apply a median filter, too, by specifying `filter_size`
 ```@example phot
 # get background and background rms with box-size (50, 50) and filter_size (5, 5)
 bkg_f, bkg_rms_f = estimate_background(clipped, 50, filter_size=5)
@@ -101,16 +103,16 @@ aps = CircularAperture.(sources.x, sources.y, 6)[1:1000] # just brightest thousa
 We can overplot them on our original image. The coordinate sytem used by the Photometry.jl plot recipes (but not the actual return values) doesn't match AstroImages, so we must transpose our image:
 ```@example phot
 implot(subt', colorbar=false)
-plot!(aps) 
+plot!(aps)
 ```
 
 ## Measuring Photometry
-Finally we can extract the source photometry 
+Finally we can extract the source photometry
 ```@example phot
 table = photometry(aps, subt)
 ```
 
-And plot them: 
+And plot them:
 ```@example phot
 scatter(
     table.xcenter,

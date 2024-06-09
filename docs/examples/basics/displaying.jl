@@ -35,16 +35,14 @@ imview(img, clims=extrema)
 # `Percent` sets the limits to include some central percentage of the data range
 # For example, 95% sets the color limits to clip the top and bottom 2.5% of pixels.
 # Percent(99.5) is the default value of clims.
-imview(img, clims=Percent(95)) 
-
-
+imview(img, clims=Percent(95))
 
 
 # Arrays wrapped by `AstroImage` are displayed automatically using `imview`
 AstroImage(randn(10,10))
 
-# The settings for automatic imview are controlled using package defaults that can 
-# be adjusted to suit your tastes
+# The settings for automatic imview are controlled using package defaults that
+# can be adjusted to suit your tastes
 AstroImages.set_clims!(Zscale()) # Display the full range automatically
 AstroImages.set_cmap!(:viridis)
 AstroImages.set_stretch!(asinhstretch)

@@ -81,7 +81,9 @@ end
 
 
 """
-Provides access to a FITS image along with its accompanying 
+    AstroImage
+
+Provides access to a FITS image along with its accompanying
 header and WCS information, if applicable.
 """
 struct AstroImage{T,N,D<:Tuple,R<:Tuple,A<:AbstractArray{T,N},W<:Tuple} <: AbstractDimArray{T,N,D,A}
@@ -199,14 +201,14 @@ each time rather than keeping the WCSTransform object around.
 """
 wcs(img, ind) = wcs(img)[ind]
 """
-wcs(array)
+    wcs(array)
 
 Returns a list with a single basic WCSTransform object when called with a non-AstroImage
 abstract array.
 """
 wcs(arr::AbstractArray) = [emptywcs(arr)]
 
-# Implement DimensionalData interface 
+# Implement DimensionalData interface
 Base.parent(img::AstroImage) = getfield(img, :data)
 DimensionalData.dims(A::AstroImage) = getfield(A, :dims)
 DimensionalData.refdims(A::AstroImage) = getfield(A, :refdims)
@@ -231,7 +233,7 @@ DimensionalData.metadata(::AstroImage) = DimensionalData.Dimensions.LookupArrays
 )
     return AstroImage(data, dims, refdims, header, wcs, Ref(wcs_stale), wcsdims)
 end
-# Keyword argument version. 
+# Keyword argument version.
 # We have to define this since our struct contains additional field names.
 # We can't use the automatic version from ConstructionBase.
 @inline function DimensionalData.rebuild(
@@ -289,7 +291,7 @@ AstroImage(img::AstroImage) = img
 """
     AstroImage(data::AbstractArray, [header::FITSHeader,] [wcs::WCSTransform,])
 
-Create an AstroImage from an array, and optionally header or header and a 
+Create an AstroImage from an array, and optionally header or header and a
 WCSTransform.
 """
 function AstroImage(
@@ -386,13 +388,13 @@ Index for accessing a comment associated with a header keyword
 or COMMENT entry.
 
 Example:
-```
+```julia
 img = AstroImage(randn(10,10))
 img["ABC"] = 1
 img["ABC", Comment] = "A comment describing this key"
 
 push!(img, Comment, "The purpose of this file is to demonstrate comments")
-img[Comment] # ["The purpose of this file is to demonstrate comments")]
+img[Comment] # ["The purpose of this file is to demonstrate comments"]
 ```
 """
 struct Comment end
@@ -400,9 +402,11 @@ struct Comment end
 """
 Allows accessing and setting HISTORY header entries
 
+```julia
 img = AstroImage(randn(10,10))
 push!(img, History, "2023-04-19: Added history entry.")
 img[History] # ["2023-04-19: Added history entry."]
+```
 """
 struct History end
 
@@ -460,25 +464,36 @@ end
 
 """
     copyheader(img::AstroImage, data) -> imgnew
+
 Create a new image copying the header of `img` but
 using the data of the AbstractArray `data`. Note that changing the
 header of `imgnew` does not affect the header of `img`.
 See also: [`shareheader`](@ref).
 """
 copyheader(img::AstroImage, data::AbstractArray) =
-    AstroImage(data, dims(img), refdims(img), deepcopy(header(img)), copy(getfield(img, :wcs)), Ref(getfield(img, :wcs_stale)[]), getfield(img,:wcsdims))
+    AstroImage(data, dims(img), refdims(img), deepcopy(header(img)),
+               copy(getfield(img, :wcs)), Ref(getfield(img, :wcs_stale)[]),
+               getfield(img,:wcsdims))
 copyheader(img::AstroImage, data::AstroImage) =
-    AstroImage(data, dims(data), refdims(data), deepcopy(header(img)), copy(getfield(img, :wcs)), Ref(getfield(img, :wcs_stale)[]), getfield(img,:wcsdims))
+    AstroImage(data, dims(data), refdims(data), deepcopy(header(img)),
+               copy(getfield(img, :wcs)), Ref(getfield(img, :wcs_stale)[]),
+               getfield(img,:wcsdims))
 
 """
     shareheader(img::AstroImage, data) -> imgnew
+
 Create a new image reusing the header dictionary of `img` but
 using the data of the AbstractArray `data`. The two images have
 synchronized header; modifying one also affects the other.
 See also: [`copyheader`](@ref).
-""" 
-shareheader(img::AstroImage, data::AbstractArray) = AstroImage(data, dims(img), refdims(img), header(img), getfield(img, :wcs), Ref(getfield(img, :wcs_stale)[]), getfield(img,:wcsdims))
-shareheader(img::AstroImage, data::AstroImage) = AstroImage(data, dims(data), refdims(data), header(img), getfield(img, :wcs), Ref(getfield(img, :wcs_stale)[]), getfield(img,:wcsdims))
+"""
+shareheader(img::AstroImage, data::AbstractArray) =
+    AstroImage(data, dims(img), refdims(img), header(img), getfield(img, :wcs),
+               Ref(getfield(img, :wcs_stale)[]), getfield(img,:wcsdims))
+shareheader(img::AstroImage, data::AstroImage) =
+    AstroImage(data, dims(data), refdims(data), header(img), getfield(img, :wcs),
+               Ref(getfield(img, :wcs_stale)[]), getfield(img,:wcsdims))
+
 # Share header if an AstroImage, do nothing if AbstractArray
 maybe_shareheader(img::AstroImage, data) = shareheader(img, data)
 maybe_shareheader(::AbstractArray, data) = data
@@ -510,12 +525,14 @@ emptyheader() = FITSHeader(String[],[],String[])
 
 
 """
-	recenter(img::AstroImage)
-	recenter(img::AstroImage, newcentx, newcenty, ...)
+    recenter(img::AstroImage)
+    recenter(img::AstroImage, newcentx, newcenty, ...)
 
-Adjust the dimensions of an AstroImage so that they are centered on the pixel locations given by `newcentx`, .. etc.
-This does not affect the underlying array, it just updates the dimensions associated with it by the AstroImage.
-If no `newcent` arguments are provided, center the image in all dimensions to the middle pixel (or fractional pixel).
+Adjust the dimensions of an AstroImage so that they are centered on the pixel
+locations given by `newcentx`, .. etc.
+This does not affect the underlying array, it just updates the dimensions associated
+with it by the AstroImage. If no `newcent` arguments are provided, center the image
+in all dimensions to the middle pixel (or fractional pixel).
 
 Example:
 ```julia
@@ -537,12 +554,12 @@ function recenter(img::AstroImage, centers::Number...)
             return AstroImages.name(d) => a .- c
         end
     end
-	newdimsformatted = AstroImages.DimensionalData.format(NamedTuple(newdims), parent(img))
-	l = length(newdimsformatted)
-	if l < ndims(img)
-		newdimsformatted = (newdimsformatted..., dims(img)[l+1:end]...)
-	end
-	AstroImages.rebuild(img, parent(img), newdimsformatted)
+    newdimsformatted = AstroImages.DimensionalData.format(NamedTuple(newdims), parent(img))
+    l = length(newdimsformatted)
+    if l < ndims(img)
+        newdimsformatted = (newdimsformatted..., dims(img)[l+1:end]...)
+    end
+    AstroImages.rebuild(img, parent(img), newdimsformatted)
 end
 
 

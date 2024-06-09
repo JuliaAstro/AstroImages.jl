@@ -92,7 +92,7 @@ World coordinate queries from that slice are aware of their position in the pare
 @show pix_to_world(slice2, [1,1])
 ```
 
-Note  that you can query the dimensions of an image using the [`dims`](@red dims) function from DimensionalData:
+Note that you can query the dimensions of an image using the [`dims`](@ref dims) function from DimensionalData:
 ```@example coords
 dims(slice2)
 ```
@@ -175,7 +175,7 @@ These are tracked the same was as the automatic dimension names and interact smo
 
 Often times we have images or cubes that we want to index with physical coordinates where setting up a full WCS transform is overkill. In these cases, it's easier to leverage custom dimensions.
 
-For example, one may wish to 
+For example, one may wish to
 ```julia-repl
 julia> img = load("img.fits",1,(X=801:2400,Y=1:2:3200))
 1600×1600 AstroImage{Float32,2} with dimensions:

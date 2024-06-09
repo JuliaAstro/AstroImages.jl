@@ -178,7 +178,7 @@ end
             "Terrestrial North Latitude",
             "",
             "",
-            
+
             "",
             "",
             "",
@@ -221,7 +221,7 @@ end
     img[1] = 0
     @test imview(img, clims=(0,9)) == ivimg # Should have updated
     img[1] = 1
-        
+
     img_rendered_1 = imview(img, clims=(1,9), stretch=identity, contrast=1, bias=0.5, cmap=nothing)
 
     # Image Orientation
@@ -253,17 +253,17 @@ end
         img_rendered_5 = imview(arr1, clims=(1,9), stretch=stretchfunc, contrast=1, bias=0.5, cmap=nothing)
         @test extrema(Gray.(img_rendered_5)) == (0,1)
         manual_stretch = stretchfunc.(AstroImages.clampednormedview(arr1,(1,9)))
-        @test Gray.(img_rendered_5) ≈ 
+        @test Gray.(img_rendered_5) ≈
             N0f8.((manual_stretch.-minimum(manual_stretch)) ./
                 (maximum(manual_stretch)-minimum(manual_stretch)))'[end:-1:begin,:]
     end
 
-    # Contrast/Bias    
-    @test Gray.(imview(img, clims=extrema, stretch=identity, contrast=1, bias=0.6, cmap=nothing)) == 
+    # Contrast/Bias
+    @test Gray.(imview(img, clims=extrema, stretch=identity, contrast=1, bias=0.6, cmap=nothing)) ==
             N0f8.(clamp.(N0f8.(Gray.(img_rendered_1)) .- 0.1,false,true))
-    
+
     img_rendered_5 = imview(arr1, clims=(1,9), stretch=sqrtstretch, contrast=0.5, bias=0.5, cmap=nothing)
-    
+
     # Missing/NaN
     for m in (NaN, missing)
         arr2 = [
@@ -275,7 +275,7 @@ end
         @test imview(arr2)[2,2].alpha == 0
         @test 8 == count(img_rendered_1 .== imview(arr2, clims=(1,9), stretch=identity, contrast=1, bias=0.5, cmap=nothing))
     end
-    
+
     img_rendered_6 = imview([1, 2, NaN, missing, -Inf, Inf], clims=extrema)
     img_rendered_6b = imview([1, 2], clims=extrema)
 
@@ -307,9 +307,9 @@ end
         1  2  3
     ]
     @test reverse(img, dims=2) == [
-        3  2  1   
-        6  5  4   
-        9  8  7   
+        3  2  1
+        6  5  4
+        9  8  7
     ]
     @test reverse(img, dims=(1,2)) == [
         9  8  7
@@ -369,7 +369,7 @@ end
 #     @test img.data[1] == indata1
 #     @test img.data[2] == indata2
 #     @test img.data[3] == indata3
-#     @test WCS.to_header(img.wcs[1]) == WCS.to_header(img.wcs[2]) == 
+#     @test WCS.to_header(img.wcs[1]) == WCS.to_header(img.wcs[2]) ==
 #         WCS.to_header(img.wcs[3]) == WCS.to_header(WCS.from_header(read_header(f1[1], String))[1])
 #     @test eltype(eltype(img.data)) == Int
 
@@ -378,7 +378,7 @@ end
 #     @test img.data[1] == indata1
 #     @test img.data[2] == indata2
 #     @test img.data[3] == indata3
-#     @test WCS.to_header(img.wcs[1]) == WCS.to_header(img.wcs[2]) == 
+#     @test WCS.to_header(img.wcs[1]) == WCS.to_header(img.wcs[2]) ==
 #         WCS.to_header(img.wcs[3]) == WCS.to_header(WCS.from_header(read_header(f1[1], String))[1])
 #     @test eltype(eltype(img.data)) == Int
 #     close(f1)

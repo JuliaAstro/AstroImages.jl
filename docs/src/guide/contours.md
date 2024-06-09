@@ -58,7 +58,8 @@ herca = load("herca-radio.fits")
 
 p = implot(herca, cmap=nothing, colorbar=false)
 
-# Note: Contour.jl only supports float inputs https://github.com/JuliaGeometry/Contour.jl/issues/73
+# Note: Contour.jl only supports float inputs.
+# See https://github.com/JuliaGeometry/Contour.jl/issues/73
 for cl in levels(contours(dims(herca)..., float.(herca)))
     lvl = level(cl) # the z-value of this contour level
     for line in lines(cl)

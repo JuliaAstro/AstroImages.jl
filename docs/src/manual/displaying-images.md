@@ -1,6 +1,6 @@
 # Displaying Images
 
-The `imview` and `implot` functions are very similar. 
+The `imview` and `implot` functions are very similar.
 Both allow any abstract array of numbers to be rendered into an image or a Plots.jl image series.
 `implot` is largely a superset of `imview` because it also supports colorbars, tick marks, WCS grid lines, overplotting other data & shapes, and automatic
 axis and title naming (from the FITS header if available).

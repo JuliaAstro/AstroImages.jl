@@ -63,7 +63,7 @@ implot(
 
 
 ## Median Filtering
-In addition to linear filters using `imfilter`, ImageFiltering.jl also includes a great function called `mapwindow`. This functions allows you to map an arbitrary function over a patch of an image. 
+In addition to linear filters using `imfilter`, ImageFiltering.jl also includes a great function called `mapwindow`. This functions allows you to map an arbitrary function over a patch of an image.
 
 Let's use `mapwindow` to perform a median filter. This is a great way to suppress salt and pepper noise, or remove stars from some images.
 
@@ -79,7 +79,7 @@ fname = download(
 
 eagle673 = load("eagle-673nmos.fits")
 ```
-The data is originally from https://esahubble.org/projects/fits_liberator/eagledata/.
+The data is originally from <https://esahubble.org/projects/fits_liberator/eagledata/>.
 
 
 We can apply a median filter using `mapwindow`. Make sure the patch size is an odd number in each direction!

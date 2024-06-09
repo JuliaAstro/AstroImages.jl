@@ -3,42 +3,48 @@
 """
     logstretch(num,a=1000)
 
-A log-stretch as defined by the SAO DS9 application: http://ds9.si.edu/doc/ref/how.html
+A log-stretch as defined by the SAO DS9 application: <http://ds9.si.edu/doc/ref/how.html>
 """
 logstretch(x,a=1000) = log(a*x+1)/log(a)
+
 """
     powstretch(num, a=1000)
 
-A power-stretch as defined by the SAO DS9 application: http://ds9.si.edu/doc/ref/how.html
+A power-stretch as defined by the SAO DS9 application: <http://ds9.si.edu/doc/ref/how.html>
 """
 powstretch(x,a=1000) = (a^x - 1)/a
+
 """
     sqrtstretch(num)
 
 A square root stretch (simply defined as Base.sqrt)
 """
 sqrtstretch(x) = sqrt(x)
+
 """
     squarestretch(num)
 
-A squarestretch-stretch as defined by the SAO DS9 application: http://ds9.si.edu/doc/ref/how.html
+A squarestretch-stretch as defined by the SAO DS9 application: <http://ds9.si.edu/doc/ref/how.html>
 """
 squarestretch(x) = x^2
+
 """
     asinhstretch(num)
 
-A hyperbolic arcsin stretch as defined by the SAO DS9 application: http://ds9.si.edu/doc/ref/how.html.
+A hyperbolic arcsin stretch as defined by the SAO DS9 application: <http://ds9.si.edu/doc/ref/how.html>
 """
 asinhstretch(x) = asinh(10x)/3
+
 """
     sinhstretch(num)
 
-A hyperbolic sin stretch as defined by the SAO DS9 application: http://ds9.si.edu/doc/ref/how.html
+A hyperbolic sin stretch as defined by the SAO DS9 application: <http://ds9.si.edu/doc/ref/how.html>
 """
 sinhstretch(x) = sinh(3x)/10
+
 # These additional stretches reproduce behaviour from astropy
 """
-    logstretch(num,a=1000)
+    powerdiststretch(num, a=1000)
 
 A power distance stretch as defined by astropy.
 """
@@ -47,12 +53,12 @@ powerdiststretch(x, a=1000) = (a^x - 1) / (a - 1)
 """
     Percent(99.5)
 
-Returns a callable that calculates display limits that include the given 
+Returns a callable that calculates display limits that include the given
 percent of the image data.
 Reproduces the behaviour of the SAO DS9 scale menu.
 
 Example:
-```julia
+```julia-repl
 julia> imview(img, clims=Percent(90))
 ```
 This will set the limits to be the 5th percentile to the 95th percentile.
@@ -72,11 +78,12 @@ Base.show(io::IO, p::Percent; kwargs...) = print(io, "Percent($(p.perc))", kwarg
 
 Wraps PlotUtils.zscale in a callable with default parameters.
 This is a common algorithm for agressively stretching astronomical data
-to see faint structure that originated in IRAF: https://iraf.net/forum/viewtopic.php?showtopic=134139
+to see faint structure that originated in IRAF:
+<https://iraf.net/forum/viewtopic.php?showtopic=134139>
 but is now seen in many other applications/libraries (DS9, Astropy, etc.)
 
 Usage:
-```
+```julia
 imview(img, clims=Zscale())
 implot(img, clims=Zscale(contrast=0.1))
 ```
@@ -120,6 +127,7 @@ function set_cmap!(cmap)
     _lookup_cmap(cmap)
     _default_cmap[] = cmap
 end
+
 """
     set_clims!(clims::Tuple)
     set_clims!(clims::Callable)
@@ -130,6 +138,7 @@ Alter the default limits used to display images when using
 function set_clims!(clims)
     _default_clims[] = clims
 end
+
 """
     set_stretch!(stretch::Function)
 
@@ -212,7 +221,7 @@ You may alter these defaults using `AstroImages.set_clims!`,  `AstroImages.set_s
 `AstroImages.set_cmap!`.
 
 ### Automatic Display
-Arrays wrapped by `AstroImageMat()` get displayed as images automatically by calling 
+Arrays wrapped by `AstroImageMat()` get displayed as images automatically by calling
 `imview` on them with the default settings when using displays that support showing PNG images.
 
 ### Missing data
@@ -298,7 +307,7 @@ function imview(img::AbstractArray{T}; kwargs...) where {T<:Complex}
     vcat(mag_view,angle_view)
 end
 
-# Unwrap AstroImages before view, then rebuild. 
+# Unwrap AstroImages before view, then rebuild.
 # We have to permute the dimensions of the image to get the origin at the bottom left.
 # But we don't want this to affect the dimensions of the array.
 # Also, this reduces the number of methods we need to compile for imview by standardizing types
@@ -307,14 +316,12 @@ end
 function _imview(
     img::AstroImage, normed::AbstractArray{T}, stretch, cmap, contrast, bias
 ) where T
-    
+
     p = parent(img)
     out = _imview(p, normed, stretch, cmap, contrast, bias)
     # out = shareheader(img, v)
     return out
 end
-
-
 
 
 function _imview(img, normed::AbstractArray{T}, stretch, cmap, contrast, bias) where T
@@ -356,7 +363,8 @@ end
 
 """
     imview_colorbar(img; orientation=:vertical)
-Create a colorbar for a given image matching how it is displayed by 
+
+Create a colorbar for a given image matching how it is displayed by
 `imview`. Returns an image.
 
 `orientation` can be `:vertical` or `:horizontal`.

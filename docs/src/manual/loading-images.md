@@ -30,7 +30,7 @@ rendered to images and displayed. You can see this plain text output by explicit
 
 Or:
 ```julia-repl
- julia> img = AstroImage("myfitsimg.fits.gz")
+julia> img = AstroImage("myfitsimg.fits.gz")
 1600×1600 AstroImage{Float32,2} with dimensions:
   X Sampled Base.OneTo(1600) ForwardOrdered Regular Points,
   Y Sampled Base.OneTo(1600) ForwardOrdered Regular Points
@@ -80,8 +80,7 @@ julia> # Or:
 julia> hdu1, hdu2, hdu3 = load("multiext.fits", :);
 ```
 
-There is also limited support for table HDUs. In this case, a bare-bones Tables.jl compatible 
-object is returned.
+There is also limited support for table HDUs. In this case, a bare-bones Tables.jl compatible object is returned.
 
 ## Dimension Names
 You may have noticed the entries above the image array:
@@ -126,8 +125,9 @@ julia> save("abc.gif", cube, fps=10)
 julia> # Or a more complex example (changing color schemes each frame)
 julia> img = randn(10,10)
 julia> cube2 = [imview(img1, cmap=:magma) ;;; imview(img2, cmap=:plasma) ;;; imview(img3, cmap=:viridis)]
+
 julia> # Alternative syntax:
 julia> cube2 = cat(imview(img1, cmap=:magma), imview(img2, cmap=:plasma), imview(img3, cmap=:viridis), dims=3)
+
 julia> save("abc.gif", cube, fps=10)
 ```
-

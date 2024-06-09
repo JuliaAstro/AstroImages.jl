@@ -2,9 +2,9 @@
 
 Wherever possible, overloads have been added to DimensionalData and AstroImages so that common operations retain the `AstroImage` wrapper with associated dimensions, FITS header, and WCS information.
 Most of the time this works automatically if libraries follow good patterns like allocating outputs using `Base.similar`.
-However, some other library functions may follow patterns like allocating a plain `Array` of the correct size and then filling it. 
+However, some other library functions may follow patterns like allocating a plain `Array` of the correct size and then filling it.
 
-To make it easier to work with these libraries, AstroImages exports two functions `copyheader` and `shareheader`. 
+To make it easier to work with these libraries, AstroImages exports two functions [`copyheader`](@ref) and [`shareheader`](@ref).
 These functions wrap an AbstractArray in an AstroImage while copying over the header, dimensions, and WCS info.
 
 Consider the function:
@@ -29,4 +29,3 @@ copyheader(astroimg, worsefunc(parent(astroimg)))
 # Or:
 copyheader(astroimg, worsefunc(collect(astroimg)))
 ```
-

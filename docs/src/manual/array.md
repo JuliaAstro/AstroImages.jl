@@ -30,6 +30,3 @@ You can update them in-place (if the underlying array you passed supports mutati
 img[1:5,:] .= 0
 img
 ```
-
-
-

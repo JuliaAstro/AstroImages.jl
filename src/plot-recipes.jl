@@ -17,8 +17,7 @@
     showwcsticks = get(plotattributes, :wcsticks, true) &&  !all(==(""), wcs(data, wcsn).ctype)
     showwcstitle = get(plotattributes, :wcstitle, true) &&  length(refdims(data)) > 0 && !all(==(""), wcs(data, wcsn).ctype)
 
-        
-       
+
     minx = first(parent(dims(data,1)))
     maxx = last(parent(dims(data,1)))
     miny = first(parent(dims(data,2)))
@@ -86,11 +85,11 @@
         imgv = restrict(imgv)
     end
 
-    # We have to do a lot of flipping to keep the orientation corect 
+    # We have to do a lot of flipping to keep the orientation corect
     yflip := false
     xflip := false
 
-    
+
     # Disable equal aspect ratios if the scales are totally different
     displayed_data_ratio = (extent[2]-extent[1])/(extent[4]-extent[3])
     if displayed_data_ratio >= 7
@@ -98,7 +97,7 @@
     end
 
 
-    # we have a wcs flag (from the image by default) so that users can skip over 
+    # we have a wcs flag (from the image by default) so that users can skip over
     # plotting in physical coordinates. This is especially important
     # if the WCS headers are mallformed in some way.
     showgrid = get(plotattributes, :xgrid, true) && get(plotattributes, :ygrid, true)
@@ -147,7 +146,7 @@
         # along the axis.
         # In astropy, the ticks are actually tilted to reflect this, though in general
         # the transformation from pixel to coordinates can be non-linear and curved.
-        
+
         if showwcsticks
             xticks --> (gridspec.tickpos1x, wcslabels(wcs(imgv, wcsn), wcsax(imgv, dims(imgv,1)), gridspec.tickpos1w))
             xguide --> ctype_label(wcs(imgv, wcsn).ctype[wcsax(imgv, dims(imgv,1))], wcs(imgv, wcsn).radesys)
@@ -156,7 +155,7 @@
             yguide --> ctype_label(wcs(imgv, wcsn).ctype[wcsax(imgv, dims(imgv,2))], wcs(imgv, wcsn).radesys)
         end
 
-    
+
         ax1 = collect(parent(dims(imgv,1))) .* platescale
         ax2 = collect(parent(dims(imgv,2))) .* platescale
         # Views of images are not currently supported by plotly() so we have to collect them.
@@ -164,14 +163,14 @@
         ax1, ax2, parent(imgv)[reverse(axes(imgv,1)),:]
     end
 
-    # If wcs=true (default) and grid=true (not default), overplot a WCS 
+    # If wcs=true (default) and grid=true (not default), overplot a WCS
     # grid.
     if showgrid && showwcsticks
 
         # Plot the WCSGrid as a second series (actually just lines)
         @series begin
             subplot := 1
-            # Use a default grid color that shows up across more 
+            # Use a default grid color that shows up across more
             # color maps
             if !haskey(plotattributes, :xforeground_color_grid) && !haskey(plotattributes, :yforeground_color_grid)
                 gridcolor --> :lightgray
@@ -180,7 +179,7 @@
             wcsg, gridspec
         end
     end
-    
+
 
     # Disable the colorbar.
     # Plots.jl does not give us sufficient control to make sure the range and ticks
@@ -230,7 +229,7 @@
             # Views of images are not currently supported by plotly so we have to collect them
             # view(cbimg, reverse(axes(cbimg,1)),:)
             cbimg[reverse(axes(cbimg,1)),:]
-        end    
+        end
     end
 
 
@@ -252,7 +251,7 @@
             # along the axis.
             # In astropy, the ticks are actually tilted to reflect this, though in general
             # the transformation from pixel to coordinates can be non-linear and curved.
-            
+
             if showwcsticks
                 xticks --> (gridspec.tickpos1x, wcslabels(wcs(imgv, wcsn), wcsax(imgv, dims(imgv,1)), gridspec.tickpos1w))
                 xguide --> ctype_label(wcs(imgv, wcsn).ctype[wcsax(imgv, dims(imgv,1))], wcs(imgv, wcsn).radesys)
@@ -260,7 +259,7 @@
                 yticks --> (gridspec.tickpos2x, wcslabels(wcs(imgv, wcsn), wcsax(imgv, dims(imgv,2)), gridspec.tickpos2w))
                 yguide --> ctype_label(wcs(imgv, wcsn).ctype[wcsax(imgv, dims(imgv,2))], wcs(imgv, wcsn).radesys)
             end
-        
+
             ax1 = collect(parent(dims(imgv,1))) .* platescale
             ax2 = collect(parent(dims(imgv,2))) .* platescale
             # Views of images are not currently supported by plotly() so we have to collect them.
@@ -273,7 +272,7 @@
             if !haskey(plotattributes, :colorbar_title) && haskey(header(img), "UNIT")
                 colorbar_title = string(img[:UNIT])
             end
-    
+
 
             @series begin
                 subplot_i += 1
@@ -291,7 +290,7 @@
                 ylims := Tuple(extrema(axes(cbimg, 1)))
                 title := ""
                 view(cbimg, reverse(axes(cbimg,1)),:)
-            end    
+            end
         end
 
     end
@@ -344,10 +343,15 @@ This allows you to overplot lines, regions, etc. using pixel coordinates.
 If you wish to compute the pixel coordinate of a point in world coordinates, see `world_to_pix`.
 
 * `wcsn` (default `1`) select which WCS transform in the headers to use for ticks & grid
-* `wcsticks` (default `true` if WCS headers present) display ticks and labels, and title using world coordinates
-* `wcstitle` (default `true` if WCS headers present and `length(refdims(img))>0`). When slicing a cube, display the location along unseen axes in world coordinates instead of pixel coordinates.
-* `grid` (default `true`) show a grid over the plot. Uses WCS coordinates if `wcsticks` is true, otherwise pixel coordinates multiplied by `platescale`.
-* `platescale` (default `1`). Scales the underlying pixel coordinates to ease overplotting, etc. If `wcsticks` is false, the displayed pixel coordinates are also scaled.
+* `wcsticks` (default `true` if WCS headers present) display ticks and labels, and title
+  using world coordinates
+* `wcstitle` (default `true` if WCS headers present and `length(refdims(img))>0`). When
+  slicing a cube, display the location along unseen axes in world coordinates instead of
+  pixel coordinates.
+* `grid` (default `true`) show a grid over the plot. Uses WCS coordinates if `wcsticks`
+  is true, otherwise pixel coordinates multiplied by `platescale`.
+* `platescale` (default `1`). Scales the underlying pixel coordinates to ease overplotting,
+  etc. If `wcsticks` is false, the displayed pixel coordinates are also scaled.
 
 
 ### Defaults
@@ -407,7 +411,7 @@ function wcslabels(w::WCSTransform, axnum, tickposw)
         units = ("",)
     end
 
-    # Format inital ticklabel 
+    # Format inital ticklabel
     ticklabels = fill("", length(tickposw))
     # We only include the part of the label that has changed since the last time.
     # Split up coordinates into e.g. sexagesimal
@@ -533,14 +537,14 @@ end
     label --> ""
     xs, ys = wcsgridlines(gridspec)
 
-    if haskey(plotattributes, :foreground_color_grid) 
+    if haskey(plotattributes, :foreground_color_grid)
         color --> plotattributes[:foreground_color_grid]
-    elseif haskey(plotattributes, :foreground_color) 
+    elseif haskey(plotattributes, :foreground_color)
         color --> plotattributes[:foreground_color]
     else
         color --> :black
     end
-    if haskey(plotattributes, :foreground_color_text) 
+    if haskey(plotattributes, :foreground_color_text)
         textcolor = plotattributes[:foreground_color_text]
     else
         textcolor = plotattributes[:color]
@@ -599,14 +603,14 @@ allequal(itr) = all(==(first(itr)), itr)
 
 # This function is responsible for actually laying out grid lines for a WCSGrid,
 # ensuring they don't exceed the plot bounds, finding where they intersect the axes,
-# and picking tick locations at the appropriate intersections with the left and 
+# and picking tick locations at the appropriate intersections with the left and
 # bottom axes.
 function wcsgridspec(wsg::WCSGrid)
     # Most of the complexity of this function is making sure everything
     # generalizes to N different, possiby skewed axes, where a change in
     # the opposite coordinate or even an unplotted coordinate affects
     # the grid.
-    
+
     # x and y denote pixel coordinates (along `ax`), u and v are world coordinates roughly along same.
     minx, maxx, miny, maxy = wsg.extent
 
@@ -628,7 +632,7 @@ function wcsgridspec(wsg::WCSGrid)
     # Find nice grid spacings using PlotUtils.optimize_ticks
     # These heuristics can probably be improved
     # TODO: this does not handle coordinates that wrap around
-    Q=[(1.0,1.0), (3.0, 0.8), (2.0, 0.7), (5.0, 0.5)] 
+    Q = [(1.0,1.0), (3.0, 0.8), (2.0, 0.7), (5.0, 0.5)]
     k_min = 3
     k_ideal = 5
     k_max = 10
@@ -659,10 +663,10 @@ function wcsgridspec(wsg::WCSGrid)
             griduv[2,:] .= tickv
             posxy = world_to_pix(wsg.img, griduv; wsg.wcsn, parent=true)
 
-            # Now that we have the grid in pixel coordinates, 
+            # Now that we have the grid in pixel coordinates,
             # if we find out where the grid intersects the axes we can put
             # the labels in the correct spot
-            
+
             # We can use these masks to determine where, and in what direction
             # the gridlines leave the plot extent
             in_horz_ax = minx .<=  posxy[1,:] .<= maxx
@@ -728,7 +732,7 @@ function wcsgridspec(wsg::WCSGrid)
                     x = clamp(x,minx,maxx)
                     y = m1*x+b1
                 end
-            
+
                 # From here, do a linear fit to find the intersection with the axis.
                 point_entered = [
                     x
@@ -762,10 +766,10 @@ function wcsgridspec(wsg::WCSGrid)
                     x = clamp(x,minx,maxx)
                     y = m2*x+b2
                 end
-            
+
                 # From here, do a linear fit to find the intersection with the axis.
                 point_exitted = [
-                    x 
+                    x
                     y
                 ]
             end
@@ -821,9 +825,9 @@ function wcsgridspec(wsg::WCSGrid)
             griduv = repeat(posuv[:,1], 1, N_points)
             griduv[1,:] .= ticku
             griduv[2,:] .= vrange
-            posxy = world_to_pix(wsg.img, griduv; wsg.wcsn, parent=true)           
+            posxy = world_to_pix(wsg.img, griduv; wsg.wcsn, parent=true)
 
-            # Now that we have the grid in pixel coordinates, 
+            # Now that we have the grid in pixel coordinates,
             # if we find out where the grid intersects the axes we can put
             # the labels in the correct spot
 
@@ -895,7 +899,7 @@ function wcsgridspec(wsg::WCSGrid)
                     x = clamp(x,minx,maxx)
                     y = m1*x+b1
                 end
-            
+
                 # From here, do a linear fit to find the intersection with the axis.
                 point_entered = [
                     x
@@ -928,10 +932,10 @@ function wcsgridspec(wsg::WCSGrid)
                     x = clamp(x,minx,maxx)
                     y = m2*x+b2
                 end
-            
+
                 # From here, do a linear fit to find the intersection with the axis.
                 point_exitted = [
-                    x 
+                    x
                     y
                 ]
             end
@@ -1125,15 +1129,19 @@ end
     polquiver(polqube::AstroImage)
 
 Given a data cube (of at least 2 spatial dimensions, plus a polarization axis),
-plot a vector field of polarization data. 
-The tick length represents the polarization intensity, sqrt(q^2 + u^2), 
+plot a vector field of polarization data.
+The tick length represents the polarization intensity, sqrt(q^2 + u^2),
 and the color represents the linear polarization fraction, sqrt(q^2 + u^2) / i.
 
 There are several ways you can adjust the appearance of the plot using keyword arguments:
-* `bins` (default = 1) By how much should we bin down the polarization data before drawing the ticks? This reduced clutter from higher resolution datasets. Can be fractional.
-* `ticklen` (default = bins) How long the 98th percentile arrow should be. By default, 1 bin long. Make this larger to draw longer arrows.
+* `bins` (default = 1) By how much should we bin down the polarization data
+  before drawing the ticks? This reduced clutter from higher resolution datasets.
+  Can be fractional.
+* `ticklen` (default = bins) How long the 98th percentile arrow should be. By default, 1 bin long.
+  Make this larger to draw longer arrows.
 * `color` (default = :turbo) What colorscheme should be used for linear polarization fraction.
-* `minpol` (default = 0.2) Hides arrows that are shorter than `minpol` times the 98th percentile arrow to make a cleaner image. Set to 0 to display all data.
+* `minpol` (default = 0.2) Hides arrows that are shorter than `minpol` times the 98th percentile
+  arrow to make a cleaner image. Set to 0 to display all data.
 
 Use `implot` and `polquiver!` to overplot polarization data over an image.
 """

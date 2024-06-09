@@ -10,7 +10,7 @@ For convenience, AstroImages.jl provides the function [`composecolors`](@ref com
 
 We'll demonstrate `composecolors` using Hubble images of the Antenae colliding galaxies.
 
-One can be very scientific about this process, but often the goal of producing color composites is aesthetic or about highlighting certain features for public consumption. 
+One can be very scientific about this process, but often the goal of producing color composites is aesthetic or about highlighting certain features for public consumption.
 
 I'll set the default color map to grayscale to avoid confusion.
 ```@example 1
@@ -22,13 +22,13 @@ AstroImages.set_cmap!(nothing)
 Let's start by downloading the separate color channel FITS files:
 ```@example 1
 antred = AstroImage(download("http://www.astro.uvic.ca/~wthompson/astroimages/fits/antenae/red.fits"))
-``` 
+```
 ```@example 1
 antgreen = AstroImage(download("http://www.astro.uvic.ca/~wthompson/astroimages/fits/antenae/green.fits"))
 ```
 ```@example 1
 antblue = AstroImage(download("http://www.astro.uvic.ca/~wthompson/astroimages/fits/antenae/blue.fits"))
-``` 
+```
 
 ```@example 1
 anthalph = AstroImage(download("http://www.astro.uvic.ca/~wthompson/astroimages/fits/antenae/hydrogen.fits")); # Hydrogen-Alpha; we'll revisit later
@@ -83,7 +83,7 @@ rgb3 = composecolors(
 
 Keywords like `strech`, `clims`, etc can be either a single value for all channels or a list of separate values/functions per channel.
 
-The green channel appears to be quite faint compared to the red and blue channels. We can modify that by adjusting the relative intensities of the channels. 
+The green channel appears to be quite faint compared to the red and blue channels. We can modify that by adjusting the relative intensities of the channels.
 
 We could also do this using a combination of the `contrast` and `bias` keywords.
 
@@ -146,4 +146,4 @@ using AstroImages
 AstroImages.set_clims!(Percent(99.5))
 AstroImages.set_cmap!(:magma)
 AstroImages.set_stretch!(identity)
-``` 
+```

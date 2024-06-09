@@ -2,7 +2,6 @@ const WCS_HEADERS_TEMPLATES = [
     "DATE",
     "MJD",
 
-
     "WCSAXESa",
     "WCAXna",
     "WCSTna",
@@ -367,7 +366,7 @@ end
 """
     pix_to_world(img::AstroImage, pixcoords; all=false)
 
-Given an astro image, look up the world coordinates of the pixels given 
+Given an astro image, look up the world coordinates of the pixels given
 by `pixcoords`. World coordinates are resolved using WCS.jl and a
 WCSTransform calculated from any FITS header present in `img`. If
 no WCS information is in the header, or the axes are all linear, this will
@@ -375,14 +374,14 @@ just return pixel coordinates.
 
 `pixcoords` should be the coordinates in your current selection
 of the image. For example, if you select a slice like this:
-```julia
+```julia-repl
 julia> cube = load("some-3d-cube.fits")
 julia> slice = cube[10:20, 30:40, 5]
 ```
 
 Then to look up the coordinates of the pixel in the bottom left corner of
 `slice`, run:
-```julia
+```julia-repl
 julia> world_coords = pix_to_world(img, [1, 1])
 [10, 30]
 ```
@@ -391,12 +390,12 @@ If WCS information was present in the header of `cube`, then those coordinates
 would be resolved using axis 1, 2, and 3 respectively.
 
 To include world coordinates in all axes, pass `all=true`
-```julia
+```julia-repl
 julia> world_coords = pix_to_world(img, [1, 1], all=true)
 [10, 30, 5]
 ```
 
-!! Coordinates must be provided in the order of `dims(img)`. If you transpose 
+!! Coordinates must be provided in the order of `dims(img)`. If you transpose
 an image, the order you pass the coordinates should not change.
 """
 function WCS.pix_to_world(img::AstroImage, pixcoords; wcsn=1, all=false, parent=false)
@@ -407,9 +406,9 @@ function WCS.pix_to_world(img::AstroImage, pixcoords; wcsn=1, all=false, parent=
     end
     D_out = wcs(img,wcsn).naxis
     if ndims(pixcoords_prepared) > 1
-        worldcoords_out = similar(pixcoords_prepared, Float64, D_out, size(pixcoords_prepared,2)) 
+        worldcoords_out = similar(pixcoords_prepared, Float64, D_out, size(pixcoords_prepared,2))
     else
-        worldcoords_out = similar(pixcoords_prepared, Float64, D_out) 
+        worldcoords_out = similar(pixcoords_prepared, Float64, D_out)
     end
 
     # Find the coordinates in the parent array.
@@ -481,9 +480,9 @@ function WCS.world_to_pix(img::AstroImage, worldcoords; parent=false, wcsn=1)
     end
     D_out = wcs(img,wcsn).naxis
     if ndims(worldcoords_prepared) > 1
-        out = similar(worldcoords_prepared, Float64, D_out, size(worldcoords_prepared,2)) 
+        out = similar(worldcoords_prepared, Float64, D_out, size(worldcoords_prepared,2))
     else
-        out = similar(worldcoords_prepared, Float64, D_out) 
+        out = similar(worldcoords_prepared, Float64, D_out)
     end
     return WCS.world_to_pix!(out, img, worldcoords_prepared; parent)
 end
@@ -557,8 +556,6 @@ end
 
 
 
-
-
 ## For now, we use a copied version of FITSIO's show method for FITSHeader.
 # We have to be careful to format things in a way WCSLib will like.
 # In particular, we can't put newlines after each 80 characters.
@@ -571,11 +568,11 @@ hdrval_repr(v::Union{AbstractFloat, Integer}) = string(v)
 
 function serializeheader(io, hdr::FITSHeader)
     n = length(hdr)
-    for i=1:n
+    for i = 1:n
         if hdr.keys[i] == "COMMENT" || hdr.keys[i] == "HISTORY"
-                lastc = min(72, lastindex(hdr.comments[i]))
-                @printf io "%s %s" hdr.keys[i] hdr.comments[i][1:lastc]
-                print(io, " "^(72-lastc))
+            lastc = min(72, lastindex(hdr.comments[i]))
+            @printf io "%s %s" hdr.keys[i] hdr.comments[i][1:lastc]
+            print(io, " "^(72-lastc))
         else
             @printf io "%-8s" hdr.keys[i]
             if hdr.values[i] === nothing
@@ -599,7 +596,7 @@ function serializeheader(io, hdr::FITSHeader)
         end
         if i == n
             print(io, "\nEND"*(" "^77))
-        else  
+        else
             print(io)
         end
     end
