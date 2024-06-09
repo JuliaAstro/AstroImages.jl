@@ -70,7 +70,8 @@ imview(mask)
 antred[mask] .= NaN
 antgreen[mask] .= NaN
 antblue[mask] .= NaN
-anthalph[mask] .= NaN;
+anthalph[mask] .= NaN
+nothing # hide
 ```
 
 Typically we need to perform a "gamma correction" aka non-lienar stretch to map the wide dynamic range of astronomical images into a narrower human visible range. We can do this using the `stretch` keyword. An `asinhstretch` is typically recommended when preparing RGB images:
