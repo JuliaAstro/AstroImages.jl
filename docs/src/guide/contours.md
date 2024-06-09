@@ -6,7 +6,7 @@ This guide shows a few different ways to measure and visualize contours of image
 The most basic way to create a contour plot is simply to use Plots.jl `contour` and `contourf` functions on your image.
 
 Let's see how that works:
-```@example 1
+```@example contours
 using AstroImages, Plots
 
 
@@ -21,27 +21,27 @@ herca = load("herca-radio.fits")
 
 
 Create a contour plot
-```@example 1
+```@example contours
 contour(herca)
 ```
 
 Create a filled contour plot
-```@example 1
+```@example contours
 contourf(herca)
 ```
 
 Specify the number of levels
-```@example 1
+```@example contours
 contour(herca, levels=5)
 ```
 
 Specify specific levels
-```@example 1
+```@example contours
 contour(herca, levels=[1, 1000, 5000])
 ```
 
 Overplot contours on image:
-```@example 1
+```@example contours
 implot(herca)
 contour!(herca, levels=4, color=:cyan)
 ```
@@ -52,7 +52,7 @@ contour!(herca, levels=4, color=:cyan)
 For more control over how contours are calculated and plotted, you can use the [Contour.jl](https://juliageometry.github.io/Contour.jl/stable/) package:
 
 
-```@example 1
+```@example contours
 using Contour
 herca = load("herca-radio.fits")
 
@@ -72,7 +72,7 @@ p
 ```
 
 Here we plot just the contours, now in world coordinates:
-```@example 1
+```@example contours
 p = plot(xlabel="RA", ylabel="DEC")
 for cl in levels(contours(dims(herca)..., float.(herca)))
     lvl = level(cl) # the z-value of this contour level
