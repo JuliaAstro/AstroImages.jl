@@ -54,7 +54,8 @@ plot(
     implot(clipped, title="Sigma-Clipped"),
     implot(bkg, title="Background"),
     implot(bkg_rms, title="Background RMS"),
-    layout=(2, 2)
+    layout=(2, 2),
+    ticks=false,
 )
 ```
 
@@ -70,7 +71,9 @@ plot(
     implot(bkg_f, title="Filtered"),
     implot(bkg_rms, ylabel="RMS"),
     implot(bkg_rms_f);
-    layout=(2, 2),)
+    layout=(2, 2),
+    ticks=false,
+)
 ```
 
 > Now we can see our image after subtracting the filtered background and ready for Aperture Photometry!
