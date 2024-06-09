@@ -6,6 +6,7 @@ ENV["GKSwstype"] = "nul"
 using Photometry, Reproject, Images
 
 requiredmods = Symbol[
+    :AstroImages,
     # :Photometry, :Reproject, :Images
     :Images, :FileIO, :DimensionalData, :ImageTransformations, :ImageFiltering, :WCS, :Plots
 ]
