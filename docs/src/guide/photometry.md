@@ -57,7 +57,6 @@ plot(
     layout=(2, 2)
 )
 ```
-![](/assets/manual-photometry-2.png)
 
 
 > We could apply a median filter, too, by specifying `filter_size`
