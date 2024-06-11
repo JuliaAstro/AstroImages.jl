@@ -10,24 +10,25 @@ mw_rgb_cube = AstroImage(
     permutedims(mw_chan_view, (3, 2, 1))[:,end:-1:begin,:],
     # Optional:
     (X=:, Y=:, Spec=[:R,:G,:B])
-)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">2596×1440×3 AstroImage{N0f8,3}<span class="sgr90"> with dimensions: </span>
-  <span class="sgr31">X</span>,
-  <span class="sgr31">Y</span>,
-  <span class="sgr31">Dim{</span><span class="sgr33">:Spec</span><span class="sgr31">}</span> Categorical{Symbol} <span class="sgr36">Symbol[:R, :G, :B]</span> ReverseOrdered
-[:, :, 1]
+)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr90">╭────────────────────────────────╮</span>
+<span class="sgr90">│ </span><span class="sgr38_5" style="color:#ff875f">2596</span>×<span class="sgr38_5" style="color:#0087d7">1440</span>×<span class="sgr38_5" style="color:#5fd7ff">3</span> AstroImage{N0f8,3}<span class="sgr90"> │</span>
+<span class="sgr90">├────────────────────────────────┴───────────────── dims ┐</span>
+  <span class="sgr38_5" style="color:#ff875f">↓ X   </span>,
+  <span class="sgr38_5" style="color:#0087d7">→ Y   </span>,
+  <span class="sgr38_5" style="color:#5fd7ff">↗ Spec</span> Categorical{Symbol} <span class="sgr38_5" style="color:#5fd7ff">[:R, :G, :B]</span> <span class="sgr38_5" style="color:#808080">ReverseOrdered</span>
+<span class="sgr90">└────────────────────────────────────────────────────────┘</span>
+[<span class="sgr38_5" style="color:#ff875f">:</span>, <span class="sgr38_5" style="color:#0087d7">:</span>, <span class="sgr38_5" style="color:#5fd7ff">1</span>]
  0.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0  …  0.0  0.0  0.0  0.0  0.0  0.0  0.0
  0.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0     0.0  0.0  0.0  0.0  0.0  0.0  0.0
  0.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0     0.0  0.0  0.0  0.0  0.0  0.0  0.0
  0.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0     0.0  0.0  0.0  0.0  0.0  0.0  0.0
  0.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0     0.0  0.0  0.0  0.0  0.0  0.0  0.0
  ⋮                        ⋮              ⋱       ⋮                        ⋮
- 0.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0  …  0.0  0.0  0.0  0.0  0.0  0.0  0.0
  0.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0     0.0  0.0  0.0  0.0  0.0  0.0  0.0
  0.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0     0.0  0.0  0.0  0.0  0.0  0.0  0.0
  0.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0     0.0  0.0  0.0  0.0  0.0  0.0  0.0
- 0.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0     0.0  0.0  0.0  0.0  0.0  0.0  0.0
-<span class="sgr90">[and 2 more slices...]</span></code></pre><p>Here we chose to mark the third axis as a spectral axis with keys <code>:R</code>, <code>:G</code>, and <code>:B</code>.</p><p>We can now visualize each channel:</p><pre><code class="language-julia hljs">mw_rgb_cube[Spec=At(:R)] # Or just: mw_rgb_cube[:,:,1]</code></pre><img src="9c8213e6.png" alt="Example block output"/><pre><code class="language-julia hljs">imview(
+ 0.0  0.0  0.0  0.0  0.0  0.0  0.0  0.0     0.0  0.0  0.0  0.0  0.0  0.0  0.0</code></pre><p>Here we chose to mark the third axis as a spectral axis with keys <code>:R</code>, <code>:G</code>, and <code>:B</code>.</p><p>We can now visualize each channel:</p><pre><code class="language-julia hljs">mw_rgb_cube[Spec=At(:R)] # Or just: mw_rgb_cube[:,:,1]</code></pre><img src="9c8213e6.png" alt="Example block output"/><pre><code class="language-julia hljs">imview(
     mw_rgb_cube[Spec=At(:R)],
     cmap=nothing # Grayscale mode
 )</code></pre><img src="d2efb362.png" alt="Example block output"/><pre><code class="language-julia hljs">using Plots
-implot(mw_rgb_cube[Spec=At(:B)])</code></pre><img src="e77980a0.svg" alt="Example block output"/></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../converting-to-rgb/">« Converting to RGB</a><a class="docs-footer-nextpage" href="../../guide/image-filtering/">Blurring &amp; Filtering Images »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.4.1 on <span class="colophon-date" title="Sunday 9 June 2024 21:12">Sunday 9 June 2024</span>. Using Julia version 1.10.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+implot(mw_rgb_cube[Spec=At(:B)])</code></pre><img src="8b06e958.svg" alt="Example block output"/></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../converting-to-rgb/">« Converting to RGB</a><a class="docs-footer-nextpage" href="../../guide/image-filtering/">Blurring &amp; Filtering Images »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.4.1 on <span class="colophon-date" title="Tuesday 11 June 2024 17:31">Tuesday 11 June 2024</span>. Using Julia version 1.10.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
