@@ -1,7 +1,7 @@
 name = "AstroImages"
 uuid = "fe3fc30c-9b16-11e9-1c73-17dabf39f4ad"
 authors = ["Mosè Giordano", "Rohit Kumar", "William Thompson"]
-version = "0.4.2"
+version = "0.5"
 
 [deps]
 AbstractFFTs = "621f4979-c628-5d54-868e-fcf4e3e8185c"
