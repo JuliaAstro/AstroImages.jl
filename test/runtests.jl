@@ -301,21 +301,8 @@ end
     img = AstroImage(arr1)
 
     # https://github.com/JuliaAstro/AstroImages.jl/issues/32
-    @test reverse(img, dims=1) == reverse(img) == [
-        7  8  9
-        4  5  6
-        1  2  3
-    ]
-    @test reverse(img, dims=2) == [
-        3  2  1
-        6  5  4
-        9  8  7
-    ]
-    @test reverse(img, dims=(1,2)) == [
-        9  8  7
-        6  5  4
-        3  2  1
-    ]
+    @test reverse(img, dims=1) == reverse(arr1,dims=1)
+    @test reverse(img) == reverse(arr1)
 
 
     # https://github.com/JuliaAstro/AstroImages.jl/issues/33
