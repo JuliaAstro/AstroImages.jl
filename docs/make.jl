@@ -1,15 +1,14 @@
-using Documenter, AstroImages
+using Documenter
+using AstroImages
 
 # Deps for examples
 ENV["GKSwstype"] = "nul"
 
 using Photometry, Reproject, Images
 
-requiredmods = Symbol[
-    :AstroImages,
-    # :Photometry, :Reproject, :Images
-    :Images, :FileIO, :DimensionalData, :ImageTransformations, :ImageFiltering, :WCS, :Plots
-]
+# gives us `pages` and `requiredmods`
+include("pages.jl")
+
 for mod in requiredmods
     eval(:(using $mod))
 end
@@ -25,8 +24,6 @@ setup = quote
 end
 DocMeta.setdocmeta!(AstroImages, :DocTestSetup, setup; recursive = true)
 
-include("pages.jl")
-
 makedocs(
     sitename = "AstroImages.jl",
     pages = pages,
@@ -37,7 +34,8 @@ makedocs(
     workdir = "..",
 
     # Specify several modules since we want to include docstrings from functions we've extended
-    modules = [eval(mod) for mod in requiredmods],#[AstroImages, Images, FileIO, DimensionalData, WCS],
+    modules = [eval(mod) for mod in requiredmods],
+    #modules = [AstroImages, Images, FileIO, DimensionalData, WCS],
 
     # However we have to turnoff doctests since otherwise a failing test in
     # those other packages (e.g. caused by us not setting up their test

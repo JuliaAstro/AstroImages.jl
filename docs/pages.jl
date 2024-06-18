@@ -23,3 +23,14 @@ pages = [
     ],
     "API" => "api.md",
 ]
+
+
+# requiredmods is needed in pages.jl and not make.jl because the builder in
+# JuliaAstro.github.io looks for this variable in pages.jl, and moving it
+# breaks the documentation build process
+requiredmods = Symbol[
+    :AstroImages,
+    #:Photometry, :Reproject, :Images,
+    :Images, :FileIO, :DimensionalData, :ImageTransformations, :ImageFiltering,
+    :WCS, :Plots
+]
