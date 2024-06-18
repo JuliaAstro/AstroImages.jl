@@ -3,43 +3,43 @@
 
 ```@docs
 
-load
-save
-query
+FileIO.load
+FileIO.save
+FileIO.query
 
-AstroImage
-imview
-implot
+AstroImages.AstroImage
+AstroImages.imview
+AstroImages.implot
 
-Comment
-History
+AstroImages.Comment
+AstroImages.History
 
-pix_to_world
-world_to_pix
+WCS.pix_to_world
+WCS.world_to_pix
 
-X
-Y
-Z
-Dim
-At
-Near
-dims
-refdims
+DimensionalData.X
+DimensionalData.Y
+DimensionalData.Z
+DimensionalData.Dim
+DimensionalData.At
+DimensionalData.Near
+DimensionalData.dims
+DimensionalData.refdims
 
-header
-wcs
-WCSGrid
-composecolors
-Zscale
-Percent
-logstretch
-powstretch
-sqrtstretch
-squarestretch
-asinhstretch
-sinhstretch
-powerdiststretch
-copyheader
-shareheader
-recenter
+AstroImages.header
+AstroImages.wcs
+AstroImages.WCSGrid
+AstroImages.composecolors
+AstroImages.Zscale
+AstroImages.Percent
+AstroImages.logstretch
+AstroImages.powstretch
+AstroImages.sqrtstretch
+AstroImages.squarestretch
+AstroImages.asinhstretch
+AstroImages.sinhstretch
+AstroImages.powerdiststretch
+AstroImages.copyheader
+AstroImages.shareheader
+AstroImages.recenter
 ```
