@@ -29,7 +29,7 @@ plot(
     implot(bkg_rms, title=&quot;Background RMS&quot;),
     layout=(2, 2),
     ticks=false,
-)</code></pre><img src="c582e535.svg" alt="Example block output"/><blockquote><p>We could apply a median filter, too, by specifying <code>filter_size</code></p></blockquote><pre><code class="language-julia hljs"># get background and background rms with box-size (50, 50) and filter_size (5, 5)
+)</code></pre><img src="03e3801d.svg" alt="Example block output"/><blockquote><p>We could apply a median filter, too, by specifying <code>filter_size</code></p></blockquote><pre><code class="language-julia hljs"># get background and background rms with box-size (50, 50) and filter_size (5, 5)
 bkg_f, bkg_rms_f = estimate_background(clipped, 50, filter_size=5)
 
 # plot
@@ -40,13 +40,13 @@ plot(
     implot(bkg_rms_f);
     layout=(2, 2),
     ticks=false,
-)</code></pre><img src="e14b4525.svg" alt="Example block output"/><blockquote><p>Now we can see our image after subtracting the filtered background and ready for Aperture Photometry!</p></blockquote><pre><code class="language-julia hljs">subt = image .- bkg_f[axes(image)...]
+)</code></pre><img src="b0dc5a0a.svg" alt="Example block output"/><blockquote><p>Now we can see our image after subtracting the filtered background and ready for Aperture Photometry!</p></blockquote><pre><code class="language-julia hljs">subt = image .- bkg_f[axes(image)...]
 clims = extrema(vcat(vec(image), vec(subt)))
 plot(
     implot(image; title=&quot;Original&quot;, clims),
     implot(subt; title=&quot;Subtracted&quot;, clims),
     size=(1600,1000)
-)</code></pre><img src="84aae75d.svg" alt="Example block output"/><h2 id="Source-Extraction"><a class="docs-heading-anchor" href="#Source-Extraction">Source Extraction</a><a id="Source-Extraction-1"></a><a class="docs-heading-anchor-permalink" href="#Source-Extraction" title="Permalink"></a></h2><p>From the background-subtracted image, we can detect all sources in the image:</p><pre><code class="language-julia hljs"># We specify the uncertainty in the pixel data. We&#39;ll set it equal to zero.
+)</code></pre><img src="9c3dccfa.svg" alt="Example block output"/><h2 id="Source-Extraction"><a class="docs-heading-anchor" href="#Source-Extraction">Source Extraction</a><a id="Source-Extraction-1"></a><a class="docs-heading-anchor-permalink" href="#Source-Extraction" title="Permalink"></a></h2><p>From the background-subtracted image, we can detect all sources in the image:</p><pre><code class="language-julia hljs"># We specify the uncertainty in the pixel data. We&#39;ll set it equal to zero.
 errs = zeros(axes(subt))
 sources = extract_sources(PeakMesh(), subt, errs, true) # sort from brightest to darkest</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Table with 3 columns and 60924 rows:
       x     y     value
@@ -89,7 +89,7 @@ sources = extract_sources(PeakMesh(), subt, errs, true) # sort from brightest to
  CircularAperture(708, 271, r=6)
  CircularAperture(701, 273, r=6)
  CircularAperture(710, 273, r=6)</code></pre><p>We can overplot them on our original image. The coordinate sytem used by the Photometry.jl plot recipes (but not the actual return values) doesn&#39;t match AstroImages, so we must transpose our image:</p><pre><code class="language-julia hljs">implot(subt&#39;, colorbar=false)
-plot!(aps)</code></pre><img src="2a7edd16.svg" alt="Example block output"/><h2 id="Measuring-Photometry"><a class="docs-heading-anchor" href="#Measuring-Photometry">Measuring Photometry</a><a id="Measuring-Photometry-1"></a><a class="docs-heading-anchor-permalink" href="#Measuring-Photometry" title="Permalink"></a></h2><p>Finally we can extract the source photometry</p><pre><code class="language-julia hljs">table = photometry(aps, subt)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Table with 3 columns and 1000 rows:
+plot!(aps)</code></pre><img src="32a14ae5.svg" alt="Example block output"/><h2 id="Measuring-Photometry"><a class="docs-heading-anchor" href="#Measuring-Photometry">Measuring Photometry</a><a id="Measuring-Photometry-1"></a><a class="docs-heading-anchor-permalink" href="#Measuring-Photometry" title="Permalink"></a></h2><p>Finally we can extract the source photometry</p><pre><code class="language-julia hljs">table = photometry(aps, subt)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Table with 3 columns and 1000 rows:
       xcenter  ycenter  aperture_sum
     ┌───────────────────────────────
  1  │ 255      226      20542.4
@@ -119,4 +119,4 @@ plot!(aps)</code></pre><img src="2a7edd16.svg" alt="Example block output"/><h2 i
     framestyle=:box,
     background_inside=:black,
     color=:white
-)</code></pre><img src="0c727435.svg" alt="Example block output"/></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../reproject/">« Reprojecting Images</a><a class="docs-footer-nextpage" href="../contours/">Plotting Contours »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.4.1 on <span class="colophon-date" title="Wednesday 12 June 2024 21:08">Wednesday 12 June 2024</span>. Using Julia version 1.10.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+)</code></pre><img src="ca79796e.svg" alt="Example block output"/></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../reproject/">« Reprojecting Images</a><a class="docs-footer-nextpage" href="../contours/">Plotting Contours »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.4.1 on <span class="colophon-date" title="Wednesday 19 June 2024 05:03">Wednesday 19 June 2024</span>. Using Julia version 1.10.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
