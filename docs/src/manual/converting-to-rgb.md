@@ -21,17 +21,20 @@ AstroImages.set_cmap!(nothing)
 
 Let's start by downloading the separate color channel FITS files:
 ```@example 1
-antred = AstroImage(download("http://www.astro.uvic.ca/~wthompson/astroimages/fits/antenae/red.fits"))
+# TODO: workaround until stacked images are relocated
+antred = AstroImage(download("https://esahubble.org/static/projects/fits_liberator/datasets/antennae/red.fits"))[:, begin+14:end]
 ```
 ```@example 1
-antgreen = AstroImage(download("http://www.astro.uvic.ca/~wthompson/astroimages/fits/antenae/green.fits"))
+antgreen = AstroImage(download("https://esahubble.org/static/projects/fits_liberator/datasets/antennae/green.fits"))
 ```
 ```@example 1
-antblue = AstroImage(download("http://www.astro.uvic.ca/~wthompson/astroimages/fits/antenae/blue.fits"))
+# TODO: workaround until stacked images are relocated
+antblue = AstroImage(download("https://esahubble.org/static/projects/fits_liberator/datasets/antennae/blue.fits"))[:, begin+14:end]
 ```
 
 ```@example 1
-anthalph = AstroImage(download("http://www.astro.uvic.ca/~wthompson/astroimages/fits/antenae/hydrogen.fits")); # Hydrogen-Alpha; we'll revisit later
+# TODO: workaround until stacked images are relocated
+anthalph = AstroImage(download("https://esahubble.org/static/projects/fits_liberator/datasets/antennae/hydrogen.fits"))[:, begin+14:end]; # Hydrogen-Alpha; we'll revisit later
 ```
 
 The images will have to be aligned and cropped to the same size before making a color composite.

@@ -17,7 +17,7 @@ using AstroImages
 using ImageFiltering
 
 fname = download(
-    "http://www.astro.uvic.ca/~wthompson/astroimages/fits/herca/herca_radio.fits",
+    "https://www.chandra.harvard.edu/photo/2014/archives/fits/herca/herca_radio.fits",
     "herca-radio.fits"
 )
 
@@ -73,7 +73,7 @@ using AstroImages
 using ImageFiltering
 
 fname = download(
-    "http://www.astro.uvic.ca/~wthompson/astroimages/fits/eagle/673nmos.fits",
+    "https://ds9.si.edu/download/data/673nmos.fits",
     "eagle-673nmos.fits"
 )
 

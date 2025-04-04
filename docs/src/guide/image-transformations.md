@@ -21,7 +21,7 @@ using AstroImages
 using ImageTransformations
 
 fname = download(
-    "http://www.astro.uvic.ca/~wthompson/astroimages/fits/antenae/blue.fits",
+    "https://esahubble.org/static/projects/fits_liberator/datasets/antennae/blue.fits",
     "ant-blue.fits"
 )
 
