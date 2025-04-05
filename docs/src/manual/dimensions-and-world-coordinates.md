@@ -23,7 +23,7 @@ using Plots
 
 # Download a Hubble image of the Eagle nebula
 download(
-    "http://www.astro.uvic.ca/~wthompson/astroimages/fits/656nmos.fits",
+    "https://ds9.si.edu/download/data/656nmos.fits",
     "eagle-656nmos.fits"
 );
 eagle = load("eagle-656nmos.fits")
@@ -134,7 +134,7 @@ Let's see how this works with a 3D cube.
 ```@example coords
 using AstroImages
 
-HIcube = load(download("http://www.astro.uvic.ca/~wthompson/astroimages/fits/HIdat.fits"))
+HIcube = load(download("https://www.astropy.org/astropy-data/tutorials/FITS-cubes/reduced_TAN_C14.fits"))
 ```
 
 Notice how the cube is not displayed automatically. We have to pick a specific slice:
