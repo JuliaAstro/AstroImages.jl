@@ -114,9 +114,11 @@ julia> rgb = composecolors([img1, img2, img3])
 ```
 Where `img1`, `img2`, `img3` are arrays or AstroImages containing data of red, blue and  green channels respectively.
 
-`composecolors` also supports more complex mappings, for example merging two bands according to color schemes from
-ColorSchemes.jl.
-See the docs for more information.
+`composecolors` also supports more complex mappings,  for example merging two bands according to color schemes from
+ColorSchemes.jl. Note that when the number of bands does not equal the
+default value, 3, colors must be inserted explicitly,
+e.g.,  composecolors([antred, antblue], ["red", "blue"]). See the docs for
+more information.
 
 
 ## Plotting an AstroImage
