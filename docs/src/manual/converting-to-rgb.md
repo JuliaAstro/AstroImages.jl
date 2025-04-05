@@ -21,23 +21,19 @@ AstroImages.set_cmap!(nothing)
 
 Let's start by downloading the separate color channel FITS files:
 ```@example 1
-# TODO: workaround until stacked images are relocated
+# We crop some of the images a bit to help align them with the other color channels
 antred = AstroImage(download("https://esahubble.org/static/projects/fits_liberator/datasets/antennae/red.fits"))[:, begin+14:end]
 ```
 ```@example 1
 antgreen = AstroImage(download("https://esahubble.org/static/projects/fits_liberator/datasets/antennae/green.fits"))
 ```
 ```@example 1
-# TODO: workaround until stacked images are relocated
 antblue = AstroImage(download("https://esahubble.org/static/projects/fits_liberator/datasets/antennae/blue.fits"))[:, begin+14:end]
 ```
 
 ```@example 1
-# TODO: workaround until stacked images are relocated
 anthalph = AstroImage(download("https://esahubble.org/static/projects/fits_liberator/datasets/antennae/hydrogen.fits"))[:, begin+14:end]; # Hydrogen-Alpha; we'll revisit later
 ```
-
-The images will have to be aligned and cropped to the same size before making a color composite.
 
 In order to compose these images, we'll have to match the relative intensity scales and clip outlying values.
 Thankfully, `composecolors` handles most of these details automatically.
@@ -46,6 +42,9 @@ Thankfully, `composecolors` handles most of these details automatically.
 rgb1 = composecolors([antred, antgreen, antblue])
 ```
 It's a start!
+
+!!! note
+    For best results, the images should be properly aligned and cropped to the same size before making a color composite. The simple cropping we did here is just for demonstration purposes.
 
 By default, if you provide three images these are mapped to the color channels red, green, and blue.
 The intensities are limited to `Percent(99.5)`.
