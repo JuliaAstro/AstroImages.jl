@@ -6,7 +6,7 @@ It is possible to store RGB data in an AstroImage. Let's see how that works:
 
 ```@example 1
 using AstroImages
-download("http://www.astro.uvic.ca/~wthompson/astroimages/fits/mw-crop2-small.png","mw-crop2-small.png")
+download("https://upload.wikimedia.org/wikipedia/commons/1/15/154-panel_Widefield_Milky_Way_Panorama.jpg","mw-crop2-small.png")
 
 # First we load it from the PNG file
 mw_png = load("mw-crop2-small.png")

@@ -12,7 +12,7 @@ using AstroImages, Plots
 
 # First load a FITS file of interest
 fname = download(
-    "http://www.astro.uvic.ca/~wthompson/astroimages/fits/herca/herca_radio.fits",
+    "https://www.chandra.harvard.edu/photo/2014/archives/fits/herca/herca_radio.fits",
     "herca-radio.fits"
 )
 

@@ -58,7 +58,7 @@ imview(img; cmap="red")
 Let's now switch to an astronomical image:
 ```@example 1
 fname = download(
-    "http://www.astro.uvic.ca/~wthompson/astroimages/fits/656nmos.fits",
+    "https://ds9.si.edu/download/data/656nmos.fits",
     "eagle-656nmos.fits"
 );
 eagle = AstroImage("eagle-656nmos.fits")
