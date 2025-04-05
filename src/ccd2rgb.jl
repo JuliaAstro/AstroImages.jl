@@ -56,8 +56,11 @@ function composecolors(
     if length(images) == 3 && isnothing(cmap)
         cmap = ["red", "green", "blue"]
     end
-    if length(cmap) < length(images)
+    if _cmap_len(cmap) < length(images)
         error("Please provide a color channel for each image")
+    end
+    if _cmap_len(cmap) > length(images)
+        error("Please provide an image for each color channel")
     end
 
     # Use imview to render each channel to RGBA
@@ -77,4 +80,5 @@ function composecolors(
     end
     return combined
 end
+_cmap_len(cmap) = isnothing(cmap) ? 0 : length(cmap)
 export composechannels

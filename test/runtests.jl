@@ -378,3 +378,16 @@ end
 
 # include("plots.jl")
 # include("ccd2rgb.jl")
+# TODO: Put this into ccd2rgb.jl later?
+@testset "ccd2rgb" begin
+    img1, img2, img3 = eachslice(rand(3, 4, 3); dims=3)
+    img4 = rand(3, 5)
+    @test_throws ErrorException("At least one image is required.") composecolors([], ["red", "blue", "green"])
+    @test_throws ErrorException("Images must have the same dimensions to compose them.") composecolors([img1, img2, img4], ["red", "blue", "green"])
+    @test_throws ErrorException("Please provide a color channel for each image") composecolors([img1, img2, img3], ["red", "blue"])
+    @test_throws ErrorException("Please provide a color channel for each image") composecolors([img1, img2], ["red"])
+    @test_throws ErrorException("Please provide a color channel for each image") composecolors([img1, img2])
+    @test_throws ErrorException("Please provide an image for each color channel") composecolors([img1, img2, img3], ["red", "blue", "green", "maroon"])
+    @test_throws ErrorException("Please provide an image for each color channel") composecolors([img1, img2], ["red", "blue", "green"])
+    @test_throws ErrorException("Please provide an image for each color channel") composecolors([img1], ["red", "blue"])
+end
