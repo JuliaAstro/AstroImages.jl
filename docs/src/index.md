@@ -1,6 +1,5 @@
 # Home
 
-[![GitHub](https://img.shields.io/badge/Code-GitHub-black.svg)](https://github.com/JuliaAstro/AstroImages.jl)
 [![Build Status](https://github.com/juliaastro/AstroImages.jl/workflows/CI/badge.svg?branch=master)](https://github.com/juliaastro/AstroImages.jl/actions)
 
 AstroImage.jl is a Julia package for loading, manipulating, and visualizing astronomical images.
