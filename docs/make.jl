@@ -24,12 +24,15 @@ setup = quote
 end
 DocMeta.setdocmeta!(AstroImages, :DocTestSetup, setup; recursive = true)
 
-makedocs(
+makedocs(;
     sitename = "AstroImages.jl",
     pages = pages,
     format = Documenter.HTML(
         prettyurls = get(ENV, "CI", nothing) == "true",
-        assets = ["assets/theme.css"],
+        assets = [
+            "assets/theme.css",
+            "assets/favicon.ico",
+        ],
     ),
     workdir = "..",
 
