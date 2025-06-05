@@ -33,6 +33,7 @@ makedocs(;
             "assets/theme.css",
             "assets/favicon.ico",
         ],
+        canonical = "https://JuliaAstro.org/AstroImages/stable/",
     ),
     workdir = "..",
 
@@ -62,4 +63,5 @@ deploydocs(
     repo = "github.com/JuliaAstro/AstroImages.jl.git",
     devbranch = "master",
     push_preview = true,
+    versions = ["stable" => "v^", "v#.#"], # Restrict to minor releases
 )
