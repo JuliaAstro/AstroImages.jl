@@ -27,7 +27,7 @@ DocMeta.setdocmeta!(AstroImages, :DocTestSetup, setup; recursive = true)
 makedocs(;
     sitename = "AstroImages.jl",
     pages = pages,
-    format = Documenter.HTML(
+    format = Documenter.HTML(;
         prettyurls = get(ENV, "CI", nothing) == "true",
         assets = [
             "assets/theme.css",
@@ -58,8 +58,7 @@ makedocs(;
     ],
 )
 
-
-deploydocs(
+deploydocs(;
     repo = "github.com/JuliaAstro/AstroImages.jl.git",
     devbranch = "master",
     push_preview = true,
