@@ -1,0 +1,11 @@
+[deps]
+AstroImages = "fe3fc30c-9b16-11e9-1c73-17dabf39f4ad"
+Downloads = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
+FITSIO = "525bcba6-941b-5504-bd06-fd0dc1a4d2eb"
+ImageBase = "c817782e-172a-44cc-b673-b171935fbb9e"
+ParallelTestRunner = "d3525ed8-44d0-4b2c-a655-542cee43accc"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+SHA = "ea8e919c-243c-51af-8825-aaa63cd721ce"
+Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+WCS = "15f3aee2-9e10-537f-b834-a6fb8bdb944d"

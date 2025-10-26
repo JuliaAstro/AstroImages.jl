@@ -1,7 +1,10 @@
 name = "AstroImages"
 uuid = "fe3fc30c-9b16-11e9-1c73-17dabf39f4ad"
-authors = ["Mosè Giordano", "Rohit Kumar", "William Thompson"]
 version = "0.5.1"
+authors = ["Mosè Giordano", "Rohit Kumar", "William Thompson"]
+
+[workspace]
+projects = ["test", "docs"]
 
 [deps]
 AbstractFFTs = "621f4979-c628-5d54-868e-fcf4e3e8185c"
@@ -43,14 +46,3 @@ Statistics = "1"
 Tables = "1.7"
 WCS = "0.6"
 julia = "1.10"
-
-[extras]
-FITSIO = "525bcba6-941b-5504-bd06-fd0dc1a4d2eb"
-ImageBase = "c817782e-172a-44cc-b673-b171935fbb9e"
-Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
-Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
-Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
-WCS = "15f3aee2-9e10-537f-b834-a6fb8bdb944d"
-
-[targets]
-test = ["Test", "WCS", "FITSIO", "Random", "Statistics", "ImageBase"]
