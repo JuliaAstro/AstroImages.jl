@@ -2,7 +2,7 @@
 
 | **Documentation** | **Build Status**                          | **Code Coverage**               |
 |:------------------|:-----------------------------------------:|:-------------------------------:|
-| [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://juliaastro.org/AstroImages/stable/) [![](https://img.shields.io/badge/docs-dev-blue.svg)](https://juliaastro.org/AstroImages.jl/dev/) | ![Build status](https://github.com/JuliaAstro/AstroImages/actions/workflows/ci.yml/badge.svg) | [![][codecov-img]][codecov-url] |
+| [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://juliaastro.org/AstroImages/stable/) [![](https://img.shields.io/badge/docs-dev-blue.svg)](https://juliaastro.org/AstroImages.jl/dev/) | ![Build status](https://github.com/JuliaAstro/AstroImages/actions/workflows/CI.yml) | [![][codecov-img]][codecov-url] |
 
 Introduction
 ------------
@@ -162,6 +162,6 @@ The `AstroImages.jl` package is licensed under the MIT "Expat" License.  The
 original author is Mosè Giordano.
 
 
-[codecov-img]: http://codecov.io/github/JuliaAstro/AstroImages.jl/coverage.svg?branch=master
-[codecov-url]: http://codecov.io/github/JuliaAstro/AstroImages.jl?branch=master
+[codecov-img]: http://codecov.io/github/JuliaAstro/AstroImages.jl/coverage.svg
+[codecov-url]: http://codecov.io/github/JuliaAstro/AstroImages.jl
 

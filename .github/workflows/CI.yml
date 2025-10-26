@@ -15,13 +15,13 @@ jobs:
       fail-fast: false
       matrix:
         version:
-          - '1.9' # Minimum Julia version that the package supports.
+          - 'min' # Minimum Julia version that the package supports.
           - '1' # Leave this line unchanged. '1' will automatically expand to the latest stable 1.x release of Julia.
-          - 'nightly'
+          - 'pre'
         os:
           - ubuntu-latest
         arch:
-          - x64
+          - 'default'
     steps:
       - uses: actions/checkout@v5
       - uses: julia-actions/setup-julia@v2
