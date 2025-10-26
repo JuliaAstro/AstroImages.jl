@@ -42,7 +42,7 @@ RecipesBase = "1.2"
 Statistics = "1"
 Tables = "1.7"
 WCS = "0.6"
-julia = "1.9.0"
+julia = "1.10"
 
 [extras]
 FITSIO = "525bcba6-941b-5504-bd06-fd0dc1a4d2eb"
