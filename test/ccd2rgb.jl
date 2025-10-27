@@ -1,3 +1,13 @@
+using AstroImages: ccd2rgb, load
+
+using Downloads: download
+
+using FITSIO: FITS
+
+using ImageBase: RGB, red, green, blue
+
+using SHA: sha256
+
 function download_dep(orig, dest, hash)
     dest_file = joinpath("data", dest)
     if isfile(dest_file)
