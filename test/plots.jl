@@ -1,5 +1,6 @@
-using RecipesBase
-using AstroImages: pix2world_xformatter, pix2world_yformatter
+import RecipesBase
+using AstroImages: AstroImageMat, pix2world_xformatter, pix2world_yformatter
+using WCS: WCSTransform
 
 @testset "Plot recipes" begin
     data = randn(10, 10)
