@@ -81,4 +81,3 @@ function composecolors(
     return combined
 end
 _cmap_len(cmap) = isnothing(cmap) ? 0 : length(cmap)
-export composechannels

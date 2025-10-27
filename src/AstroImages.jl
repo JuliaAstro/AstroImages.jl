@@ -57,7 +57,9 @@ export load,
     pix_to_world,
     pix_to_world!,
     world_to_pix,
-    world_to_pix!
+    world_to_pix!,
+    # ccd2rgb
+    composechannels
 
 
 
