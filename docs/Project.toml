@@ -15,6 +15,3 @@ WCS = "15f3aee2-9e10-537f-b834-a6fb8bdb944d"
 
 [compat]
 Documenter = "1"
-
-[sources]
-AstroImages = {path = ".."}
