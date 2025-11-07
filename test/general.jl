@@ -5,7 +5,7 @@ using AstroImages:
 
 using FITSIO: FITS, FITSHeader, read_header
 
-using ImageBase: Gray, RGBA, Normed, N0f8
+using ImageBase: Gray, RGBA, Normed, N0f8, N0f16, N0f32, N0f64
 
 using WCS: to_header, from_header
 

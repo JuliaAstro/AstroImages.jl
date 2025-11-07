@@ -1,25 +1,33 @@
 module AstroImages
 
-using FITSIO
-using FileIO
+using AbstractFFTs: AbstractFFTs
+using AstroAngles: AstroAngles, deg2dms, deg2hms
+using ColorSchemes: ColorSchemes, get
+using DimensionalData: DimensionalData, AbstractDimArray, At, Dim,
+                       Dimensions, Near, Ti, X, Y, Z, dims, name, rebuild,
+                       refdims
+using FITSIO: FITSIO, FITS, FITSHeader, HDU, ImageHDU, TableHDU, get_comment,
+              read_header, set_comment!
+using FileIO: FileIO, @format_str, File, filename, load, save
 # Rather than pulling in all of Images.jl, just grab the packages
-# we need to extend to our basic functionality.
 # We also need ImageShow so that user's images appear automatically.
-using ImageBase, ImageShow#, ImageAxes
-
-using WCS
-using Statistics
+# we need to extend to our basic functionality.
+using ImageBase: ImageBase, Colorant, FixedPoint, N0f8, N0f16, N0f32, N0f64, RGBA, color, colormap,
+                 permuteddimsview, restrict
+using ImageShow: ImageShow
+#using ImageAxes
+using MappedArrays: MappedArrays, mappedarray
 using MappedArrays
-using ColorSchemes
-using DimensionalData
-using Tables
-using RecipesBase
-using AstroAngles
-using Printf
 using PlotUtils: PlotUtils
 using PlotUtils: optimize_ticks, AbstractColorList
-using UUIDs # can remove once reigstered with FileIO
-
+using PrecompileTools: PrecompileTools, @compile_workload, @setup_workload
+using Printf: Printf, @printf, @sprintf
+using RecipesBase: RecipesBase, @layout, @recipe, @series, @userplot
+using Statistics: Statistics, mean, quantile
+using Tables: Tables
+using UUIDs: UUIDs # can remove once reigstered with FileIO
+using WCS: WCS, WCSTransform, pix_to_world, pix_to_world!, world_to_pix,
+         world_to_pix!
 
 export load,
     save,
@@ -61,8 +69,6 @@ export load,
     # ccd2rgb
     composechannels
 
-
-
 # Images.jl expects data to be either a float or a fixed-point number.  Here we define some
 # utilities to convert all data types supported by FITS format to float or fixed-point:
 #
@@ -80,7 +86,6 @@ for n in (8, 16, 32, 64)
         _float(x::$SIT) = _float(xor(reinterpret($UIT, x), $maxint))
     end
 end
-
 
 """
     AstroImage
@@ -108,7 +113,6 @@ end
 # Provide type aliases for 1D and 2D versions of our data structure.
 const AstroImageVec{T,D} = AstroImage{T,1} where {T}
 const AstroImageMat{T,D} = AstroImage{T,2} where {T}
-
 
 """
     Centered()
@@ -172,8 +176,6 @@ Check if an image has a given header key.
 """
 Base.haskey(img::AstroImage, key::String) = haskey(header(img), key)
 Base.haskey(img::AstroImage, key::Symbol) = haskey(header(img), String(key))
-
-
 
 """
     wcs(img)
@@ -280,7 +282,6 @@ for f in [
     @eval ($f)(img::AstroImage) = shareheader(img, $f(parent(img)))
 end
 
-
 """
     AstroImage(img::AstroImage)
 
@@ -288,7 +289,6 @@ Returns its argument. Useful to ensure an argument is converted to an
 AstroImage before proceeding.
 """
 AstroImage(img::AstroImage) = img
-
 
 """
     AstroImage(data::AbstractArray, [header::FITSHeader,] [wcs::WCSTransform,])
@@ -384,7 +384,6 @@ AstroImage(
 # TODO: ensure this gets WCS dims.
 AstroImage(data::AbstractArray, wcs::Vector{WCSTransform}) = AstroImage(data, emptyheader(), wcs)
 
-
 """
 Index for accessing a comment associated with a header keyword
 or COMMENT entry.
@@ -411,7 +410,6 @@ img[History] # ["2023-04-19: Added history entry."]
 ```
 """
 struct History end
-
 
 # We might want getproperty for header access in future.
 # function Base.getproperty(img::AstroImage, ::Symbol)
@@ -502,10 +500,7 @@ maybe_shareheader(::AbstractArray, data) = data
 maybe_copyheader(img::AstroImage, data) = copyheader(img, data)
 maybe_copyheader(::AbstractArray, data) = data
 
-
 Base.promote_rule(::Type{AstroImage{T}}, ::Type{AstroImage{V}}) where {T,V} = AstroImage{promote_type{T,V}}
-
-
 
 Base.copy(img::AstroImage) = rebuild(img, copy(parent(img)))
 Base.convert(::Type{AstroImage}, A::AstroImage) = A
@@ -524,7 +519,6 @@ Base.convert(::Type{AstroImage{T,N,D,R,AT}}, A::AbstractArray{T,N}) where {T,N,D
 Convenience function to create a FITSHeader with no keywords set.
 """
 emptyheader() = FITSHeader(String[],[],String[])
-
 
 """
     recenter(img::AstroImage)
@@ -564,19 +558,15 @@ function recenter(img::AstroImage, centers::Number...)
     AstroImages.rebuild(img, parent(img), newdimsformatted)
 end
 
-
 include("wcs.jl")
 include("io.jl")
 include("imview.jl")
 include("showmime.jl")
 include("plot-recipes.jl")
-
 include("contrib/images.jl")
 include("contrib/abstract-ffts.jl")
 # include("contrib/reproject.jl")
-
 include("ccd2rgb.jl")
 include("precompile.jl")
-
 
 end # module
