@@ -383,8 +383,7 @@ end
 #     rm(fname3, force = true)
 # end
 
-# TODO: Put this into ccd2rgb.jl later?
-@testset "ccd2rgb" begin
+@testset "composecolors" begin
     img1, img2, img3 = eachslice(rand(3, 4, 3); dims=3)
     img4 = rand(3, 5)
     @test_throws ErrorException("At least one image is required.") composecolors([], ["red", "blue", "green"])
@@ -395,4 +394,15 @@ end
     @test_throws ErrorException("Please provide an image for each color channel") composecolors([img1, img2, img3], ["red", "blue", "green", "maroon"])
     @test_throws ErrorException("Please provide an image for each color channel") composecolors([img1, img2], ["red", "blue", "green"])
     @test_throws ErrorException("Please provide an image for each color channel") composecolors([img1], ["red", "blue"])
+
+    # TODO: Should something like this work?
+    # Data description: https://chandra.cfa.harvard.edu/photo/2009/casa/
+    # Data source: https://chandra.cfa.harvard.edu/photo/openFITS/casa.html
+    # r = load(joinpath("data","casa_0.5-1.5keV.fits"))
+    # g = load(joinpath("data","casa_1.5-3.0keV.fits"))
+    # b = load(joinpath("data","casa_4.0-6.0keV.fits"))
+    # img = composecolors([r, g, b]; contrast = 1.0);
+    # img_test = composecolors([r, g, b]; contrast = 2.5);
+    # isapprox(red.(img), red.(img2) .* 2.5)
+    # <same for other channels>
 end

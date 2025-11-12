@@ -65,9 +65,7 @@ export load,
     pix_to_world,
     pix_to_world!,
     world_to_pix,
-    world_to_pix!,
-    # ccd2rgb
-    composechannels
+    world_to_pix!
 
 # Images.jl expects data to be either a float or a fixed-point number.  Here we define some
 # utilities to convert all data types supported by FITS format to float or fixed-point:
@@ -566,7 +564,6 @@ include("plot-recipes.jl")
 include("contrib/images.jl")
 include("contrib/abstract-ffts.jl")
 # include("contrib/reproject.jl")
-include("ccd2rgb.jl")
 include("precompile.jl")
 
 end # module
