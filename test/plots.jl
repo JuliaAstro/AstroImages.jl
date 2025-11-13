@@ -4,14 +4,14 @@ using WCS: WCSTransform
 
 @testset "Plot recipes" begin
     data = randn(10, 10)
-    img = AstroImage(data)
-    p = ImPlot((img,))
     wcs1 = WCSTransform(2; ctype = ["RA---AIR", "DEC--AIR"])
     wcs2 = WCSTransform(2; ctype = ["GLON--", "GLAT--"])
     wcs3 = WCSTransform(2; ctype = ["TLON--", "TLAT--"])
     wcs4 = WCSTransform(2; ctype = ["UNK---", "UNK---"])
     wcs5 = WCSTransform(2;)
 
+    img = AstroImage(data)
+    p = ImPlot((img,))
     rec = apply_recipe(Dict{Symbol, Any}(), p)
     @test getfield(rec[1], 1) == Dict{Symbol, Any}(
         :ylims        => (0.5, 10.5),
@@ -24,25 +24,36 @@ using WCS: WCSTransform
         :xflip        => false,
         :aspect_ratio => 1,
     )
-#    @test rec[1].args == (img.data[1],)
-#
-#    rec = RecipesBase.apply_recipe(Dict{Symbol, Any}(), img, wcs1)
-#    @test rec[1].plotattributes[:xlabel] == "Right Ascension (ICRS)" && rec[1].plotattributes[:ylabel] == "Declination (ICRS)"
-#
-#    rec = RecipesBase.apply_recipe(Dict{Symbol, Any}(), img, wcs2)
-#    @test rec[1].plotattributes[:xlabel] == "Galactic Coordinate" && rec[1].plotattributes[:ylabel] == "Galactic Coordinate"
-#
-#    rec = RecipesBase.apply_recipe(Dict{Symbol, Any}(), img, wcs3)
-#    @test rec[1].plotattributes[:xlabel] == "ITRS" && rec[1].plotattributes[:ylabel] == "ITRS"
-#
-#    rec = RecipesBase.apply_recipe(Dict{Symbol, Any}(), img, wcs4)
-#    @test rec[1].plotattributes[:xlabel] == "UNK---" && rec[1].plotattributes[:ylabel] == "UNK---"
-#
-#    rec = RecipesBase.apply_recipe(Dict{Symbol, Any}(), img, wcs5)
-#    @test rec[1].plotattributes[:xlabel] == "" && rec[1].plotattributes[:ylabel] == ""
-#
+    @test p.args[1].data == img.data
+
+    img = AstroImage(data, [wcs1])
+    p = ImPlot((img,))
+    rec = apply_recipe(Dict{Symbol, Any}(), p)
+    @test rec[1].plotattributes[:xguide] == "Right Ascension (ICRS)" && rec[1].plotattributes[:yguide] == "Declination (ICRS)"
+
+    img = AstroImage(data, [wcs2])
+    p = ImPlot((img,))
+    rec = apply_recipe(Dict{Symbol, Any}(), p)
+    @test rec[1].plotattributes[:xguide] == "Galactic Longitude" && rec[1].plotattributes[:yguide] == "Galactic Latitude"
+
+    img = AstroImage(data, [wcs3])
+    p = ImPlot((img,))
+    rec = apply_recipe(Dict{Symbol, Any}(), p)
+    @test rec[1].plotattributes[:xguide] == "ITRS" && rec[1].plotattributes[:yguide] == "TLAT--"
+
+    img = AstroImage(data, [wcs4])
+    p = ImPlot((img,))
+    rec = apply_recipe(Dict{Symbol, Any}(), p)
+    @test rec[1].plotattributes[:xguide] == "UNK---" && rec[1].plotattributes[:yguide] == "UNK---"
+
+    img = AstroImage(data, [wcs5])
+    p = ImPlot((img,))
+    rec = apply_recipe(Dict{Symbol, Any}(), p)
+    @test !haskey(rec[1].plotattributes, :xguide) && !haskey(rec[1].plotattributes, :yguide)
+
 end
 
+# TODO: are these needed anymore?
 #@testset "formatters" begin
 #    wcs1 = WCSTransform(2; ctype = ["RA---AIR", "DEC--AIR"])
 #    wcs2 = WCSTransform(2; ctype = ["GLON--", "GLAT--"])
