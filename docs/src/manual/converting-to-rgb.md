@@ -12,8 +12,6 @@ using AstroImages: restrict
 AstroImages.set_clims!(Percent(99.5))
 AstroImages.set_cmap!(:magma)
 AstroImages.set_stretch!(identity)
-
-minify(img) = shareheader(img, (restrict∘restrict∘restrict)(img.data))
 ```
 
 If you have two or more images of the same scene taken at different wavelengths, you may wish to combine them to create a color composite.
@@ -41,29 +39,24 @@ Let's start by downloading the separate color channel FITS files:
 ```@example 1
 # We crop some of the images a bit to help align them with the other color channels
 antred = load("https://esahubble.org/static/projects/fits_liberator/datasets/antennae/red.fits")[:, begin+14:end]
-antred_mini = minify(antred) # hide
 ```
 
 ```@example 1
 antgreen = load("https://esahubble.org/static/projects/fits_liberator/datasets/antennae/green.fits")
-antgreen_mini = minify(antgreen) # hide
 ```
 
 ```@example 1
 antblue = load("https://esahubble.org/static/projects/fits_liberator/datasets/antennae/blue.fits")[:, begin+14:end]
-antblue_mini = minify(antblue) # hide
 ```
 
 ```@example 1
 anthalph = load("https://esahubble.org/static/projects/fits_liberator/datasets/antennae/hydrogen.fits")[:, begin+14:end]; # Hydrogen-Alpha; we'll revisit later
-anthalph_mini = minify(anthalph) # hide
 ```
 
 In order to compose these images, we'll have to match the relative intensity scales and clip outlying values. Thankfully, `composecolors` handles most of these details automatically:
 
 ```@example 1
 rgb1 = composecolors([antred, antgreen, antblue])
-composecolors([antred_mini, antgreen_mini, antblue_mini]) # hide
 ```
 
 It's a start!
@@ -80,9 +73,6 @@ We can now tweak these defaults to our tastes. We could try clamping the intensi
 rgb2 = composecolors([antred, antgreen, antblue];
     clims = Percent(97),
 )
-composecolors([antred_mini, antgreen_mini, antblue_mini];
-    clims = Percent(97),
-) # hide
 ```
 
 This looks okay but saturates the galaxy cores.
@@ -111,9 +101,6 @@ Typically we need to perform a "gamma correction" aka non-lienar stretch to map 
 rgb3 = composecolors([antred, antgreen, antblue];
     stretch = asinhstretch,
 )
-composecolors([antred_mini, antgreen_mini, antblue_mini];
-    stretch = asinhstretch,
-) # hide
 ```
 
 Keywords like `stretch`, `clims`, etc can be either a single value for all channels or a list of separate values/functions per channel.
@@ -127,17 +114,12 @@ rgb4 = composecolors([antred, antgreen, antblue];
     stretch = asinhstretch,
     multiplier = [1,1.7,1],
 )
-composecolors([antred_mini, antgreen_mini, antblue_mini];
-    stretch = asinhstretch,
-    multiplier = [1,1.7,1],
-) # hide
 ```
 
 That's better! Let's go one step further, and incorporate a fourth chanel: Hydrogen Alpha. Hydrogen Alpha is a narrow filter centered around one of the emission lines of Hydrogen atoms. It traces locations with hot gas; mostly star-formation regions in this case:
 
 ```@example 1
 imview(anthalph; cmap = :magma, clims = Zscale())
-imview(minify(anthalph); cmap = :magma, clims = Zscale()) # hide
 ```
 
 We'll now need to specify the color channels we want to use for each wavelength since we can't use just the default three RGB. We can use any named color or julia ColorScheme:
@@ -147,10 +129,6 @@ rgb5 = composecolors([antred, antgreen, antblue, anthalph], ["red", "green", "bl
     stretch = asinhstretch,
     multiplier = [1,1.7,1,0.8],
 )
-composecolors([antred_mini, antgreen_mini, antblue_mini, anthalph_mini], ["red", "green", "blue", "maroon1"];
-    stretch = asinhstretch,
-    multiplier = [1,1.7,1,0.8],
-) # hide
 ```
 
 Additionally, we'd like to just show the brightest areas of Hydrogen alpha emission rather than adding a diffuse pink glow. We can turn off the stretch for this one channel:
@@ -165,15 +143,6 @@ rgb6 = composecolors([antred, antgreen, antblue, anthalph], ["red", "green", "bl
     ],
     multiplier = [1, 1.7, 1, 0.8]
 )
-composecolors([antred_mini, antgreen_mini, antblue_mini, anthalph_mini], ["red", "green", "blue", "maroon1"];
-    stretch = [
-        asinhstretch,
-        asinhstretch,
-        asinhstretch,
-        identity,
-    ],
-    multiplier = [1, 1.7, 1, 0.8]
-) # hide
 ```
 
 Finally, we can crop the image and save it as a PNG:

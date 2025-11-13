@@ -8,8 +8,6 @@ using Plots
 AstroImages.set_clims!(Percent(99.5))
 AstroImages.set_cmap!(:magma)
 AstroImages.set_stretch!(identity)
-
-minify(img) = shareheader(img, (restrict∘restrict∘restrict)(img.data))
 ```
 
 The `imview` and `implot` functions are very similar. Both allow any abstract array of numbers to be rendered into an image or a Plots.jl image series. `implot` is largely a superset of `imview` because it also supports colorbars, tick marks, WCS grid lines, overplotting other data & shapes, and automatic axis and title naming (from the FITS header if available).
@@ -63,26 +61,22 @@ Let's now switch to an astronomical image:
 
 ```@example 1
 eagle = load("https://ds9.si.edu/download/data/656nmos.fits")
-eagle_mini = minify(eagle) # hide
 ```
 
 We can apply a non-linear stretch like a log-scale, power-scale, or asinh stretch:
 
 ```@example 1
 imview(eagle; stretch = asinhstretch)
-imview(eagle_mini; stretch = asinhstretch) # hide
 ```
 
 Once rendered, we can also tweak the bias and contrast:
 
 ```@example 1
 imview(eagle; stretch = asinhstretch, contrast = 1.5)
-imview(eagle_mini; stretch = asinhstretch, contrast = 1.5) # hide
 ```
 
 ```@example 1
 imview(eagle; stretch = asinhstretch, contrast = 1.5, bias = 0.6)
-imview(eagle_mini; stretch = asinhstretch, contrast = 1.5, bias = 0.6) # hide
 ```
 
 These are the parameters that change when you click and drag in some applications like DS9.

@@ -11,8 +11,6 @@ using AstroImages: restrict
 AstroImages.set_clims!(Percent(99.5))
 AstroImages.set_cmap!(:magma)
 AstroImages.set_stretch!(identity)
-
-minify(img) = shareheader(img, (restrict∘restrict∘restrict)(img.data))
 ```
 
 ## World Coordinates
@@ -28,7 +26,6 @@ using Plots
 
 # Download a Hubble image of the Eagle nebula
 eagle = load("https://ds9.si.edu/download/data/656nmos.fits")
-eagle_mini = minify(eagle) # hide
 ```
 
 This image contains world coordinate system headers. AstroImages.jl uses WCS.jl (and wcslib under the hood) to parse these headers. We can generate a WCSTransform object to inspect:
@@ -57,14 +54,12 @@ If an image contains WCS headers, we can visualize them using [`implot`](@ref):
 
 ```@example coords
 implot(eagle)
-implot(eagle_mini) # hide
 ```
 
 We can adjust the color of the grid:
 
 ```@example coords
 implot(eagle; gridcolor = :cyan)
-implot(eagle_mini; gridcolor = :cyan) # hide
 ```
 
 If these aren't desired, we can turn off the grid or the WCS tick marks:
@@ -76,12 +71,6 @@ plot(
   size = (900, 300),
   bottommargin = 10Plots.mm,
 )
-plot(
-  implot(eagle_mini; grid = false),
-  implot(eagle_mini, wcsticks = false);
-  size = (900, 300),
-  bottommargin = 10Plots.mm,
-) # hide
 ```
 
 Since AstroImages are based on DimensionalData's AbstractDimArray, the mapping between pixel coordinates and world coordinates are preserved when slicing an AstroImage:
@@ -95,12 +84,6 @@ plot(
   size = (900, 300),
   bottommargin = 10Plots.mm,
 )
-plot(
-  implot(minify(slice1)),
-  implot(minify(slice2));
-  size = (900, 300),
-  bottommargin = 10Plots.mm,
-) # hide
 ```
 
 World coordinate queries from that slice are aware of their position in the parent image:
@@ -219,14 +202,12 @@ You can adjust the center of an image's dimensions using [`recenter`](@ref):
 
 ```@example coords
 eagle_cen = recenter(eagle, 801, 801);
-eagle_cen_mini = minify(eagle_cen) # hide
 ```
 
 Unlike an OffsetArray, `eagle_cen[1,1]` still refers to the bottom left of the image. This also has no effect on broadcasting; `eagle_cen .+ ones(1600,1600)` is perfectly valid. However, we see the new centered dimensions when we go to plot the image:
 
 ```@example coords
 implot(eagle_cen; wcsticks = false)
-implot(eagle_cen_mini; wcsticks = false)
 ```
 
 And we can query positions using the offset dimensions:
