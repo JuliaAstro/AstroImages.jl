@@ -299,7 +299,7 @@ function AstroImage(
     dims::Union{Tuple,NamedTuple}=(),
     refdims::Union{Tuple,NamedTuple}=(),
     header::FITSHeader=emptyheader(),
-    wcs::Union{WCSTransform,Nothing}=nothing;
+    wcs::Union{Vector{WCSTransform},Nothing}=nothing;
     wcsdims=nothing
 ) where {T, N}
     wcs_stale = isnothing(wcs)
