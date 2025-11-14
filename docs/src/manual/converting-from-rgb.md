@@ -1,7 +1,3 @@
-```@meta
-Draft = false
-```
-
 ## Converting From RGB Images
 
 If you encouter an image in a standard graphics format (e.g. PNG, JPG) that you want to analyze or store in an AstroImage, it will likely contain RGB (or similar) pixels.
