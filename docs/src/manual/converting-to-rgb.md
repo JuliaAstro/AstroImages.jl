@@ -1,7 +1,3 @@
-```@meta
-Draft = false
-```
-
 # Converting to RGB
 
 ```@setup 1
