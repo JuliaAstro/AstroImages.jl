@@ -1,7 +1,6 @@
 # Dimensions and World Coordinates
 
-AstroImages are based on [Dimensional Data](https://github.com/rafaqz/DimensionalData.jl).
-Each axis is assigned a dimension name and the indices are tracked.
+AstroImages are based on [DimensionalData.jl](https://github.com/rafaqz/DimensionalData.jl). Each axis is assigned a dimension name and the indices are tracked.
 
 ```@setup coords
 using AstroImages
@@ -96,7 +95,7 @@ World coordinate queries from that slice are aware of their position in the pare
 @show pix_to_world(slice2, [1, 1])
 ```
 
-Note that you can query the dimensions of an image using the [`dims`]() function from DimensionalData:
+Note that you can query the dimensions of an image using the [`dims`](@extref DimensionalData.Dimensions.dims) function from DimensionalData:
 
 ```@example coords
 dims(slice2)

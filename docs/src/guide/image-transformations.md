@@ -53,4 +53,4 @@ Arbitrary transformations can be performed using ImageTransformation's `warp` fu
 
 ## Mapping from One Coordinate System to Another
 
-For transforming an image from one coordiante system (say, RA & DEC) to another (e.g., galactic lattitude & logitude), see [Reprojecting Images]().
+For transforming an image from one coordiante system (say, RA & DEC) to another (e.g., galactic lattitude & logitude), see [Reprojecting Images](@ref).

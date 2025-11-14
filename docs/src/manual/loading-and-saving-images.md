@@ -80,7 +80,7 @@ img = AstroImage(zeros(1600, 1600), (Y=1:1600, Z=1:1600))
 
 Other useful dimension names are `Spec` for spectral axes, `Pol` for polarization data, and `Ti` for time axes.
 
-These will be further discussed in [Dimensions and World Coordinates]().
+These will be further discussed in [Dimensions and World Coordinates](@ref).
 
 ## Saving Images
 You can save one or more AstroImages and tables to a FITS file using the `save` function:

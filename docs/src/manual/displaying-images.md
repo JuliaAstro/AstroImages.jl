@@ -119,4 +119,4 @@ using Plots
 implot(img; clims = Percent(99.5), cmap = :magma, stretch = identity, contrast = 1.0, bias = 0.5)
 ```
 
-For more on `implot`, including offset dimensions and world coordinates, see [Dimensions and World Coordinates]().
+For more on `implot`, including offset dimensions and world coordinates, see [Dimensions and World Coordinates](@ref).
