@@ -4,7 +4,7 @@ using AbstractFFTs: AbstractFFTs
 using AstroAngles: AstroAngles, deg2dms, deg2hms
 using ColorSchemes: ColorSchemes, get
 using DimensionalData: DimensionalData, AbstractDimArray, At, Dim,
-                       Dimensions, Near, Ti, X, Y, Z, dims, name, rebuild,
+                       Dimensions, Near, :.., Ti, X, Y, Z, dims, name, rebuild,
                        refdims
 using FITSIO: FITSIO, FITS, FITSHeader, HDU, ImageHDU, TableHDU, get_comment,
               read_header, set_comment!
