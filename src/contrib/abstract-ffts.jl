@@ -1,5 +1,3 @@
-using AbstractFFTs
-
 for f in [
     :(AbstractFFTs.fft),
     :(AbstractFFTs.bfft),
@@ -19,9 +17,6 @@ for f in [
     # TODO: should we try to alter the image headers to change the units?
     @eval ($f)(img::AstroImage, args...; kwargs...) = shareheader(img, $f(parent(img), args...; kwargs...))
 end
-
-
-
 
 # AbstractFFTs.complexfloat(img::AstroImage{T,N,D,R,StridedArray{T}}) where {T<:Complex{<:BlasReal}} = img
 # AbstractFFTs.realfloat(img::AstroImage{T,N,D,R,StridedArray{T}}) where {T<:BlasReal} = img
