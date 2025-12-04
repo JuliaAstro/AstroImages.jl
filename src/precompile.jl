@@ -1,6 +1,3 @@
-
-using PrecompileTools
-
 @setup_workload begin
     types = [Float32, Float64, Int, Int8, UInt8, N0f8]
     arrays = [rand(T, 5, 5) for T in types]
