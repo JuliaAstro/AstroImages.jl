@@ -11,20 +11,14 @@ img = load("myfitsimg.fits");
 ```
 
 !!! note
-    FITS files from the web can also be opened directly:
-
-    ```julia
-    img = load("https://myfitsimg.fits");
-    ```
-
-    but currently compressed files still must be downloaded explicitly first:
+    FITS files from the web can also be downloaded and opened:
 
     ```julia
     using Downloads: download
 
-    download("https://myfitsimg.fits.gz", "myfitsimg.fits")
+    download("https://website/longfitsfilename.fits", "shortname.fits")
 
-    img = load("myfitsimg.fits");
+    img = load("shortname.fits");
     ```
 
 You can also use the `AstroImage` constructor directly, which works on `AbstractArray` data as well:

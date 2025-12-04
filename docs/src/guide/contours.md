@@ -10,9 +10,10 @@ Let's see how that works:
 
 ```@example contours
 using AstroImages, Plots
+using Downloads: download
 
 # First load a FITS file of interest
-herca = load("https://www.chandra.harvard.edu/photo/2014/archives/fits/herca/herca_radio.fits")
+herca = load(download("https://www.chandra.harvard.edu/photo/2014/archives/fits/herca/herca_radio.fits"))
 ```
 
 Create a contour plot

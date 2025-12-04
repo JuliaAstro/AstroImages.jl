@@ -14,8 +14,9 @@ It supports FITS files ([FITSIO.jl](https://github.com/JuliaAstro/FITSIO.jl)), w
 
 ```@example
 using AstroImages
+using Downloads: download
 
-img = load("https://archive.stsci.edu/hlsps/jwst-ero/hlsp_jwst-ero_jwst_miri_carina_f770w_v1_i2d.fits")
+img = load(download("https://archive.stsci.edu/hlsps/jwst-ero/hlsp_jwst-ero_jwst_miri_carina_f770w_v1_i2d.fits"))
 ```
 
 *Carina (NGC 3324), [Early Release Observations](https://archive.stsci.edu/hlsp/jwst-ero) from the James Webb Space Telescope ([Pontoppidan et al. 2022](https://ui.adsabs.harvard.edu/abs/2022ApJ...936L..14P/abstract)).*

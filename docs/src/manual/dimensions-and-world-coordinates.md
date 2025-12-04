@@ -22,9 +22,10 @@ Let's see how this works with a 2D image with RA & DEC coordinates:
 ```@example coords
 using AstroImages
 using Plots
+using Downloads: download
 
 # Download a Hubble image of the Eagle nebula
-eagle = load("https://ds9.si.edu/download/data/656nmos.fits")
+eagle = load(download("https://ds9.si.edu/download/data/656nmos.fits"))
 ```
 
 This image contains world coordinate system headers. AstroImages.jl uses WCS.jl (and wcslib under the hood) to parse these headers. We can generate a WCSTransform object to inspect:
@@ -134,7 +135,7 @@ Let's see how this works with a 3D cube.
 ```@example coords
 using AstroImages
 
-HIcube = load("https://www.astropy.org/astropy-data/tutorials/FITS-cubes/reduced_TAN_C14.fits")
+HIcube = load(download("https://www.astropy.org/astropy-data/tutorials/FITS-cubes/reduced_TAN_C14.fits"))
 ```
 
 Notice how the cube is not displayed automatically. We have to pick a specific slice:

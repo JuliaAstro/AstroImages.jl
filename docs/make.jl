@@ -68,7 +68,6 @@ makedocs(;
         example_size_threshold = 0,
     ),
     plugins = [links],
-    #draft = true,
 )
 
 # CI only: deploy docs

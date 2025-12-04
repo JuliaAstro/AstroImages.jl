@@ -33,20 +33,22 @@ AstroImages.set_cmap!(nothing)
 Let's start by downloading the separate color channel FITS files:
 
 ```@example 1
+using Downloads: download
+
 # We crop some of the images a bit to help align them with the other color channels
-antred = load("https://esahubble.org/static/projects/fits_liberator/datasets/antennae/red.fits")[:, begin+14:end]
+antred = load(download("https://esahubble.org/static/projects/fits_liberator/datasets/antennae/red.fits"))[:, begin+14:end]
 ```
 
 ```@example 1
-antgreen = load("https://esahubble.org/static/projects/fits_liberator/datasets/antennae/green.fits")
+antgreen = load(download("https://esahubble.org/static/projects/fits_liberator/datasets/antennae/green.fits"))
 ```
 
 ```@example 1
-antblue = load("https://esahubble.org/static/projects/fits_liberator/datasets/antennae/blue.fits")[:, begin+14:end]
+antblue = load(download("https://esahubble.org/static/projects/fits_liberator/datasets/antennae/blue.fits"))[:, begin+14:end]
 ```
 
 ```@example 1
-anthalph = load("https://esahubble.org/static/projects/fits_liberator/datasets/antennae/hydrogen.fits")[:, begin+14:end]; # Hydrogen-Alpha; we'll revisit later
+anthalph = load(download("https://esahubble.org/static/projects/fits_liberator/datasets/antennae/hydrogen.fits"))[:, begin+14:end]; # Hydrogen-Alpha; we'll revisit later
 ```
 
 In order to compose these images, we'll have to match the relative intensity scales and clip outlying values. Thankfully, `composecolors` handles most of these details automatically:

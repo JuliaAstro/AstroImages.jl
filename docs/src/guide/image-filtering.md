@@ -16,8 +16,9 @@ Let's start by downloading a radio image of Hercules A:
 ```@example ex1
 using AstroImages
 using ImageFiltering
+using Downloads: download
 
-herca = load("https://www.chandra.harvard.edu/photo/2014/archives/fits/herca/herca_radio.fits")
+herca = load(download("https://www.chandra.harvard.edu/photo/2014/archives/fits/herca/herca_radio.fits"))
 ```
 
 Let's now apply a Gaussian blur (aka a low pass filter) using the `imfilter` function:
@@ -71,7 +72,7 @@ We'll use a Hubble picture of the Eagle nebula:
 using AstroImages
 using ImageFiltering
 
-eagle673 = load("https://ds9.si.edu/download/data/673nmos.fits")
+eagle673 = load(download("https://ds9.si.edu/download/data/673nmos.fits"))
 ```
 
 The data is originally from <https://esahubble.org/projects/fits_liberator/eagledata/>.

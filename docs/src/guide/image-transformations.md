@@ -18,8 +18,9 @@ For these examples, we'll download an image of the Antenae galaxies from Hubble:
 ```@example transforms
 using AstroImages
 using ImageTransformations
+using Downloads: download
 
-antblue = load("https://esahubble.org/static/projects/fits_liberator/datasets/antennae/blue.fits")
+antblue = load(download("https://esahubble.org/static/projects/fits_liberator/datasets/antennae/blue.fits"))
 
 # We'll change the defaults to avoid setting them each time
 AstroImages.set_clims!(Percent(99))

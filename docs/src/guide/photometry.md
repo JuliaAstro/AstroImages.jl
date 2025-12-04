@@ -23,9 +23,10 @@ AstroImages.set_stretch!(identity)
 using Photometry
 using AstroImages
 using Plots # optional, for implot functionality
+using Downloads: download
 
 # Download our image, courtesy of astropy
-image = load("https://rawcdn.githack.com/astropy/photutils-datasets/8c97b4fa3a6c9e6ea072faeed2d49a20585658ba/data/M6707HH.fits")
+image = load(download("https://rawcdn.githack.com/astropy/photutils-datasets/8c97b4fa3a6c9e6ea072faeed2d49a20585658ba/data/M6707HH.fits"))
 
 # sigma-clip
 clipped = sigma_clip(image, 1; fill = NaN)
