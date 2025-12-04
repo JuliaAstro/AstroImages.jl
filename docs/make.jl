@@ -1,17 +1,10 @@
-using Documenter
+using Documenter, DocumenterInterLinks
 using AstroImages
 
 # Deps for examples
 ENV["GKSwstype"] = "nul"
 
 using Photometry, Reproject, Images
-
-# gives us `pages` and `requiredmods`
-include("pages.jl")
-
-for mod in requiredmods
-    eval(:(using $mod))
-end
 
 setup = quote
     using AstroImages
@@ -24,43 +17,65 @@ setup = quote
 end
 DocMeta.setdocmeta!(AstroImages, :DocTestSetup, setup; recursive = true)
 
+links = InterLinks(
+    "DimensionalData" => (
+        "https://rafaqz.github.io/DimensionalData.jl/stable/",
+        "https://rafaqz.github.io/DimensionalData.jl/stable/objects.inv",
+     ),
+    "FileIO" => (
+        "https://juliaio.github.io/FileIO.jl/stable/",
+        "https://juliaio.github.io/FileIO.jl/stable/objects.inv",
+    ),
+    "WCS" => (
+        "https://juliaastro.org/WCS/stable/",
+        "https://juliaastro.org/WCS/stable/objects.inv",
+     ),
+)
+
 makedocs(;
     sitename = "AstroImages.jl",
-    pages = pages,
+    pages = [
+        "Home" => "index.md",
+        "Manual" => [
+            "Getting Started" => "manual/getting-started.md",
+            "Loading & Saving Images" => "manual/loading-and-saving-images.md",
+            "Displaying Images" => "manual/displaying-images.md",
+            "Array Operations" => "manual/array.md",
+            "Headers" => "manual/headers.md",
+            "Dimensions and World Coordinates" => "manual/dimensions-and-world-coordinates.md",
+            "Polarization" => "manual/polarization.md",
+            "Spectral Axes" => "manual/spec.md",
+            "Preserving Wrapper" => "manual/preserving-wrapper.md",
+            "Conventions" => "manual/conventions.md",
+            "Converting to RGB" => "manual/converting-to-rgb.md",
+            "Converting from RGB" => "manual/converting-from-rgb.md",
+        ],
+        "Guides" => [
+            "Blurring & Filtering Images" => "guide/image-filtering.md",
+            "Transforming Images" => "guide/image-transformations.md",
+            "Reprojecting Images" => "guide/reproject.md",
+            "Extracting Photometry" => "guide/photometry.md",
+            "Plotting Contours" => "guide/contours.md",
+        ],
+        "API" => "api.md",
+    ],
     format = Documenter.HTML(;
-        prettyurls = get(ENV, "CI", nothing) == "true",
         assets = [
             "assets/theme.css",
             "assets/favicon.ico",
         ],
         canonical = "https://JuliaAstro.org/AstroImages/stable/",
+        example_size_threshold = 0,
     ),
-    workdir = "..",
-
-    # Specify several modules since we want to include docstrings from functions we've extended
-    modules = [eval(mod) for mod in requiredmods],
-    #modules = [AstroImages, Images, FileIO, DimensionalData, WCS],
-
-    # However we have to turnoff doctests since otherwise a failing test in
-    # those other packages (e.g. caused by us not setting up their test
-    # environement correctly) leads to *our* docs failing to build.
-    doctest = false,
-
-    # We still want strict on though since we want to catch typos.
-    # strict=true  # will change to false once DimensionalData registers 0.20.8
-
-    warnonly = [
-        # some docstrings from foreign packages may link to other functions in
-        # that package
-        :cross_references,
-        # we don't want to display *all* docstrings from FileIO, e.g.
-        :missing_docs
-    ],
+    plugins = [links],
 )
 
-deploydocs(;
-    repo = "github.com/JuliaAstro/AstroImages.jl.git",
-    devbranch = "master",
-    push_preview = true,
-    versions = ["stable" => "v^", "v#.#"], # Restrict to minor releases
-)
+# CI only: deploy docs
+in_CI_env = get(ENV, "CI", "false") == "true"
+if in_CI_env
+    deploydocs(;
+        repo = "github.com/JuliaAstro/AstroImages.jl.git",
+        push_preview = true,
+        versions = ["stable" => "v^", "v#.#"], # Restrict to minor releases
+    )
+end
