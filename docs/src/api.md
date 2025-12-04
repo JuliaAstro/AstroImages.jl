@@ -1,31 +1,13 @@
 # API Documentation
 
+## AstroImages
 
 ```@docs
-
-FileIO.load
-FileIO.save
-FileIO.query
-
 AstroImages.AstroImage
 AstroImages.imview
 AstroImages.implot
-
 AstroImages.Comment
 AstroImages.History
-
-WCS.pix_to_world
-WCS.world_to_pix
-
-DimensionalData.X
-DimensionalData.Y
-DimensionalData.Z
-DimensionalData.Dim
-DimensionalData.At
-DimensionalData.Near
-DimensionalData.dims
-DimensionalData.refdims
-
 AstroImages.header
 AstroImages.wcs
 AstroImages.WCSGrid
@@ -43,3 +25,31 @@ AstroImages.copyheader
 AstroImages.shareheader
 AstroImages.recenter
 ```
+
+## DimensionalData
+
+| |
+| :-- |
+| [DimensionalData.Dimensions.X](@extref)
+| [DimensionalData.Dimensions.Y](@extref)
+| [DimensionalData.Dimensions.Z](@extref)
+| [DimensionalData.Dimensions.Dim](@extref)
+| [DimensionalData.Dimensions.Lookups.At](@extref)
+| [DimensionalData.Dimensions.Lookups.Near](@extref)
+| [DimensionalData.Dimensions.dims](@extref)
+| [DimensionalData.Dimensions.refdims](@extref)
+
+## FileIO
+
+| |
+| :-- |
+| [FileIO.load](@extref)
+| [FileIO.save](@extref)
+| [FileIO.query](@extref)
+
+## WCS
+
+| |
+| :-- |
+| [WCS.pix\_to\_world](@extref)
+| [WCS.world\_to\_pix](@extref)
