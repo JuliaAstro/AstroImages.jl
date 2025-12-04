@@ -4,7 +4,7 @@ using AbstractFFTs: AbstractFFTs
 using AstroAngles: AstroAngles, deg2dms, deg2hms
 using ColorSchemes: ColorSchemes, get
 using DimensionalData: DimensionalData, AbstractDimArray, At, Dim,
-                       Dimensions, Near, Ti, X, Y, Z, dims, name, rebuild,
+                       Dimensions, Near, (..), Ti, X, Y, Z, dims, name, rebuild,
                        refdims
 using FITSIO: FITSIO, FITS, FITSHeader, HDU, ImageHDU, TableHDU, get_comment,
               read_header, set_comment!
@@ -99,7 +99,7 @@ struct AstroImage{T,N,D<:Tuple,R<:Tuple,A<:AbstractArray{T,N},W<:Tuple} <: Abstr
     refdims::R
     # FITS Heads beloning to this image, if any
     header::FITSHeader
-    # cached WCSTransform objects for this data.
+    # Cached WCSTransform objects for this data.
     wcs::Vector{WCSTransform}
     # A flag that is set when a user modifies a WCS header.
     # The next access to the wcs object will regenerate from
@@ -228,7 +228,7 @@ DimensionalData.metadata(::AstroImage) = DimensionalData.Dimensions.LookupArrays
     metadata::Union{DimensionalData.LookupArrays.AbstractMetadata,Nothing}=nothing,
     # FITS Header beloning to this image, if any
     header::FITSHeader=deepcopy(header(img)),
-    # A cached WCSTransform object for this data
+    # Cached WCSTransform objects for this data
     wcs::Vector{WCSTransform}=getfield(img, :wcs),
     wcs_stale::Bool=getfield(img, :wcs_stale)[],
     wcsdims::Tuple=(dims...,refdims...),
@@ -248,7 +248,7 @@ end
     metadata::Union{DimensionalData.LookupArrays.AbstractMetadata,Nothing}=nothing,
     # FITS Header beloning to this image, if any
     header::FITSHeader=deepcopy(header(img)),
-    # A cached WCSTransform object for this data
+    # Cached WCSTransform objects for this data
     wcs::Vector{WCSTransform}=getfield(img, :wcs),
     wcs_stale::Bool=getfield(img, :wcs_stale)[],
     wcsdims::Tuple=(dims...,refdims...),
@@ -381,6 +381,7 @@ AstroImage(
 
 # TODO: ensure this gets WCS dims.
 AstroImage(data::AbstractArray, wcs::Vector{WCSTransform}) = AstroImage(data, emptyheader(), wcs)
+AstroImage(data::AbstractArray, wcs::WCSTransform) = AstroImage(data, [wcs])
 
 """
 Index for accessing a comment associated with a header keyword
