@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Extracting Photometry · AstroImages.jl</title><meta name="title" content="Extracting Photometry · AstroImages.jl"/><meta property="og:title" content="Extracting Photometry · AstroImages.jl"/><meta property="twitter:title" content="Extracting Photometry · AstroImages.jl"/><meta name="description" content="Documentation for AstroImages.jl."/><meta property="og:description" content="Documentation for AstroImages.jl."/><meta property="twitter:description" content="Documentation for AstroImages.jl."/><meta property="og:url" content="https://JuliaAstro.org/AstroImages/stable/guide/photometry/"/><meta property="twitter:url" content="https://JuliaAstro.org/AstroImages/stable/guide/photometry/"/><link rel="canonical" href="https://JuliaAstro.org/AstroImages/stable/guide/photometry/"/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script><link href="../../assets/theme.css" rel="stylesheet" type="text/css"/><link href="../../assets/favicon.ico" rel="icon" type="image/x-icon"/></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.png" alt="AstroImages.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../../">AstroImages.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><span class="tocitem">Manual</span><ul><li><a class="tocitem" href="../../manual/getting-started/">Getting Started</a></li><li><a class="tocitem" href="../../manual/loading-and-saving-images/">Loading &amp; Saving Images</a></li><li><a class="tocitem" href="../../manual/displaying-images/">Displaying Images</a></li><li><a class="tocitem" href="../../manual/array/">Array Operations</a></li><li><a class="tocitem" href="../../manual/headers/">Headers</a></li><li><a class="tocitem" href="../../manual/dimensions-and-world-coordinates/">Dimensions and World Coordinates</a></li><li><a class="tocitem" href="../../manual/polarization/">Polarization</a></li><li><a class="tocitem" href="../../manual/spec/">Spectral Axes</a></li><li><a class="tocitem" href="../../manual/preserving-wrapper/">Preserving Wrapper</a></li><li><a class="tocitem" href="../../manual/conventions/">Conventions</a></li><li><a class="tocitem" href="../../manual/converting-to-rgb/">Converting to RGB</a></li><li><a class="tocitem" href="../../manual/converting-from-rgb/">Converting from RGB</a></li></ul></li><li><span class="tocitem">Guides</span><ul><li><a class="tocitem" href="../image-filtering/">Blurring &amp; Filtering Images</a></li><li><a class="tocitem" href="../image-transformations/">Transforming Images</a></li><li><a class="tocitem" href="../reproject/">Reprojecting Images</a></li><li class="is-active"><a class="tocitem" href>Extracting Photometry</a><ul class="internal"><li><a class="tocitem" href="#Background-Estimation"><span>Background Estimation</span></a></li><li><a class="tocitem" href="#Source-Extraction"><span>Source Extraction</span></a></li><li><a class="tocitem" href="#Measuring-Photometry"><span>Measuring Photometry</span></a></li></ul></li><li><a class="tocitem" href="../contours/">Plotting Contours</a></li></ul></li><li><a class="tocitem" href="../../api/">API</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Guides</a></li><li class="is-active"><a href>Extracting Photometry</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Extracting Photometry</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/JuliaAstro/AstroImages.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/JuliaAstro/AstroImages.jl/blob/master/docs/src/guide/photometry.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Photometry"><a class="docs-heading-anchor" href="#Photometry">Photometry</a><a id="Photometry-1"></a><a class="docs-heading-anchor-permalink" href="#Photometry" title="Permalink"></a></h1><p>The following examples are adapted from <a href="https://github.com/JuliaAstro/Photometry.jl/">Photometry.jl</a> to show the same examples combined with AstroImages.jl. To learn how to measure background levels, perform aperture photometry, etc., see the <a href="https://juliaastro.org/Photometry/stable/">Photometry.jl documentation</a>.</p><h2 id="Background-Estimation"><a class="docs-heading-anchor" href="#Background-Estimation">Background Estimation</a><a id="Background-Estimation-1"></a><a class="docs-heading-anchor-permalink" href="#Background-Estimation" title="Permalink"></a></h2><p>From Photometry.jl:</p><blockquote><p>Estimating backgrounds is an important step in performing photometry. Ideally, we could perfectly describe the background with a scalar value or with some distribution. Unfortunately, it&#39;s impossible for us to precisely separate the background and foreground signals. Here, we use mixture of robust statistical estimators and meshing to let us get the spatially varying background from an astronomical photo.</p><p>Let&#39;s show an example [...]. Now let&#39;s try and estimate the background using <code>estimate_background</code>. First, we&#39;ll sigma-clip to try and remove the signals from the stars. Then, the background is broken down into boxes, in this case of size (50, 50). Within each box, the given statistical estimators get the background value and RMS. By default, we use <code>SourceExtractorBackground</code> and <code>StdRMS</code>. This creates a low-resolution image, which we then need to resize. We can accomplish this using an interpolator, by default a cubic-spline interpolator via <code>ZoomInterpolator</code>. The end result is a smooth estimate of the spatially varying background and background RMS.</p></blockquote><pre><code class="language-julia hljs">using Photometry
+using AstroImages
+using Plots # optional, for implot functionality
+using Downloads: download
+
+# Download our image, courtesy of astropy
+image = load(download(&quot;https://rawcdn.githack.com/astropy/photutils-datasets/8c97b4fa3a6c9e6ea072faeed2d49a20585658ba/data/M6707HH.fits&quot;))
+
+# sigma-clip
+clipped = sigma_clip(image, 1; fill = NaN)
+
+# get background and background rms with box-size (50, 50)
+bkg, bkg_rms = estimate_background(clipped, 50)</code></pre><p>We can take a look at each of our processed images with <code>imview</code>:</p><pre><code class="language-julia hljs">imview([image; clipped])</code></pre><img src="d00ca452.png" alt="Example block output"/><pre><code class="language-julia hljs">imview([bkg; bkg_rms])</code></pre><img src="23002bbf.png" alt="Example block output"/><p>Or all together with Plots.jl:</p><pre><code class="language-julia hljs">using Plots
+
+AstroImages.set_clims!(Percent(99.5))
+AstroImages.set_cmap!(:magma)
+AstroImages.set_stretch!(identity)
+
+plot(
+    implot(image; title = &quot;Original&quot;),
+    implot(clipped; title = &quot;Sigma-Clipped&quot;),
+    implot(bkg; title = &quot;Background&quot;),
+    implot(bkg_rms; title = &quot;Background RMS&quot;);
+    layout = (2, 2),
+    ticks = false,
+)</code></pre><img src="b19a66e9.svg" alt="Example block output"/><p>We could apply a median filter, too, by specifying <code>filter_size</code>:</p><pre><code class="language-julia hljs"># get background and background rms with box-size (50, 50) and filter_size (5, 5)
+bkg_f, bkg_rms_f = estimate_background(clipped, 50; filter_size = 5)
+
+# plot
+plot(
+    implot(bkg; title = &quot;Unfiltered&quot;, ylabel = &quot;Background&quot;),
+    implot(bkg_f; title = &quot;Filtered&quot;),
+    implot(bkg_rms; ylabel = &quot;RMS&quot;),
+    implot(bkg_rms_f);
+    layout = (2, 2),
+    ticks = false,
+)</code></pre><img src="8bae9149.svg" alt="Example block output"/><p>Now we can see our image after subtracting the filtered background and ready for Aperture Photometry!</p><pre><code class="language-julia hljs">subt = image .- bkg_f[axes(image)...]
+clims = extrema(vcat(vec(image), vec(subt)))
+plot(
+    implot(image; title = &quot;Original&quot;, clims),
+    implot(subt; title = &quot;Subtracted&quot;, clims);
+    size = (1600, 1000),
+)</code></pre><img src="6bd8b62b.svg" alt="Example block output"/><h2 id="Source-Extraction"><a class="docs-heading-anchor" href="#Source-Extraction">Source Extraction</a><a id="Source-Extraction-1"></a><a class="docs-heading-anchor-permalink" href="#Source-Extraction" title="Permalink"></a></h2><p>From the background-subtracted image, we can detect all sources in the image:</p><pre><code class="language-julia hljs"># We specify the uncertainty in the pixel data. We&#39;ll set it equal to zero.
+errs = zeros(axes(subt))
+sources = extract_sources(PeakMesh(), subt, errs, true) # sort from brightest to darkest</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Table with 3 columns and 60924 rows:
+      x     y     value
+    ┌────────────────────
+ 1  │ 255   226   9762.42
+ 2  │ 940   681   9661.5
+ 3  │ 219   924   9653.78
+ 4  │ 38    678   9647.93
+ 5  │ 245   85    9637.55
+ 6  │ 44    1001  9633.13
+ 7  │ 503   904   9627.34
+ 8  │ 819   775   9625.92
+ 9  │ 610   62    9617.79
+ 10 │ 133   110   9616.88
+ 11 │ 592   123   9614.86
+ 12 │ 1055  248   9612.46
+ 13 │ 424   86    9611.86
+ 14 │ 558   125   9585.93
+ 15 │ 125   1021  9582.11
+ 16 │ 112   637   9579.71
+ 17 │ 196   2     9579.49
+ ⋮  │  ⋮     ⋮       ⋮</code></pre><p>There&#39;s over 60,000 sources!</p><p>We&#39;ll define a circular apperture for each source:</p><pre><code class="language-julia hljs">aps = CircularAperture.(sources.x, sources.y, 6)[1:1000] # just brightest thousand point sources</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">1000-element Vector{CircularAperture{Int64}}:
+ CircularAperture(255, 226, r=6)
+ CircularAperture(940, 681, r=6)
+ CircularAperture(219, 924, r=6)
+ CircularAperture(38, 678, r=6)
+ CircularAperture(245, 85, r=6)
+ CircularAperture(44, 1001, r=6)
+ CircularAperture(503, 904, r=6)
+ CircularAperture(819, 775, r=6)
+ CircularAperture(610, 62, r=6)
+ CircularAperture(133, 110, r=6)
+ ⋮
+ CircularAperture(697, 975, r=6)
+ CircularAperture(703, 599, r=6)
+ CircularAperture(893, 878, r=6)
+ CircularAperture(291, 457, r=6)
+ CircularAperture(660, 855, r=6)
+ CircularAperture(711, 920, r=6)
+ CircularAperture(708, 271, r=6)
+ CircularAperture(701, 273, r=6)
+ CircularAperture(710, 273, r=6)</code></pre><p>We can overplot them on our original image. The coordinate sytem used by the Photometry.jl plot recipes (but not the actual return values) doesn&#39;t match AstroImages, so we must transpose our image:</p><pre><code class="language-julia hljs">implot(subt&#39;; colorbar = false)
+plot!(aps)</code></pre><img src="853f81d3.svg" alt="Example block output"/><h2 id="Measuring-Photometry"><a class="docs-heading-anchor" href="#Measuring-Photometry">Measuring Photometry</a><a id="Measuring-Photometry-1"></a><a class="docs-heading-anchor-permalink" href="#Measuring-Photometry" title="Permalink"></a></h2><p>Finally we can extract the source photometry:</p><pre><code class="language-julia hljs">table = photometry(aps, subt)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Table with 3 columns and 1000 rows:
+      xcenter  ycenter  aperture_sum
+    ┌───────────────────────────────
+ 1  │ 255      226      20542.4
+ 2  │ 940      681      7125.3
+ 3  │ 219      924      14741.0
+ 4  │ 38       678      31056.4
+ 5  │ 245      85       -910.308
+ 6  │ 44       1001     2792.62
+ 7  │ 503      904      6954.07
+ 8  │ 819      775      -3136.61
+ 9  │ 610      62       4338.13
+ 10 │ 133      110      22219.0
+ 11 │ 592      123      18562.2
+ 12 │ 1055     248      3277.33
+ 13 │ 424      86       255299.0
+ 14 │ 558      125      6659.03
+ 15 │ 125      1021     11524.1
+ 16 │ 112      637      1349.78
+ 17 │ 196      2        -797.491
+ ⋮  │    ⋮        ⋮          ⋮</code></pre><p>And plot them:</p><pre><code class="language-julia hljs">scatter(table.xcenter, table.ycenter;
+    aspectratio = 1,
+    marker_z = table.aperture_sum,
+    markerstrokewidth = 0,
+    label = &quot;&quot;,
+    framestyle = :box,
+    background_inside = :black,
+    color = :white,
+)</code></pre><img src="92654c99.svg" alt="Example block output"/></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../reproject/">« Reprojecting Images</a><a class="docs-footer-nextpage" href="../contours/">Plotting Contours »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.16.1 on <span class="colophon-date" title="Thursday 11 December 2025 23:19">Thursday 11 December 2025</span>. Using Julia version 1.12.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
