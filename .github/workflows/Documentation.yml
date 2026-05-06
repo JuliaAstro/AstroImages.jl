@@ -23,7 +23,7 @@ jobs:
           version: '1'
       - uses: julia-actions/cache@v2
       - name: Instantiate docs environment
-        shell: julia --color=yes --project=docs
+        shell: julia --color=yes --project=docs {0}
         run: using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()
         env:
           JULIA_PKG_PRECOMPILE_AUTO: 0
