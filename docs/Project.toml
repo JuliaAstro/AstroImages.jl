@@ -16,4 +16,5 @@ Reproject = "d1dcc2e6-806e-11e9-2897-3f99785db2ae"
 WCS = "15f3aee2-9e10-537f-b834-a6fb8bdb944d"
 
 [compat]
+DimensionalData = "0.30.1"
 Documenter = "1"
