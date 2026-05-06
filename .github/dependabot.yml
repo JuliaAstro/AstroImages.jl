@@ -12,3 +12,6 @@ updates:
       interval: "weekly"
     ignore:
       - dependency-name: "AstroImages" # Ignore package itself
+    groups:
+      per-dependency:
+        group-by: dependency-name
