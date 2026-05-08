@@ -3,7 +3,7 @@ module AstroImages
 using AbstractFFTs: AbstractFFTs
 using AstroAngles: AstroAngles, deg2dms, deg2hms
 using ColorSchemes: ColorSchemes, get
-using DimensionalData: DimensionalData, AbstractDimArray, At, Dim,
+using DimensionalData: DimensionalData, AbstractDimArray, At, Dim, Lookups,
     Dimensions, Near, (..), Ti, X, Y, Z, dims, name, rebuild, refdims
 using FITSIO: FITSIO, FITS, FITSHeader, HDU, ImageHDU, TableHDU, get_comment,
     read_header, set_comment!
@@ -221,7 +221,7 @@ DimensionalData.dims(A::AstroImage) = getfield(A, :dims)
 DimensionalData.refdims(A::AstroImage) = getfield(A, :refdims)
 DimensionalData.data(A::AstroImage) = getfield(A, :data)
 DimensionalData.name(::AstroImage) = DimensionalData.NoName()
-DimensionalData.metadata(::AstroImage) = DimensionalData.Dimensions.LookupArrays.NoMetadata()
+DimensionalData.metadata(::AstroImage) = Lookups.NoMetadata()
 
 @inline function DimensionalData.rebuild(
         img::AstroImage,
@@ -230,7 +230,7 @@ DimensionalData.metadata(::AstroImage) = DimensionalData.Dimensions.LookupArrays
         dims::Tuple = DimensionalData.dims(img),
         refdims::Tuple = DimensionalData.refdims(img),
         name::Union{Symbol, DimensionalData.AbstractName, Nothing} = nothing,
-        metadata::Union{DimensionalData.LookupArrays.AbstractMetadata, Nothing} = nothing,
+        metadata::Union{Lookups.AbstractMetadata, Nothing} = nothing,
         # FITS Header beloning to this image, if any
         header::FITSHeader = deepcopy(header(img)),
         # Cached WCSTransform objects for this data
@@ -250,7 +250,7 @@ end
         dims::Tuple = DimensionalData.dims(img),
         refdims::Tuple = DimensionalData.refdims(img),
         name::Union{Symbol, DimensionalData.AbstractName, Nothing} = nothing,
-        metadata::Union{DimensionalData.LookupArrays.AbstractMetadata, Nothing} = nothing,
+        metadata::Union{Lookups.AbstractMetadata, Nothing} = nothing,
         # FITS Header beloning to this image, if any
         header::FITSHeader = deepcopy(header(img)),
         # Cached WCSTransform objects for this data
