@@ -11,5 +11,6 @@ WCS = "15f3aee2-9e10-537f-b834-a6fb8bdb944d"
 
 [compat]
 ImageBase = "0.1.5"
+RecipesBase = "1.3.4"
 Statistics = "1"
 WCS = "0.6"
