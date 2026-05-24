@@ -10,6 +10,7 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 WCS = "15f3aee2-9e10-537f-b834-a6fb8bdb944d"
 
 [compat]
+FITSIO = "0.16, 0.17"
 ImageBase = "0.1.5"
 Statistics = "1"
 WCS = "0.6"
