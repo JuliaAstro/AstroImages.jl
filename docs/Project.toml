@@ -16,6 +16,7 @@ Reproject = "d1dcc2e6-806e-11e9-2897-3f99785db2ae"
 WCS = "15f3aee2-9e10-537f-b834-a6fb8bdb944d"
 
 [compat]
+Contour = "0.6.3"
 Documenter = "1"
 DocumenterInterLinks = "1.1.0"
 Downloads = "1.7"
