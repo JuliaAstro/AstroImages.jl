@@ -5,14 +5,14 @@
 
 A log-stretch as defined by the SAO DS9 application: <http://ds9.si.edu/doc/ref/how.html>
 """
-logstretch(x,a=1000) = log(a*x+1)/log(a)
+logstretch(x, a = 1000) = log(a * x + 1) / log(a)
 
 """
     powstretch(num, a=1000)
 
 A power-stretch as defined by the SAO DS9 application: <http://ds9.si.edu/doc/ref/how.html>
 """
-powstretch(x,a=1000) = (a^x - 1)/a
+powstretch(x, a = 1000) = (a^x - 1) / a
 
 """
     sqrtstretch(num)
@@ -33,14 +33,14 @@ squarestretch(x) = x^2
 
 A hyperbolic arcsin stretch as defined by the SAO DS9 application: <http://ds9.si.edu/doc/ref/how.html>
 """
-asinhstretch(x) = asinh(10x)/3
+asinhstretch(x) = asinh(10x) / 3
 
 """
     sinhstretch(num)
 
 A hyperbolic sin stretch as defined by the SAO DS9 application: <http://ds9.si.edu/doc/ref/how.html>
 """
-sinhstretch(x) = sinh(3x)/10
+sinhstretch(x) = sinh(3x) / 10
 
 # These additional stretches reproduce behaviour from astropy
 """
@@ -48,7 +48,7 @@ sinhstretch(x) = sinh(3x)/10
 
 A power distance stretch as defined by astropy.
 """
-powerdiststretch(x, a=1000) = (a^x - 1) / (a - 1)
+powerdiststretch(x, a = 1000) = (a^x - 1) / (a - 1)
 
 """
     Percent(99.5)
@@ -66,9 +66,9 @@ This will set the limits to be the 5th percentile to the 95th percentile.
 struct Percent
     perc::Float64
     trim::Float64
-    Percent(percentage::Number) = new(Float64(percentage), (1 - percentage/100)/2)
+    Percent(percentage::Number) = new(Float64(percentage), (1 - percentage / 100) / 2)
 end
-(p::Percent)(data::AbstractArray) = quantile(vec(data), (p.trim, 1-p.trim))
+(p::Percent)(data::AbstractArray) = quantile(vec(data), (p.trim, 1 - p.trim))
 (p::Percent)(data) = p(collect(data))
 Base.broadcastable(p::Percent) = Ref(p)
 Base.show(io::IO, p::Percent; kwargs...) = print(io, "Percent($(p.perc))", kwargs...)
@@ -99,21 +99,21 @@ max_iterations::Int=5
 ```
 """
 Base.@kwdef struct Zscale
-    nsamples::Int=1000
-    contrast::Float64=0.25
-    max_reject::Float64=0.5
-    min_npixels::Float64=5
-    k_rej::Float64=2.5
-    max_iterations::Int=5
+    nsamples::Int = 1000
+    contrast::Float64 = 0.25
+    max_reject::Float64 = 0.5
+    min_npixels::Float64 = 5
+    k_rej::Float64 = 2.5
+    max_iterations::Int = 5
 end
 (z::Zscale)(data::AbstractArray) = PlotUtils.zscale(vec(data), z.nsamples; z.contrast, z.max_reject, z.min_npixels, z.k_rej, z.max_iterations)
 (z::Zscale)(data) = z(collect(data))
 Base.show(io::IO, z::Zscale; kwargs...) = print(io, "Zscale()", kwargs...)
 Base.broadcastable(z::Zscale) = Ref(z)
 
-const _default_cmap  = Base.RefValue{Union{Symbol,Nothing}}(:magma)
+const _default_cmap = Base.RefValue{Union{Symbol, Nothing}}(:magma)
 const _default_clims = Base.RefValue{Any}(Percent(99.5))
-const _default_stretch  = Base.RefValue{Any}(identity)
+const _default_stretch = Base.RefValue{Any}(identity)
 
 """
     set_cmap!(cmap::Symbol)
@@ -125,7 +125,7 @@ Alter the default color map used to display images when using
 function set_cmap!(cmap)
     # Ensure it's valid
     _lookup_cmap(cmap)
-    _default_cmap[] = cmap
+    return _default_cmap[] = cmap
 end
 
 """
@@ -136,7 +136,7 @@ Alter the default limits used to display images when using
 `imview` or displaying an AstroImageMat.
 """
 function set_clims!(clims)
-    _default_clims[] = clims
+    return _default_clims[] = clims
 end
 
 """
@@ -146,13 +146,12 @@ Alter the default value stretch functio used to display images when using
 `imview` or displaying an AstroImageMat.
 """
 function set_stretch!(stretch)
-    _default_stretch[] = stretch
+    return _default_stretch[] = stretch
 end
 
 
-
 # Helper to iterate over data skipping missing and non-finite values.
-skipmissingnan(itr) = Iterators.filter(el->!ismissing(el) && isfinite(el), itr)
+skipmissingnan(itr) = Iterators.filter(el -> !ismissing(el) && isfinite(el), itr)
 
 # Convert argument into a colorscheme or AbstractColorList which allow converting
 # from numerical data into colors.
@@ -175,8 +174,7 @@ function _resolve_clims(img::AbstractArray, clims)
         end
         imgmin = first(clims)
         imgmax = last(clims)
-    # Or as a callable that computes them given an iterator
-    else
+    else # Or as a callable that computes them given an iterator
         imgmin, imgmax = clims(skipmissingnan(img))
     end
 
@@ -238,30 +236,22 @@ save("output.png", v)
 ```
 """
 function imview(
-    img::AbstractArray{T};
-    clims=_default_clims[],
-    stretch=_default_stretch[],
-    cmap=_default_cmap[],
-    contrast=1.0,
-    bias=0.5
-) where {T}
+        img::AbstractArray;
+        clims = _default_clims[],
+        stretch = _default_stretch[],
+        cmap = _default_cmap[],
+        contrast = 1.0,
+        bias = 0.5
+    )
 
     # Create flipped view of to match conventions of other programs.
     # Origin is centre of pixel (1,1) at bottom left.
     if ndims(img) == 2
-        imgT = view(
-            permuteddimsview(img,(2,1)),
-            reverse(axes(img,2)),
-            :,
-        )
+        imgT = view(permuteddimsview(img, (2, 1)), reverse(axes(img, 2)), :)
     elseif ndims(img) >= 3
-        newdims = (2,1, 3:ndims(img)...)
+        newdims = (2, 1, 3:ndims(img)...)
         ds = Tuple(((:) for _ in 2:ndims(img)))
-        imgT = view(
-            permuteddimsview(img,newdims),
-            reverse(axes(img,2)),
-            ds...,
-        )
+        imgT = view(permuteddimsview(img, newdims), reverse(axes(img, 2)), ds...)
     else
         imgT = img
     end
@@ -269,21 +259,20 @@ function imview(
     isempt = isempty(imgT)
     if isempt
         @warn "imview called with empty argument"
-        return fill(RGBA{N0f8}(0,0,0,0), 1,1)
+        return fill(RGBA{N0f8}(0, 0, 0, 0), 1, 1)
     end
     # Users will occaisionally pass in data that is 0D, filled with NaN, or filled with missing.
     # We still need to do something reasonable in those caes.
-    nonempty = any(x-> !ismissing(x) && isfinite(x), imgT)
+    nonempty = any(x -> !ismissing(x) && isfinite(x), imgT)
     if !nonempty
         @warn "imview called with all missing or non-finite values"
-        return map(px->RGBA{N0f8}(0,0,0,0), imgT)
+        return map(px -> RGBA{N0f8}(0, 0, 0, 0), imgT)
     end
 
     imgmin, imgmax = _resolve_clims(imgT, clims)
     normed = clampednormedview(imgT, (imgmin, imgmax))
     return _imview(imgT, normed, stretch, _lookup_cmap(cmap), contrast, bias)
 end
-
 
 
 # Special handling for complex images
@@ -301,10 +290,10 @@ vcat(
 )
 ```
 """
-function imview(img::AbstractArray{T}; kwargs...) where {T<:Complex}
+function imview(img::AbstractArray{<:Complex}; kwargs...)
     mag_view = imview(abs.(img); kwargs...)
-    angle_view = imview(angle.(img), clims=(-pi, pi), stretch=identity, cmap=:cyclic_mygbm_30_95_c78_n256_s25)
-    vcat(mag_view,angle_view)
+    angle_view = imview(angle.(img), clims = (-pi, pi), stretch = identity, cmap = :cyclic_mygbm_30_95_c78_n256_s25)
+    return vcat(mag_view, angle_view)
 end
 
 # Unwrap AstroImages before view, then rebuild.
@@ -313,10 +302,7 @@ end
 # Also, this reduces the number of methods we need to compile for imview by standardizing types
 # earlier on. The compiled code for showing an array is the same as an array wrapped by an
 # AstroImage, except for one unwrapping step.
-function _imview(
-    img::AstroImage, normed::AbstractArray{T}, stretch, cmap, contrast, bias
-) where T
-
+function _imview(img::AstroImage, normed::AbstractArray, stretch, cmap, contrast, bias)
     p = parent(img)
     out = _imview(p, normed, stretch, cmap, contrast, bias)
     # out = shareheader(img, v)
@@ -324,31 +310,30 @@ function _imview(
 end
 
 
-function _imview(img, normed::AbstractArray{T}, stretch, cmap, contrast, bias) where T
+function _imview(img, normed::AbstractArray, stretch, cmap, contrast, bias)
     function colormap(pixr, pixn)::RGBA{N0f8}
         if ismissing(pixr) || !isfinite(pixr) || ismissing(pixn) || !isfinite(pixn)
             # We check pixr in addition to pixn because we want to preserve if the pixels
             # are +-Inf
             stretched = pixr
         else
-            stretched = (stretch(pixn) - bias)*contrast+0.5
+            stretched = (stretch(pixn) - bias) * contrast + 0.5
         end
 
         # We treat NaN/missing values as transparent
-        pix= if ismissing(stretched) || isnan(stretched)
-            RGBA{N0f8}(0,0,0,0)
-        # We treat Inf values as white / -Inf as black
-        elseif isinf(stretched)
+        pix = if ismissing(stretched) || isnan(stretched)
+            RGBA{N0f8}(0, 0, 0, 0)
+        elseif isinf(stretched) # We treat Inf values as white / -Inf as black
             if stretched > 0
-                RGBA{N0f8}(1,1,1,1)
+                RGBA{N0f8}(1, 1, 1, 1)
             else
-                RGBA{N0f8}(0,0,0,1)
+                RGBA{N0f8}(0, 0, 0, 1)
             end
         else
             if isnothing(cmap)
                 # true/false used as numerical values to prevent unucessary promotion
                 s = clamp(stretched, false, true)
-                RGBA{N0f8}(s,s,s,1)
+                RGBA{N0f8}(s, s, s, 1)
             else
                 # Look up colormap
                 RGBA{N0f8}(get(cmap, stretched, (false, true)))
@@ -370,17 +355,17 @@ Create a colorbar for a given image matching how it is displayed by
 `orientation` can be `:vertical` or `:horizontal`.
 """
 function imview_colorbar(
-    img::AbstractArray;
-    orientation=:vertical,
-    clims=_default_clims[],
-    stretch=_default_stretch[],
-    cmap=_default_cmap[],
-    contrast=1,
-    bias=0.5
-)
+        img::AbstractArray;
+        orientation = :vertical,
+        clims = _default_clims[],
+        stretch = _default_stretch[],
+        cmap = _default_cmap[],
+        contrast = 1,
+        bias = 0.5
+    )
     imgmin, imgmax = _resolve_clims(img, clims)
     cbpixlen = 100
-    data = repeat(range(imgmin, imgmax, length=cbpixlen), 1,10)
+    data = repeat(range(imgmin, imgmax, length = cbpixlen), 1, 10)
     if orientation == :vertical
         data = data'
     elseif orientation == :horizontal
@@ -404,9 +389,9 @@ function imview_colorbar(
 
     # Strech the ticks
     # Construct the image to use as a colorbar
-    cbimg = imview(data; clims=(imgmin,imgmax), stretch=identity, cmap, contrast, bias)
+    cbimg = imview(data; clims = (imgmin, imgmax), stretch = identity, cmap, contrast, bias)
     # And the colorbar tick locations & labels
-    ticks, _, _ = optimize_ticks(Float64(imgmin), Float64(imgmax), k_min=3)
+    ticks, _, _ = optimize_ticks(Float64(imgmin), Float64(imgmax), k_min = 3)
     # Now map these to pixel locations through streching and colorlimits:
     stretchmin = stretch(zero(eltype(data)))
     stretchmax = stretch(oneunit(eltype(data)))
@@ -463,14 +448,14 @@ composecolors([radioimage, xrayimage], [:magma, :viridis], clims=[Percent(99), Z
 ```
 """
 function composecolors(
-    images,
-    cmap=nothing;
-    clims=Percent(99.5),
-    stretch=identity,
-    contrast=1.0,
-    bias=0.5,
-    multiplier=1.0
-)
+        images,
+        cmap = nothing;
+        clims = Percent(99.5),
+        stretch = identity,
+        contrast = 1.0,
+        bias = 0.5,
+        multiplier = 1.0
+    )
     if isempty(images)
         error("At least one image is required.")
     end
@@ -496,10 +481,10 @@ function composecolors(
     combined = mappedarray(images_rendered...) do channels...
         pxblended = sum(channels .* multiplier)
         return typeof(pxblended)(
-            clamp(pxblended.r,0,1),
-            clamp(pxblended.g,0,1),
-            clamp(pxblended.b,0,1),
-            clamp(pxblended.alpha,0,1)
+            clamp(pxblended.r, 0, 1),
+            clamp(pxblended.g, 0, 1),
+            clamp(pxblended.b, 0, 1),
+            clamp(pxblended.alpha, 0, 1)
         )
     end
     return combined

@@ -1,6 +1,3 @@
-
-
-
 #=
 Additional methods to allow Reproject to work.
 =#
@@ -21,17 +18,17 @@ function Reproject.reproject(img_in::AstroImageMat, img_out::AstroImageMat)
 end
 
 function Reproject.parse_input_data(input_data::AstroImageMat, hdu)
-    input_data, input_data.wcs
+    return input_data, input_data.wcs
 end
 function Reproject.parse_output_projection(output_data::AstroImageMat, hdu)
-    output_data.wcs, size(output_data)
+    return output_data.wcs, size(output_data)
 end
 function Reproject.pad_edges(array_in::AstroImageMat{T}) where {T}
     image = Matrix{T}(undef, size(array_in)[1] + 2, size(array_in)[2] + 2)
-    image[2:end-1,2:end-1] = array_in
-    image[2:end-1,1] = array_in[:,1]
-    image[2:end-1,end] = array_in[:,end]
-    image[1,:] = image[2,:]
-    image[end,:] = image[end-1,:]
+    image[2:(end - 1), 2:(end - 1)] = array_in
+    image[2:(end - 1), 1] = array_in[:, 1]
+    image[2:(end - 1), end] = array_in[:, end]
+    image[1, :] = image[2, :]
+    image[end, :] = image[end - 1, :]
     return AstroImageMat(image, headers(array_in), wcs(array_in))
 end

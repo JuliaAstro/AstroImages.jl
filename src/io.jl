@@ -1,11 +1,10 @@
-
 """
     AstroImage(fits::FITS, ext::Int=1)
 
 Given an open FITS file from the FITSIO library,
 load the HDU number `ext` as an AstroImage.
 """
-AstroImage(fits::FITS, ext::Int=1, args...; kwargs...) = AstroImage(fits[ext], args...; kwargs...)
+AstroImage(fits::FITS, ext::Int = 1, args...; kwargs...) = AstroImage(fits[ext], args...; kwargs...)
 
 """
     AstroImage(hdu::HDU)
@@ -40,9 +39,10 @@ imgs = AstroImage("abc.fits", :) # loads all HDUs as images.
 """
 function AstroImage(
         filename::AbstractString,
-        exts::Union{NTuple{N,<:Integer}, AbstractArray{<:Integer}},
+        exts::Union{NTuple{N, <:Integer}, AbstractArray{<:Integer}},
         args...;
-        kwargs...) where {N}
+        kwargs...
+    ) where {N}
     return FITS(filename, "r") do fits
         return map(exts) do ext
             return AstroImage(fits[ext], args...; kwargs...)
@@ -88,7 +88,7 @@ returned as AstroImage, and TableHDUs are returned as column tables.
 
 !!! Currently any header on TableHDUs are not supported and are ignored.
 """
-function fileio_load(f::File{format"FITS"}, ext::Union{Int,Nothing}=nothing, args...; kwargs...)
+function fileio_load(f::File{format"FITS"}, ext::Union{Int, Nothing} = nothing, args...; kwargs...)
     return FITS(f.filename, "r") do fits
         if isnothing(ext)
             ext = indexer(fits)
@@ -96,7 +96,7 @@ function fileio_load(f::File{format"FITS"}, ext::Union{Int,Nothing}=nothing, arg
         _loadhdu(fits[ext], args...; kwargs...)
     end
 end
-function fileio_load(f::File{format"FITS"}, exts::Union{NTuple{N,<:Integer},AbstractArray{<:Integer}}, args...; kwargs...) where {N}
+function fileio_load(f::File{format"FITS"}, exts::Union{NTuple{N, <:Integer}, AbstractArray{<:Integer}}, args...; kwargs...) where {N}
     return FITS(f.filename, "r") do fits
         map(exts) do ext
             _loadhdu(fits[ext], args...; kwargs...)
@@ -138,7 +138,7 @@ function indexer(fits::FITS)
     end
     return ext
 end
-indexer(fits::NTuple{N,FITS}) where {N} = ntuple(i -> indexer(fits[i]), N)
+indexer(fits::NTuple{N, FITS}) where {N} = ntuple(i -> indexer(fits[i]), N)
 
 
 # Fallback for saving arbitrary arrays
@@ -154,7 +154,7 @@ Write arguments to a FITS file.
 See also [`FileIO.save`](@ref)
 """
 function writefits(fname, args...)
-    FITS(fname, "w") do fits
+    return FITS(fname, "w") do fits
         for arg in args
             writearg(fits, arg)
         end
@@ -162,7 +162,7 @@ function writefits(fname, args...)
 end
 parent_recurse(img::AbstractArray) = img
 parent_recurse(img::AstroImage) = parent_recurse(parent(img))
-writearg(fits, img::AstroImage) = write(fits, parent_recurse(img), header=header(img))
+writearg(fits, img::AstroImage) = write(fits, parent_recurse(img), header = header(img))
 # Fallback for writing plain arrays
 writearg(fits, arr::AbstractArray) = write(fits, arr)
 # For table compatible data.
@@ -175,13 +175,13 @@ function writearg(fits, table)
     # FITSIO has fairly restrictive input types for writing tables (assertions for documentation only)
     colname_strings = string.(collect(Tables.columnnames(table)))::Vector{String}
     columns = collect(Tables.columns(table))::Vector
-    write(
+    return write(
         fits,
         colname_strings,
         columns;
-        hdutype=TableHDU
+        hdutype = TableHDU,
         # TODO: In future, we want to be able to access and round-trip coments
         # on table HDUs
-        # header=nothing
+        # header = nothing
     )
 end

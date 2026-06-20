@@ -17,13 +17,15 @@ using WCS: to_header, from_header
         end
     end
     @testset "Integers" begin
-        for (UIT, SIT) in ((UInt8,  Int8),
-                           (UInt16, Int16),
-                           (UInt32, Int32),
-                           (UInt64, Int64))
+        for (UIT, SIT) in (
+                (UInt8, Int8),
+                (UInt16, Int16),
+                (UInt32, Int32),
+                (UInt64, Int64),
+            )
             N = sizeof(UIT) * 8
             NT = Normed{UIT, N}
-            maxint = UIT(big(2) ^ (N - 1))
+            maxint = UIT(big(2)^(N - 1))
             @test _float(typemin(UIT)) === _float(typemin(SIT)) === NT(0)
             @test _float(UIT(85)) === reinterpret(NT, UIT(85))
             @test _float(SIT(-85)) === _float(UIT(-85 + big(maxint)))
@@ -35,8 +37,10 @@ end
 
 @testset "FITS and images" begin
     fname = tempname() * ".fits"
-    for T in [UInt8, Int8, UInt16, Int16, UInt32, Int32, Int64,
-              Float32, Float64]
+    for T in [
+            UInt8, Int8, UInt16, Int16, UInt32, Int32, Int64,
+            Float32, Float64,
+        ]
         data = reshape(T[1:100;], 5, 20)
         FITS(fname, "w") do f
             write(f, data)
@@ -64,24 +68,24 @@ end
         ## Binary table
         indata = Dict{String, Array}()
         i = length(indata) + 1
-        indata["col$i"] = [randstring(10) for j=1:20]  # ASCIIString column
+        indata["col$i"] = [randstring(10) for j in 1:20]  # ASCIIString column
         i += 1
         indata["col$i"] = ones(Bool, 20)  # Bool column
         i += 1
         indata["col$i"] = reshape([1:40;], (2, 20))  # vector Int64 column
         i += 1
-        indata["col$i"] = [randstring(5) for j=1:2, k=1:20]  # vector ASCIIString col
-        indata["vcol"] = [randstring(j) for j=1:20]  # variable length column
-        indata["VCOL"] = [collect(1.:j) for j=1.:20.] # variable length
+        indata["col$i"] = [randstring(5) for j in 1:2, k in 1:20]  # vector ASCIIString col
+        indata["vcol"] = [randstring(j) for j in 1:20]  # variable length column
+        indata["VCOL"] = [collect(1.0:j) for j in 1.0:20.0] # variable length
 
         FITS(fname, "w") do f
-            write(f, indata; varcols=["vcol", "VCOL"])
+            write(f, indata; varcols = ["vcol", "VCOL"])
             @test_throws Exception AstroImage(f)
         end
     end
 
     @testset "Opening AstroImage in different ways" begin
-        data = rand(2,2)
+        data = rand(2, 2)
         FITS(fname, "w") do f
             write(f, data)
         end
@@ -97,18 +101,18 @@ end
         ## Binary table
         indata = Dict{String, Array}()
         i = length(indata) + 1
-        indata["col$i"] = [randstring(10) for j=1:20]  # ASCIIString column
+        indata["col$i"] = [randstring(10) for j in 1:20]  # ASCIIString column
         i += 1
         indata["col$i"] = ones(Bool, 20)  # Bool column
         i += 1
         indata["col$i"] = reshape([1:40;], (2, 20))  # vector Int64 column
         i += 1
-        indata["col$i"] = [randstring(5) for j=1:2, k=1:20]  # vector ASCIIString col
-        indata["vcol"] = [randstring(j) for j=1:20]  # variable length column
-        indata["VCOL"] = [collect(1.:j) for j=1.:20.] # variable length
+        indata["col$i"] = [randstring(5) for j in 1:2, k in 1:20]  # vector ASCIIString col
+        indata["vcol"] = [randstring(j) for j in 1:20]  # variable length column
+        indata["VCOL"] = [collect(1.0:j) for j in 1.0:20.0] # variable length
 
         FITS(fname, "w") do f
-            write(f, indata; varcols=["vcol", "VCOL"])
+            write(f, indata; varcols = ["vcol", "VCOL"])
             write(f, rand(2, 2))
         end
 
@@ -118,14 +122,15 @@ end
 end
 
 @testset "Utility functions" begin
-   @test size(AstroImage(rand(10,10))) == (10,10)
-   @test length(AstroImage(rand(10,10))) == 100
+    @test size(AstroImage(rand(10, 10))) == (10, 10)
+    @test length(AstroImage(rand(10, 10))) == 100
 end
 
 @testset "multi wcs AstroImage" begin
     fname = tempname() * ".fits"
     f = FITS(fname, "w")
-    inhdr = FITSHeader([
+    inhdr = FITSHeader(
+        [
             "FLTKEY", "INTKEY", "BOOLKEY", "STRKEY", "COMMENT", "HISTORY",
             "CRVAL1a",
             "CRVAL2a",
@@ -196,80 +201,83 @@ end
             "Terrestrial North Latitude",
             "",
             "",
-        ])
+        ]
+    )
 
     indata = reshape(Float32[1:100;], 5, 20)
-    write(f, indata; header=inhdr)
+    write(f, indata; header = inhdr)
     close(f)
 
     img = AstroImage(fname)
     f = FITS(fname)
     @test length(wcs(img)) == 2
-    @test to_header(wcs(img,1)) === to_header(from_header(read_header(f[1], String))[1])
-    @test to_header(wcs(img,2)) === to_header(from_header(read_header(f[1], String))[2])
+    @test to_header(wcs(img, 1)) === to_header(from_header(read_header(f[1], String))[1])
+    @test to_header(wcs(img, 2)) === to_header(from_header(read_header(f[1], String))[2])
 
     img = AstroImage(f)
     @test length(wcs(img)) == 2
-    @test to_header(wcs(img,1)) === to_header(from_header(read_header(f[1], String))[1])
-    @test to_header(wcs(img,2)) === to_header(from_header(read_header(f[1], String))[2])
+    @test to_header(wcs(img, 1)) === to_header(from_header(read_header(f[1], String))[1])
+    @test to_header(wcs(img, 2)) === to_header(from_header(read_header(f[1], String))[2])
     close(f)
 end
 
 ##
 @testset "imview" begin
 
-    arr1 = collect(permutedims(reshape(1:9,3,3)))
+    arr1 = collect(permutedims(reshape(1:9, 3, 3)))
     img = AstroImage(arr1)
 
     @test imview(arr1) == imview(img)
 
     ## Test view functionality
-    ivimg = imview(img, clims=(0,9))
+    ivimg = imview(img, clims = (0, 9))
     img[1] = 0
-    @test imview(img, clims=(0,9)) == ivimg # Should have updated
+    @test imview(img, clims = (0, 9)) == ivimg # Should have updated
     img[1] = 1
 
-    img_rendered_1 = imview(img, clims=(1,9), stretch=identity, contrast=1, bias=0.5, cmap=nothing)
+    img_rendered_1 = imview(img, clims = (1, 9), stretch = identity, contrast = 1, bias = 0.5, cmap = nothing)
 
     # Image Orientation
-    @test CartesianIndex(3,1) == argmin(Gray.(img_rendered_1))
-    @test CartesianIndex(1,3) == argmax(Gray.(img_rendered_1))
+    @test CartesianIndex(3, 1) == argmin(Gray.(img_rendered_1))
+    @test CartesianIndex(1, 3) == argmax(Gray.(img_rendered_1))
 
     # Rendering Basics
     @test allunique(img_rendered_1)
     # It is intended that the rendered image is flipped vs it's data
-    @test img_rendered_1[3,1] == RGBA(0,0,0,1)
-    @test img_rendered_1[1,3] == RGBA(1,1,1,1)
-    @test all(p -> p.r==p.g==p.b && p.alpha==1, img_rendered_1)
+    @test img_rendered_1[3, 1] == RGBA(0, 0, 0, 1)
+    @test img_rendered_1[1, 3] == RGBA(1, 1, 1, 1)
+    @test all(p -> p.r == p.g == p.b && p.alpha == 1, img_rendered_1)
 
     # Limits
-    img_rendered_2 = imview(img, clims=(3,7), stretch=identity, contrast=1, bias=0.5, cmap=nothing)
+    img_rendered_2 = imview(img, clims = (3, 7), stretch = identity, contrast = 1, bias = 0.5, cmap = nothing)
     @test length(unique(img_rendered_2)) == 5
-    @test count(==(RGBA(0,0,0,1)), img_rendered_2) == 3
-    @test count(==(RGBA(1,1,1,1)), img_rendered_2) == 3
+    @test count(==(RGBA(0, 0, 0, 1)), img_rendered_2) == 3
+    @test count(==(RGBA(1, 1, 1, 1)), img_rendered_2) == 3
 
     # Calculated limits
-    @test img_rendered_1 == imview(img, clims=extrema, stretch=identity, contrast=1, bias=0.5, cmap=nothing)
-    img_rendered_3 = imview(img, clims=Zscale(), stretch=identity, contrast=1, bias=0.5, cmap=nothing)
-    img_rendered_4 = imview(img, clims=Percent(100), stretch=identity, contrast=1, bias=0.5, cmap=nothing)
+    @test img_rendered_1 == imview(img, clims = extrema, stretch = identity, contrast = 1, bias = 0.5, cmap = nothing)
+    img_rendered_3 = imview(img, clims = Zscale(), stretch = identity, contrast = 1, bias = 0.5, cmap = nothing)
+    img_rendered_4 = imview(img, clims = Percent(100), stretch = identity, contrast = 1, bias = 0.5, cmap = nothing)
     @test img_rendered_1 == img_rendered_3
     @test img_rendered_1 == img_rendered_4
 
     # Stretching
     for stretchfunc in (sqrtstretch, asinhstretch, powerdiststretch, logstretch, powstretch, squarestretch, sinhstretch)
-        img_rendered_5 = imview(arr1, clims=(1,9), stretch=stretchfunc, contrast=1, bias=0.5, cmap=nothing)
-        @test extrema(Gray.(img_rendered_5)) == (0,1)
-        manual_stretch = stretchfunc.(clampednormedview(arr1,(1,9)))
+        img_rendered_5 = imview(arr1, clims = (1, 9), stretch = stretchfunc, contrast = 1, bias = 0.5, cmap = nothing)
+        @test extrema(Gray.(img_rendered_5)) == (0, 1)
+        manual_stretch = stretchfunc.(clampednormedview(arr1, (1, 9)))
         @test Gray.(img_rendered_5) ≈
-            N0f8.((manual_stretch.-minimum(manual_stretch)) ./
-                (maximum(manual_stretch)-minimum(manual_stretch)))'[end:-1:begin,:]
+            N0f8.(
+            (manual_stretch .- minimum(manual_stretch)) ./
+                (maximum(manual_stretch) - minimum(manual_stretch))
+        )'[end:-1:begin, :]
     end
 
     # Contrast/Bias
-    @test Gray.(imview(img, clims=extrema, stretch=identity, contrast=1, bias=0.6, cmap=nothing)) ==
-            N0f8.(clamp.(N0f8.(Gray.(img_rendered_1)) .- 0.1,false,true))
+    @test Gray.(imview(img, clims = extrema, stretch = identity, contrast = 1, bias = 0.6, cmap = nothing)) ==
+        N0f8.(clamp.(N0f8.(Gray.(img_rendered_1)) .- 0.1, false, true))
 
-    img_rendered_5 = imview(arr1, clims=(1,9), stretch=sqrtstretch, contrast=0.5, bias=0.5, cmap=nothing)
+    img_rendered_5 = imview(arr1, clims = (1, 9), stretch = sqrtstretch, contrast = 0.5, bias = 0.5, cmap = nothing)
 
     # Missing/NaN
     for m in (NaN, missing)
@@ -279,12 +287,12 @@ end
             7 8 9
         ]
         @test imview(arr2) == imview(AstroImage(arr2))
-        @test imview(arr2)[2,2].alpha == 0
-        @test 8 == count(img_rendered_1 .== imview(arr2, clims=(1,9), stretch=identity, contrast=1, bias=0.5, cmap=nothing))
+        @test imview(arr2)[2, 2].alpha == 0
+        @test 8 == count(img_rendered_1 .== imview(arr2, clims = (1, 9), stretch = identity, contrast = 1, bias = 0.5, cmap = nothing))
     end
 
-    img_rendered_6 = imview([1, 2, NaN, missing, -Inf, Inf], clims=extrema)
-    img_rendered_6b = imview([1, 2], clims=extrema)
+    img_rendered_6 = imview([1, 2, NaN, missing, -Inf, Inf], clims = extrema)
+    img_rendered_6b = imview([1, 2], clims = extrema)
 
     @test img_rendered_6[1] == img_rendered_6b[1]
     @test img_rendered_6[2] == img_rendered_6b[2]
@@ -292,10 +300,9 @@ end
     @test img_rendered_6[2].alpha == 1
     @test img_rendered_6[3].alpha == 0
     @test img_rendered_6[4].alpha == 0
-    @test img_rendered_6[5] == RGBA(0,0,0,1)
-    @test img_rendered_6[6] == RGBA(1,1,1,1)
+    @test img_rendered_6[5] == RGBA(0, 0, 0, 1)
+    @test img_rendered_6[6] == RGBA(1, 1, 1, 1)
 end
-
 
 
 ###
@@ -304,17 +311,17 @@ end
 ##
 @testset "bugs" begin
 
-    arr1 = permutedims(reshape(1:9,3,3))
+    arr1 = permutedims(reshape(1:9, 3, 3))
     img = AstroImage(arr1)
 
     # https://github.com/JuliaAstro/AstroImages.jl/issues/32
-    @test reverse(img, dims=1) == reverse(arr1,dims=1)
+    @test reverse(img, dims = 1) == reverse(arr1, dims = 1)
     @test reverse(img) == reverse(arr1)
 
 
     # https://github.com/JuliaAstro/AstroImages.jl/issues/33
-    dark = AstroImage(zeros(1, 10, 10));
-    raw = AstroImage(ones(5, 10, 10));
+    dark = AstroImage(zeros(1, 10, 10))
+    raw = AstroImage(ones(5, 10, 10))
     @test size(dark .- raw) == size(raw)
 
 end
@@ -384,7 +391,7 @@ end
 # end
 
 @testset "composecolors" begin
-    img1, img2, img3 = eachslice(rand(3, 4, 3); dims=3)
+    img1, img2, img3 = eachslice(rand(3, 4, 3); dims = 3)
     img4 = rand(3, 5)
     @test_throws ErrorException("At least one image is required.") composecolors([], ["red", "blue", "green"])
     @test_throws ErrorException("Images must have the same dimensions to compose them.") composecolors([img1, img2, img4], ["red", "blue", "green"])

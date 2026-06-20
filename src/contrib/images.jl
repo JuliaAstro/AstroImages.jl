@@ -4,11 +4,10 @@
 # end
 
 
-
 # Instead of using a datatype like N0f32 to interpret integers as fixed point values in [0,1],
 # we use a mappedarray to map the native data range (regardless of type) to [0,1]
 ImageBase.normedview(img::AstroImageMat{<:FixedPoint}) = img
-function ImageBase.normedview(img::AstroImageMat{T}) where T
+function ImageBase.normedview(img::AstroImageMat{T}) where {T}
     imgmin, imgmax = extrema(skipmissingnan(img))
     Δ = abs(imgmax - imgmin)
     # Do not introduce NaNs if limits are identical
@@ -16,8 +15,8 @@ function ImageBase.normedview(img::AstroImageMat{T}) where T
         Δ = oneunit(imgmin)
     end
     normeddata = mappedarray(
-        pix -> (pix - imgmin)/Δ,
-        pix_norm -> convert(T, pix_norm*Δ + imgmin),
+        pix -> (pix - imgmin) / Δ,
+        pix_norm -> convert(T, pix_norm * Δ + imgmin),
         img
     )
     return shareheader(img, normeddata)
@@ -32,7 +31,7 @@ range are clamped to [0, 1].
 
 See also: normedview
 """
-function clampednormedview(img::AbstractArray{T}, lims) where T
+function clampednormedview(img::AbstractArray{T}, lims) where {T}
     imgmin, imgmax = lims
     Δ = imgmax - imgmin
     # Do not introduce NaNs if colorlimits are identical
@@ -40,7 +39,7 @@ function clampednormedview(img::AbstractArray{T}, lims) where T
         Δ = oneunit(imgmin)
     end
     normeddata = mappedarray(
-        pix -> clamp((pix - imgmin)/Δ, zero(pix), oneunit(pix)),
+        pix -> clamp((pix - imgmin) / Δ, zero(pix), oneunit(pix)),
         img
     )
     return maybe_shareheader(img, normeddata)
@@ -53,7 +52,7 @@ ImageBase.restrict(img::AstroImage, ::Tuple{}) = img
 function ImageBase.restrict(img::AstroImage, region::Dims)
     restricted = restrict(parent(img), region)
     steps = cld.(size(img), size(restricted))
-    newdims = Tuple(d[begin:s:end] for (d,s) in zip(dims(img),steps))
+    newdims = Tuple(d[begin:s:end] for (d, s) in zip(dims(img), steps))
     return rebuild(img, restricted, newdims)
 end
 
@@ -72,12 +71,9 @@ ImageBase.pixelspacing(img::AstroImage) = step.(dims(img))
 # end
 
 
-
-
 # """
 #     ImageMetadata.parent(img::AstroImage)
 
 # Returns the underlying wrapped array of `img`.
 # """
 # ImageMetadata.parent(img::AstroImage) = getfield(img, :data)
-

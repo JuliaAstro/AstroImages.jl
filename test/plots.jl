@@ -8,20 +8,20 @@ using WCS: WCSTransform
     wcs2 = WCSTransform(2; ctype = ["GLON--", "GLAT--"])
     wcs3 = WCSTransform(2; ctype = ["TLON--", "TLAT--"])
     wcs4 = WCSTransform(2; ctype = ["UNK---", "UNK---"])
-    wcs5 = WCSTransform(2;)
+    wcs5 = WCSTransform(2)
 
     img = AstroImage(data)
     p = ImPlot((img,))
     rec = apply_recipe(Dict{Symbol, Any}(), p)
     @test getfield(rec[1], 1) == Dict{Symbol, Any}(
-        :ylims        => (0.5, 10.5),
-        :grid         => false,
-        :xlims        => (0.5, 10.5),
-        :subplot      => 1,
-        :colorbar     => false,
-        :framestyle   => :box,
-        :yflip        => false,
-        :xflip        => false,
+        :ylims => (0.5, 10.5),
+        :grid => false,
+        :xlims => (0.5, 10.5),
+        :subplot => 1,
+        :colorbar => false,
+        :framestyle => :box,
+        :yflip => false,
+        :xflip => false,
         :aspect_ratio => 1,
     )
     @test p.args[1].data == img.data
