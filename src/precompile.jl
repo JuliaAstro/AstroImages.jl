@@ -8,7 +8,7 @@
         squarestretch,
         asinhstretch,
         sinhstretch,
-        powerdiststretch
+        powerdiststretch,
     ]
     @compile_workload begin
         for a in arrays
@@ -19,7 +19,7 @@
             end
             parent(i)
             header(i)
-            wcs(i,1)
+            wcs(i, 1)
             wcs(i)
             i["h"] = 1
             i["h"] = 1.0
@@ -27,8 +27,8 @@
             i["h"]
             i[:h]
             i[1]
-            i[1,1]
-            i[[1,1]]
+            i[1, 1]
+            i[[1, 1]]
             i[trues(length(i))]
             i[trues(size(i))]
             similar(i)

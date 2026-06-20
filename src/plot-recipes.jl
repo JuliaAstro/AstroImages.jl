@@ -18,11 +18,11 @@
     showwcstitle = get(plotattributes, :wcstitle, true) &&  length(refdims(data)) > 0 && !all(==(""), wcs(data, wcsn).ctype)
 
 
-    minx = first(parent(dims(data,1)))
-    maxx = last(parent(dims(data,1)))
-    miny = first(parent(dims(data,2)))
-    maxy = last(parent(dims(data,2)))
-    extent = (minx-0.5, maxx+0.5, miny-0.5, maxy+0.5)
+    minx = first(parent(dims(data, 1)))
+    maxx = last(parent(dims(data, 1)))
+    miny = first(parent(dims(data, 2)))
+    maxy = last(parent(dims(data, 2)))
+    extent = (minx - 0.5, maxx + 0.5, miny - 0.5, maxy + 0.5)
     if haskey(plotattributes, :xlims)
         extent = (plotattributes[:xlims]..., extent[3:4]...)
     end
@@ -35,12 +35,12 @@
     end
 
     # Use package defaults if not user provided.
-    clims   = get(plotattributes, :clims, _default_clims[])
+    clims = get(plotattributes, :clims, _default_clims[])
     stretch = get(plotattributes, :stretch, _default_stretch[])
     # cmap now gets normalized to `seriescolor` where it didn't previously
     # Check for both.
-    cmap    = get(plotattributes, :seriescolor, _default_cmap[])
-    cmap    = get(plotattributes, :cmap, cmap)
+    cmap = get(plotattributes, :seriescolor, _default_cmap[])
+    cmap = get(plotattributes, :cmap, cmap)
 
     # Plotly is now failing if the user passes through a function as a keyword value
     # even if that function is only used by the recipe. Guard against this.
@@ -91,7 +91,7 @@
 
 
     # Disable equal aspect ratios if the scales are totally different
-    displayed_data_ratio = (extent[2]-extent[1])/(extent[4]-extent[3])
+    displayed_data_ratio = (extent[2] - extent[1]) / (extent[4] - extent[3])
     if displayed_data_ratio >= 7
         aspect_ratio --> :none
     end
@@ -104,32 +104,34 @@
     # Display a title giving our position along unplotted dimensions
     if length(refdims(imgv)) > 0
         if showwcstitle
-            refdimslabel = join(map(refdims(imgv)) do d
-                # match dimension with the wcs axis number
-                i = wcsax(imgv, d)
-                ct = wcs(imgv, wcsn).ctype[i]
-                label = ctype_label(ct, wcs(imgv, wcsn).radesys)
-                if label == "NONE"
-                    label = name(d)
-                end
-                value = pix_to_world(imgv, [1,1]; wcsn, all=true, parent=true)[i]
-                unit = wcs(imgv, wcsn).cunit[i]
-                if ct == "STOKES"
-                    return _stokes_name(_stokes_symbol(value))
-                else
-                    return @sprintf("%s = %.5g %s", label, value, unit)
-                end
-            end, ", ")
+            refdimslabel = join(
+                map(refdims(imgv)) do d
+                    # match dimension with the wcs axis number
+                    i = wcsax(imgv, d)
+                    ct = wcs(imgv, wcsn).ctype[i]
+                    label = ctype_label(ct, wcs(imgv, wcsn).radesys)
+                    if label == "NONE"
+                        label = name(d)
+                    end
+                    value = pix_to_world(imgv, [1, 1]; wcsn, all = true, parent = true)[i]
+                    unit = wcs(imgv, wcsn).cunit[i]
+                    if ct == "STOKES"
+                        return _stokes_name(_stokes_symbol(value))
+                    else
+                        return @sprintf("%s = %.5g %s", label, value, unit)
+                    end
+                end, ", "
+            )
         else
-            refdimslabel = join(map(d->"$(name(d))= $(d[1])", refdims(imgv)), ", ")
+            refdimslabel = join(map(d -> "$(name(d))= $(d[1])", refdims(imgv)), ", ")
         end
         title --> refdimslabel
     end
 
     # To ensure the physical axis tick labels are correct the axes must be
     # tight to the image
-    xl = (first(dims(imgv,1))-0.5)*platescale, (last(dims(imgv,1))+0.5)*platescale
-    yl = (first(dims(imgv,2))-0.5)*platescale, (last(dims(imgv,2))+0.5)*platescale
+    xl = (first(dims(imgv, 1)) - 0.5) * platescale, (last(dims(imgv, 1)) + 0.5) * platescale
+    yl = (first(dims(imgv, 2)) - 0.5) * platescale, (last(dims(imgv, 2)) + 0.5) * platescale
     ylims --> yl
     xlims --> xl
 
@@ -148,19 +150,19 @@
         # the transformation from pixel to coordinates can be non-linear and curved.
 
         if showwcsticks
-            xticks --> (gridspec.tickpos1x, wcslabels(wcs(imgv, wcsn), wcsax(imgv, dims(imgv,1)), gridspec.tickpos1w))
-            xguide --> ctype_label(wcs(imgv, wcsn).ctype[wcsax(imgv, dims(imgv,1))], wcs(imgv, wcsn).radesys)
+            xticks --> (gridspec.tickpos1x, wcslabels(wcs(imgv, wcsn), wcsax(imgv, dims(imgv, 1)), gridspec.tickpos1w))
+            xguide --> ctype_label(wcs(imgv, wcsn).ctype[wcsax(imgv, dims(imgv, 1))], wcs(imgv, wcsn).radesys)
 
-            yticks --> (gridspec.tickpos2x, wcslabels(wcs(imgv, wcsn), wcsax(imgv, dims(imgv,2)), gridspec.tickpos2w))
-            yguide --> ctype_label(wcs(imgv, wcsn).ctype[wcsax(imgv, dims(imgv,2))], wcs(imgv, wcsn).radesys)
+            yticks --> (gridspec.tickpos2x, wcslabels(wcs(imgv, wcsn), wcsax(imgv, dims(imgv, 2)), gridspec.tickpos2w))
+            yguide --> ctype_label(wcs(imgv, wcsn).ctype[wcsax(imgv, dims(imgv, 2))], wcs(imgv, wcsn).radesys)
         end
 
 
-        ax1 = collect(parent(dims(imgv,1))) .* platescale
-        ax2 = collect(parent(dims(imgv,2))) .* platescale
+        ax1 = collect(parent(dims(imgv, 1))) .* platescale
+        ax2 = collect(parent(dims(imgv, 2))) .* platescale
         # Views of images are not currently supported by plotly() so we have to collect them.
         # ax1, ax2, view(parent(imgv), reverse(axes(imgv,1)),:)
-        ax1, ax2, parent(imgv)[reverse(axes(imgv,1)),:]
+        ax1, ax2, parent(imgv)[reverse(axes(imgv, 1)), :]
     end
 
     # If wcs=true (default) and grid=true (not default), overplot a WCS
@@ -189,18 +191,18 @@
     if T <: Complex
         layout := @layout [
             imgmag{0.5h}
-          imgangle{0.5h}
+            imgangle{0.5h}
         ]
     end
     if showcolorbar
         if T <: Complex
             layout := @layout [
-                imgmag{0.95w, 0.5h}       colorbar{0.5h}
-              imgangle{0.95w, 0.5h}  colorbarangle{0.5h}
+                imgmag{0.95w, 0.5h}         colorbar{0.5h}
+                imgangle{0.95w, 0.5h}  colorbarangle{0.5h}
             ]
         else
             layout := @layout [
-                img{0.95w} colorbar
+            img{0.95w} colorbar
             ]
         end
         colorbar_title = get(plotattributes, :colorbar_title, "")
@@ -228,7 +230,7 @@
             title := ""
             # Views of images are not currently supported by plotly so we have to collect them
             # view(cbimg, reverse(axes(cbimg,1)),:)
-            cbimg[reverse(axes(cbimg,1)),:]
+            cbimg[reverse(axes(cbimg, 1)), :]
         end
     end
 
@@ -237,7 +239,7 @@
     if T <: Complex
         img = angle.(data)
         img["UNIT"] = "angle (rad)"
-        imgv = imview(img, clims=(-1pi, 1pi),stretch=identity, cmap=:cyclic_mygbm_30_95_c78_n256_s25)
+        imgv = imview(img, clims = (-1pi, 1pi), stretch = identity, cmap = :cyclic_mygbm_30_95_c78_n256_s25)
         @series begin
             subplot_i += 1
             subplot := subplot_i
@@ -253,18 +255,18 @@
             # the transformation from pixel to coordinates can be non-linear and curved.
 
             if showwcsticks
-                xticks --> (gridspec.tickpos1x, wcslabels(wcs(imgv, wcsn), wcsax(imgv, dims(imgv,1)), gridspec.tickpos1w))
-                xguide --> ctype_label(wcs(imgv, wcsn).ctype[wcsax(imgv, dims(imgv,1))], wcs(imgv, wcsn).radesys)
+                xticks --> (gridspec.tickpos1x, wcslabels(wcs(imgv, wcsn), wcsax(imgv, dims(imgv, 1)), gridspec.tickpos1w))
+                xguide --> ctype_label(wcs(imgv, wcsn).ctype[wcsax(imgv, dims(imgv, 1))], wcs(imgv, wcsn).radesys)
 
-                yticks --> (gridspec.tickpos2x, wcslabels(wcs(imgv, wcsn), wcsax(imgv, dims(imgv,2)), gridspec.tickpos2w))
-                yguide --> ctype_label(wcs(imgv, wcsn).ctype[wcsax(imgv, dims(imgv,2))], wcs(imgv, wcsn).radesys)
+                yticks --> (gridspec.tickpos2x, wcslabels(wcs(imgv, wcsn), wcsax(imgv, dims(imgv, 2)), gridspec.tickpos2w))
+                yguide --> ctype_label(wcs(imgv, wcsn).ctype[wcsax(imgv, dims(imgv, 2))], wcs(imgv, wcsn).radesys)
             end
 
-            ax1 = collect(parent(dims(imgv,1))) .* platescale
-            ax2 = collect(parent(dims(imgv,2))) .* platescale
+            ax1 = collect(parent(dims(imgv, 1))) .* platescale
+            ax2 = collect(parent(dims(imgv, 2))) .* platescale
             # Views of images are not currently supported by plotly() so we have to collect them.
             # ax1, ax2, view(parent(imgv), reverse(axes(imgv,1)),:)
-            ax1, ax2, parent(imgv)[reverse(axes(imgv,1)),:]
+            ax1, ax2, parent(imgv)[reverse(axes(imgv, 1)), :]
         end
 
         if showcolorbar
@@ -279,17 +281,17 @@
                 subplot := subplot_i
                 aspect_ratio := :none
                 colorbar := false
-                cbimg, _ = imview_colorbar(img; stretch=identity, clims=(-pi, pi), cmap=:cyclic_mygbm_30_95_c78_n256_s25)
+                cbimg, _ = imview_colorbar(img; stretch = identity, clims = (-pi, pi), cmap = :cyclic_mygbm_30_95_c78_n256_s25)
                 xticks := []
                 ymirror := true
-                ax = axes(cbimg,1)
+                ax = axes(cbimg, 1)
                 yticks := ([first(ax), mean(ax), last(ax)], ["-π", "0", "π"])
                 yguide := colorbar_title
                 xguide := ""
                 xlims := Tuple(extrema(axes(cbimg, 2)))
                 ylims := Tuple(extrema(axes(cbimg, 1)))
                 title := ""
-                view(cbimg, reverse(axes(cbimg,1)),:)
+                view(cbimg, reverse(axes(cbimg, 1)), :)
             end
         end
 
@@ -364,7 +366,7 @@ implot
 
 struct WCSGrid
     img::AstroImage
-    extent::NTuple{4,Float64}
+    extent::NTuple{4, Float64}
     wcsn::Int
 end
 
@@ -382,10 +384,8 @@ function wcsticks(wcsg::WCSGrid, axnum, gs = wcsgridspec(wcsg))
     tickposx = axnum == 1 ? gs.tickpos1x : gs.tickpos2x
     tickposw = axnum == 1 ? gs.tickpos1w : gs.tickpos2w
     return tickposx, wcslabels(
-        wcs(wcsg.img, wcsg.wcsn),
-        axnum,
-        tickposw
-    )
+            wcs(wcsg.img, wcsg.wcsn), axnum, tickposw
+        )
 end
 
 # Function to generate nice string coordinate labels given a WCSTransform, axis number,
@@ -407,7 +407,7 @@ function wcslabels(w::WCSTransform, axnum, tickposw)
             units = dmsmμ_units
         end
     else
-        converter = x->(x,)
+        converter = x -> (x,)
         units = ("",)
     end
 
@@ -422,33 +422,35 @@ function wcslabels(w::WCSTransform, axnum, tickposw)
 
     # Start with something impossible of the same size:
     last_coord = Inf .* converter(first(tickposw))
-    zero_coords_i = maximum(map(parts) do vals
-        changing_coord_i = findfirst(vals .!= last_coord)
-        if isnothing(changing_coord_i)
-            changing_coord_i = 1
+    zero_coords_i = maximum(
+        map(parts) do vals
+            changing_coord_i = findfirst(vals .!= last_coord)
+            if isnothing(changing_coord_i)
+                changing_coord_i = 1
+            end
+            last_coord = vals
+            return changing_coord_i
         end
-        last_coord = vals
-        return changing_coord_i
-    end)
+    )
 
 
     # Loop through using only the relevant part of the label
     # Start with something impossible of the same size:
     last_coord = Inf .* converter(first(tickposw))
-    for (i,vals) in enumerate(parts)
+    for (i, vals) in enumerate(parts)
         changing_coord_i = findfirst(vals .!= last_coord)
         if isnothing(changing_coord_i)
             changing_coord_i = 1
         end
         # Don't display just e.g. 00" when we should display 50'00"
         if changing_coord_i > 1 && vals[changing_coord_i] == 0
-            changing_coord_i = changing_coord_i -1
+            changing_coord_i = changing_coord_i - 1
         end
-        val_unit_zip = zip(vals[changing_coord_i:zero_coords_i],units[changing_coord_i:zero_coords_i])
-        ticklabels[i] = mapreduce(*, enumerate(val_unit_zip)) do (coord_i,(val,unit))
+        val_unit_zip = zip(vals[changing_coord_i:zero_coords_i], units[changing_coord_i:zero_coords_i])
+        ticklabels[i] = mapreduce(*, enumerate(val_unit_zip)) do (coord_i, (val, unit))
             # If the last coordinate we print if the last coordinate we have available,
             # display it with decimal places
-            if coord_i + changing_coord_i - 1== length(vals)
+            if coord_i + changing_coord_i - 1 == length(vals)
                 str = @sprintf("%.2f", val)
             else
                 str = @sprintf("%02d", val)
@@ -467,12 +469,12 @@ end
 
 # Extended form of deg2dms that further returns mas, microas.
 function deg2dmsmμ(deg)
-    d,m,s = deg2dms(deg)
+    d, m, s = deg2dms(deg)
     s_f = floor(s)
-    mas = (s - s_f)*1e3
+    mas = (s - s_f) * 1.0e3
     mas_f = floor(mas)
-    μas = (mas - mas_f)*1e3
-    return (d,m,s_f,mas_f,μas)
+    μas = (mas - mas_f) * 1.0e3
+    return (d, m, s_f, mas_f, μas)
 end
 const dmsmμ_units = [
     "°",
@@ -487,7 +489,7 @@ const hms_units = [
     "ˢ",
 ]
 
-function ctype_label(ctype,radesys)
+function ctype_label(ctype, radesys)
     if length(ctype) == 0
         return radesys
     elseif startswith(ctype, "RA")
@@ -500,14 +502,13 @@ function ctype_label(ctype,radesys)
         return "Declination ($(radesys))"
     elseif startswith(ctype, "GLAT")
         return "Galactic Latitude"
-    # elseif startswith(ctype, "TLAT")
+        # elseif startswith(ctype, "TLAT")
     elseif ctype == "STOKES"
         return "Polarization"
     else
         return ctype
     end
 end
-
 
 
 """
@@ -519,21 +520,20 @@ This function has to work on both plotted axes at once to handle rotation and ge
 curvature of the WCS grid projected on the image coordinates.
 
 """
-function WCSGrid(img::AstroImageMat, wcsn=1)
-    minx = first(dims(img,2))
-    maxx = last(dims(img,2))
-    miny = first(dims(img,1))
-    maxy = last(dims(img,1))
-    extent = (minx-0.5, maxx+0.5, miny-0.5, maxy+0.5)
+function WCSGrid(img::AstroImageMat, wcsn = 1)
+    minx = first(dims(img, 2))
+    maxx = last(dims(img, 2))
+    miny = first(dims(img, 1))
+    maxy = last(dims(img, 1))
+    extent = (minx - 0.5, maxx + 0.5, miny - 0.5, maxy + 0.5)
     return WCSGrid(img, extent, wcsn)
 end
-
 
 
 # Recipe for a WCSGrid with lines, optional ticks (on by default),
 # and optional grid labels (off by defaut).
 # The AstroImageMat plotrecipe uses this recipe for grid lines if `grid=true`.
-@recipe function f(wcsg::WCSGrid, gridspec=wcsgridspec(wcsg))
+@recipe function f(wcsg::WCSGrid, gridspec = wcsgridspec(wcsg))
     label --> ""
     xs, ys = wcsgridlines(gridspec)
 
@@ -551,8 +551,8 @@ end
     end
     annotate = haskey(plotattributes, :gridlabels) && plotattributes[:gridlabels]
 
-    xguide --> ctype_label(wcs(wcsg.img, wcsg.wcsn).ctype[wcsax(wcsg.img, dims(wcsg.img,1))], wcs(wcsg.img, wcsg.wcsn).radesys)
-    yguide --> ctype_label(wcs(wcsg.img, wcsg.wcsn).ctype[wcsax(wcsg.img, dims(wcsg.img,2))], wcs(wcsg.img, wcsg.wcsn).radesys)
+    xguide --> ctype_label(wcs(wcsg.img, wcsg.wcsn).ctype[wcsax(wcsg.img, dims(wcsg.img, 1))], wcs(wcsg.img, wcsg.wcsn).radesys)
+    yguide --> ctype_label(wcs(wcsg.img, wcsg.wcsn).ctype[wcsax(wcsg.img, dims(wcsg.img, 2))], wcs(wcsg.img, wcsg.wcsn).radesys)
 
     xlims --> wcsg.extent[1], wcsg.extent[2]
     ylims --> wcsg.extent[3], wcsg.extent[4]
@@ -576,19 +576,19 @@ end
             linewidth := 0
             # TODO: we need to use requires to load in Plots for the necessary text control. Future versions of RecipesBase might fix this.
             series_annotations := [
-                Main.Plots.text(" $l", :right, :bottom, textcolor, 8, rotation=(-95 <= r <= 95) ? r : r+180)
-                for (l, r) in zip(ticklabels, rotations)
+                Main.Plots.text(" $l", :right, :bottom, textcolor, 8, rotation = (-95 <= r <= 95) ? r : r + 180)
+                    for (l, r) in zip(ticklabels, rotations)
             ]
             gridspec.annotations1x, gridspec.annotations1y
         end
         @series begin
-            rotations  = rad2deg.(gridspec.annotations2θ)
+            rotations = rad2deg.(gridspec.annotations2θ)
             ticklabels = wcslabels(wcs(wcsg.img), 2, gridspec.annotations2w)
             seriestype := :line
             linewidth := 0
             series_annotations := [
-                Main.Plots.text(" $l", :right, :bottom, textcolor, 8, rotation=(-95 <= r <= 95) ? r : r+180)
-                for (l, r) in zip(ticklabels, rotations)
+                Main.Plots.text(" $l", :right, :bottom, textcolor, 8, rotation = (-95 <= r <= 95) ? r : r + 180)
+                    for (l, r) in zip(ticklabels, rotations)
             ]
             gridspec.annotations2x, gridspec.annotations2y
         end
@@ -619,27 +619,27 @@ function wcsgridspec(wsg::WCSGrid)
         minx minx maxx maxx
         miny maxy miny maxy
     ]
-    posuv = pix_to_world(wsg.img, posxy; wsg.wcsn, parent=true)
-    (minu, maxu), (minv, maxv) = extrema(posuv, dims=2)
+    posuv = pix_to_world(wsg.img, posxy; wsg.wcsn, parent = true)
+    (minu, maxu), (minv, maxv) = extrema(posuv, dims = 2)
 
     # In general, grid can be curved when plotted back against the image,
     # so we will need to sample multiple points along the grid.
     # TODO: find a good heuristic for this based on the curvature.
     N_points = 50
-    urange = range(minu, maxu, length=N_points)
-    vrange = range(minv, maxv, length=N_points)
+    urange = range(minu, maxu, length = N_points)
+    vrange = range(minv, maxv, length = N_points)
 
     # Find nice grid spacings using PlotUtils.optimize_ticks
     # These heuristics can probably be improved
     # TODO: this does not handle coordinates that wrap around
-    Q = [(1.0,1.0), (3.0, 0.8), (2.0, 0.7), (5.0, 0.5)]
+    Q = [(1.0, 1.0), (3.0, 0.8), (2.0, 0.7), (5.0, 0.5)]
     k_min = 3
     k_ideal = 5
     k_max = 10
 
     tickpos2x = Float64[]
     tickpos2w = Float64[]
-    gridlinesxy2 = NTuple{2,Vector{Float64}}[]
+    gridlinesxy2 = NTuple{2, Vector{Float64}}[]
     # Not all grid lines will intersect the x & y axes nicely.
     # If we don't get enough valid tick marks (at least 2) loop again
     # requesting more locations up to three times.
@@ -651,17 +651,17 @@ function wcsgridspec(wsg::WCSGrid)
         k_max += 2
         j -= 1
 
-        tickposv = optimize_ticks(6minv, 6maxv; Q, k_min, k_ideal, k_max)[1]./6
+        tickposv = optimize_ticks(6minv, 6maxv; Q, k_min, k_ideal, k_max)[1] ./ 6
 
         empty!(tickpos2x)
         empty!(tickpos2w)
         empty!(gridlinesxy2)
         for tickv in tickposv
             # Make sure we handle unplotted slices correctly.
-            griduv = repeat(posuv[:,1], 1, N_points)
-            griduv[1,:] .= urange
-            griduv[2,:] .= tickv
-            posxy = world_to_pix(wsg.img, griduv; wsg.wcsn, parent=true)
+            griduv = repeat(posuv[:, 1], 1, N_points)
+            griduv[1, :] .= urange
+            griduv[2, :] .= tickv
+            posxy = world_to_pix(wsg.img, griduv; wsg.wcsn, parent = true)
 
             # Now that we have the grid in pixel coordinates,
             # if we find out where the grid intersects the axes we can put
@@ -669,68 +669,68 @@ function wcsgridspec(wsg::WCSGrid)
 
             # We can use these masks to determine where, and in what direction
             # the gridlines leave the plot extent
-            in_horz_ax = minx .<=  posxy[1,:] .<= maxx
-            in_vert_ax = miny .<=  posxy[2,:] .<= maxy
+            in_horz_ax = minx .<= posxy[1, :] .<= maxx
+            in_vert_ax = miny .<= posxy[2, :] .<= maxy
             in_axes = in_horz_ax .& in_vert_ax
             if count(in_axes) < 2
                 continue
             elseif all(in_axes)
                 point_entered = [
-                    posxy[1,begin]
-                    posxy[2,begin]
+                    posxy[1, begin]
+                    posxy[2, begin]
                 ]
                 point_exitted = [
-                    posxy[1,end]
-                    posxy[2,end]
+                    posxy[1, end]
+                    posxy[2, end]
                 ]
-            elseif allequal(posxy[1,findfirst(in_axes):findlast(in_axes)])
+            elseif allequal(posxy[1, findfirst(in_axes):findlast(in_axes)])
                 point_entered = [
-                    posxy[1,max(begin,findfirst(in_axes)-1)]
+                    posxy[1, max(begin, findfirst(in_axes) - 1)]
                     # posxy[2,max(begin,findfirst(in_axes)-1)]
                     miny
                 ]
                 point_exitted = [
-                    posxy[1,min(end,findlast(in_axes)+1)]
+                    posxy[1, min(end, findlast(in_axes) + 1)]
                     # posxy[2,min(end,findlast(in_axes)+1)]
                     maxy
                 ]
-            # Vertical grid lines
-            elseif allequal(posxy[2,findfirst(in_axes):findlast(in_axes)])
+                # Vertical grid lines
+            elseif allequal(posxy[2, findfirst(in_axes):findlast(in_axes)])
                 point_entered = [
                     minx #posxy[1,max(begin,findfirst(in_axes)-1)]
-                    posxy[2,max(begin,findfirst(in_axes)-1)]
+                    posxy[2, max(begin, findfirst(in_axes) - 1)]
                 ]
                 point_exitted = [
                     maxx #posxy[1,min(end,findlast(in_axes)+1)]
-                    posxy[2,min(end,findlast(in_axes)+1)]
+                    posxy[2, min(end, findlast(in_axes) + 1)]
                 ]
             else
                 # Use the masks to pick an x,y point inside the axes and an
                 # x,y point outside the axes.
                 i = findfirst(in_axes)
-                x1 = posxy[1,i]
-                y1 = posxy[2,i]
-                x2 = posxy[1,i+1]
-                y2 = posxy[2,i+1]
-                if x2-x1 ≈ 0
+                x1 = posxy[1, i]
+                y1 = posxy[2, i]
+                x2 = posxy[1, i + 1]
+                y2 = posxy[2, i + 1]
+                if x2 - x1 ≈ 0
                     @warn "undef slope"
                 end
 
                 # Fit a line where we cross the axis
-                m1 = (y2-y1)/(x2-x1)
-                b1 = y1-m1*x1
+                m1 = (y2 - y1) / (x2 - x1)
+                b1 = y1 - m1 * x1
                 # If the line enters via the vertical axes...
                 if findfirst(in_vert_ax) <= findfirst(in_horz_ax)
                     # Then we simply evaluate it at that axis
-                    x = abs(x1-maxx) < abs(x1-minx) ? maxx : minx
-                    x = clamp(x,minx,maxx)
-                    y = m1*x+b1
+                    x = abs(x1 - maxx) < abs(x1 - minx) ? maxx : minx
+                    x = clamp(x, minx, maxx)
+                    y = m1 * x + b1
                 else
                     # We must find where it enters the plot from
                     # bottom or top
-                    x = abs(y1-maxy) < abs(y1-miny) ? (maxy-b1)/m1 : (miny-b1)/m1
-                    x = clamp(x,minx,maxx)
-                    y = m1*x+b1
+                    x = abs(y1 - maxy) < abs(y1 - miny) ? (maxy - b1) / m1 : (miny - b1) / m1
+                    x = clamp(x, minx, maxx)
+                    y = m1 * x + b1
                 end
 
                 # From here, do a linear fit to find the intersection with the axis.
@@ -743,28 +743,28 @@ function wcsgridspec(wsg::WCSGrid)
                 # Use the masks to pick an x,y point inside the axes and an
                 # x,y point outside the axes.
                 i = findlast(in_axes)
-                x1 = posxy[1,i-1]
-                y1 = posxy[2,i-1]
-                x2 = posxy[1,i]
-                y2 = posxy[2,i]
-                if x2-x1 ≈ 0
+                x1 = posxy[1, i - 1]
+                y1 = posxy[2, i - 1]
+                x2 = posxy[1, i]
+                y2 = posxy[2, i]
+                if x2 - x1 ≈ 0
                     @warn "undef slope"
                 end
 
                 # Fit a line where we cross the axis
-                m2 = (y2-y1)/(x2-x1)
-                b2 = y2-m2*x2
+                m2 = (y2 - y1) / (x2 - x1)
+                b2 = y2 - m2 * x2
                 if findlast(in_vert_ax) > findlast(in_horz_ax)
                     # Then we simply evaluate it at that axis
-                    x = abs(x1-maxx) < abs(x1-minx) ? maxx : minx
-                    x = clamp(x,minx,maxx)
-                    y = m2*x+b2
+                    x = abs(x1 - maxx) < abs(x1 - minx) ? maxx : minx
+                    x = clamp(x, minx, maxx)
+                    y = m2 * x + b2
                 else
                     # We must find where it enters the plot from
                     # bottom or top
-                    x = abs(y1-maxy) < abs(y1-miny) ? (maxy-b2)/m2 : (miny-b2)/m2
-                    x = clamp(x,minx,maxx)
-                    y = m2*x+b2
+                    x = abs(y1 - maxy) < abs(y1 - miny) ? (maxy - b2) / m2 : (miny - b2) / m2
+                    x = clamp(x, minx, maxx)
+                    y = m2 * x + b2
                 end
 
                 # From here, do a linear fit to find the intersection with the axis.
@@ -785,13 +785,13 @@ function wcsgridspec(wsg::WCSGrid)
             end
 
 
-            posxy_neat = [point_entered  posxy[[1,2],in_axes] point_exitted]
+            posxy_neat = [point_entered  posxy[[1, 2], in_axes] point_exitted]
             # posxy_neat = posxy
             # TODO: do unplotted other axes also need a fit?
 
             gridlinexy = (
-                posxy_neat[1,:],
-                posxy_neat[2,:]
+                posxy_neat[1, :],
+                posxy_neat[2, :],
             )
             push!(gridlinesxy2, gridlinexy)
         end
@@ -803,7 +803,7 @@ function wcsgridspec(wsg::WCSGrid)
     k_max = 10
     tickpos1x = Float64[]
     tickpos1w = Float64[]
-    gridlinesxy1 = NTuple{2,Vector{Float64}}[]
+    gridlinesxy1 = NTuple{2, Vector{Float64}}[]
     # Not all grid lines will intersect the x & y axes nicely.
     # If we don't get enough valid tick marks (at least 2) loop again
     # requesting more locations up to three times.
@@ -815,17 +815,17 @@ function wcsgridspec(wsg::WCSGrid)
         k_max += 2
         j -= 1
 
-        tickposu = optimize_ticks(6minu, 6maxu; Q, k_min, k_ideal, k_max)[1]./6
+        tickposu = optimize_ticks(6minu, 6maxu; Q, k_min, k_ideal, k_max)[1] ./ 6
 
         empty!(tickpos1x)
         empty!(tickpos1w)
         empty!(gridlinesxy1)
         for ticku in tickposu
             # Make sure we handle unplotted slices correctly.
-            griduv = repeat(posuv[:,1], 1, N_points)
-            griduv[1,:] .= ticku
-            griduv[2,:] .= vrange
-            posxy = world_to_pix(wsg.img, griduv; wsg.wcsn, parent=true)
+            griduv = repeat(posuv[:, 1], 1, N_points)
+            griduv[1, :] .= ticku
+            griduv[2, :] .= vrange
+            posxy = world_to_pix(wsg.img, griduv; wsg.wcsn, parent = true)
 
             # Now that we have the grid in pixel coordinates,
             # if we find out where the grid intersects the axes we can put
@@ -833,8 +833,8 @@ function wcsgridspec(wsg::WCSGrid)
 
             # We can use these masks to determine where, and in what direction
             # the gridlines leave the plot extent
-            in_horz_ax = minx .<=  posxy[1,:] .<= maxx
-            in_vert_ax = miny .<=  posxy[2,:] .<= maxy
+            in_horz_ax = minx .<= posxy[1, :] .<= maxx
+            in_vert_ax = miny .<= posxy[2, :] .<= maxy
             in_axes = in_horz_ax .& in_vert_ax
 
 
@@ -842,62 +842,62 @@ function wcsgridspec(wsg::WCSGrid)
                 continue
             elseif all(in_axes)
                 point_entered = [
-                    posxy[1,begin]
-                    posxy[2,begin]
+                    posxy[1, begin]
+                    posxy[2, begin]
                 ]
                 point_exitted = [
-                    posxy[1,end]
-                    posxy[2,end]
+                    posxy[1, end]
+                    posxy[2, end]
                 ]
-            # Horizontal grid lines
-            elseif allequal(posxy[1,findfirst(in_axes):findlast(in_axes)])
+                # Horizontal grid lines
+            elseif allequal(posxy[1, findfirst(in_axes):findlast(in_axes)])
                 point_entered = [
-                    posxy[1,findfirst(in_axes)]
+                    posxy[1, findfirst(in_axes)]
                     miny
                 ]
                 point_exitted = [
-                    posxy[1,findlast(in_axes)]
+                    posxy[1, findlast(in_axes)]
                     maxy
                 ]
                 # push!(tickpos1x, posxy[1,findfirst(in_axes)])
                 # push!(tickpos1w, ticku)
-            # Vertical grid lines
-            elseif allequal(posxy[2,findfirst(in_axes):findlast(in_axes)])
+                # Vertical grid lines
+            elseif allequal(posxy[2, findfirst(in_axes):findlast(in_axes)])
                 point_entered = [
                     minx
-                    posxy[2,findfirst(in_axes)]
+                    posxy[2, findfirst(in_axes)]
                 ]
                 point_exitted = [
                     maxx
-                    posxy[2,findfirst(in_axes)]
+                    posxy[2, findfirst(in_axes)]
                 ]
             else
                 # Use the masks to pick an x,y point inside the axes and an
                 # x,y point outside the axes.
                 i = findfirst(in_axes)
-                x1 = posxy[1,i]
-                y1 = posxy[2,i]
-                x2 = posxy[1,i+1]
-                y2 = posxy[2,i+1]
-                if x2-x1 ≈ 0
+                x1 = posxy[1, i]
+                y1 = posxy[2, i]
+                x2 = posxy[1, i + 1]
+                y2 = posxy[2, i + 1]
+                if x2 - x1 ≈ 0
                     @warn "undef slope"
                 end
 
                 # Fit a line where we cross the axis
-                m1 = (y2-y1)/(x2-x1)
-                b1 = y1-m1*x1
+                m1 = (y2 - y1) / (x2 - x1)
+                b1 = y1 - m1 * x1
                 # If the line enters via the vertical axes...
                 if findfirst(in_vert_ax) < findfirst(in_horz_ax)
                     # Then we simply evaluate it at that axis
-                    x = abs(x1-maxx) < abs(x1-minx) ? maxx : minx
-                    x = clamp(x,minx,maxx)
-                    y = m1*x+b1
+                    x = abs(x1 - maxx) < abs(x1 - minx) ? maxx : minx
+                    x = clamp(x, minx, maxx)
+                    y = m1 * x + b1
                 else
                     # We must find where it enters the plot from
                     # bottom or top
-                    x = abs(y1-maxy) < abs(y1-miny) ? (maxy-b1)/m1 : (miny-b1)/m1
-                    x = clamp(x,minx,maxx)
-                    y = m1*x+b1
+                    x = abs(y1 - maxy) < abs(y1 - miny) ? (maxy - b1) / m1 : (miny - b1) / m1
+                    x = clamp(x, minx, maxx)
+                    y = m1 * x + b1
                 end
 
                 # From here, do a linear fit to find the intersection with the axis.
@@ -909,28 +909,28 @@ function wcsgridspec(wsg::WCSGrid)
                 # Use the masks to pick an x,y point inside the axes and an
                 # x,y point outside the axes.
                 i = findlast(in_axes)
-                x1 = posxy[1,i-1]
-                y1 = posxy[2,i-1]
-                x2 = posxy[1,i]
-                y2 = posxy[2,i]
-                if x2-x1 ≈ 0
+                x1 = posxy[1, i - 1]
+                y1 = posxy[2, i - 1]
+                x2 = posxy[1, i]
+                y2 = posxy[2, i]
+                if x2 - x1 ≈ 0
                     @warn "undef slope"
                 end
 
                 # Fit a line where we cross the axis
-                m2 = (y2-y1)/(x2-x1)
-                b2 = y2-m2*x2
+                m2 = (y2 - y1) / (x2 - x1)
+                b2 = y2 - m2 * x2
                 if findlast(in_vert_ax) > findlast(in_horz_ax)
                     # Then we simply evaluate it at that axis
-                    x = abs(x1-maxx) < abs(x1-minx) ? maxx : minx
-                    x = clamp(x,minx,maxx)
-                    y = m2*x+b2
+                    x = abs(x1 - maxx) < abs(x1 - minx) ? maxx : minx
+                    x = clamp(x, minx, maxx)
+                    y = m2 * x + b2
                 else
                     # We must find where it enters the plot from
                     # bottom or top
-                    x = abs(y1-maxy) < abs(y1-miny) ? (maxy-b2)/m2 : (miny-b2)/m2
-                    x = clamp(x,minx,maxx)
-                    y = m2*x+b2
+                    x = abs(y1 - maxy) < abs(y1 - miny) ? (maxy - b2) / m2 : (miny - b2) / m2
+                    x = clamp(x, minx, maxx)
+                    y = m2 * x + b2
                 end
 
                 # From here, do a linear fit to find the intersection with the axis.
@@ -940,7 +940,7 @@ function wcsgridspec(wsg::WCSGrid)
                 ]
             end
 
-            posxy_neat = [point_entered  posxy[[1,2],in_axes] point_exitted]
+            posxy_neat = [point_entered  posxy[[1, 2], in_axes] point_exitted]
             # TODO: do unplotted other axes also need a fit?
 
             if point_entered[2] == miny
@@ -953,8 +953,8 @@ function wcsgridspec(wsg::WCSGrid)
             end
 
             gridlinexy = (
-                posxy_neat[1,:],
-                posxy_neat[2,:]
+                posxy_neat[1, :],
+                posxy_neat[2, :],
             )
             push!(gridlinesxy1, gridlinexy)
         end
@@ -967,12 +967,11 @@ function wcsgridspec(wsg::WCSGrid)
     annotations1θ = Float64[]
     for ticku in tickposu
         # Make sure we handle unplotted slices correctly.
-        griduv = posuv[:,1]
+        griduv = posuv[:, 1]
         griduv[1] = ticku
         griduv[2] = mean(vrange)
-        posxy = world_to_pix(wsg.img, griduv; wsg.wcsn, parent=true)
-        if !(minx < posxy[1] < maxx) ||
-            !(miny < posxy[2] < maxy)
+        posxy = world_to_pix(wsg.img, griduv; wsg.wcsn, parent = true)
+        if !(minx < posxy[1] < maxx) || !(miny < posxy[2] < maxy)
             continue
         end
         push!(annotations1w, ticku)
@@ -982,11 +981,8 @@ function wcsgridspec(wsg::WCSGrid)
         # Now find slope (TODO: stepsize)
         # griduv[ax[2]] -= 1
         griduv[2] += 0.1step(vrange)
-        posxy2 = world_to_pix(wsg.img, griduv; wsg.wcsn, parent=true)
-        θ = atan(
-            posxy2[2] - posxy[2],
-            posxy2[1] - posxy[1],
-        )
+        posxy2 = world_to_pix(wsg.img, griduv; wsg.wcsn, parent = true)
+        θ = atan(posxy2[2] - posxy[2], posxy2[1] - posxy[1])
         push!(annotations1θ, θ)
     end
     annotations2w = Float64[]
@@ -995,12 +991,11 @@ function wcsgridspec(wsg::WCSGrid)
     annotations2θ = Float64[]
     for tickv in tickposv
         # Make sure we handle unplotted slices correctly.
-        griduv = posuv[:,1]
+        griduv = posuv[:, 1]
         griduv[1] = mean(urange)
         griduv[2] = tickv
-        posxy = world_to_pix(wsg.img, griduv; wsg.wcsn, parent=true)
-        if !(minx < posxy[1] < maxx) ||
-            !(miny < posxy[2] < maxy)
+        posxy = world_to_pix(wsg.img, griduv; wsg.wcsn, parent = true)
+        if !(minx < posxy[1] < maxx) || !(miny < posxy[2] < maxy)
             continue
         end
         push!(annotations2w, tickv)
@@ -1008,11 +1003,8 @@ function wcsgridspec(wsg::WCSGrid)
         push!(annotations2y, posxy[2])
 
         griduv[1] += 0.1step(urange)
-        posxy2 = world_to_pix(wsg.img, griduv; wsg.wcsn, parent=true)
-        θ = atan(
-            posxy2[2] - posxy[2],
-            posxy2[1] - posxy[1],
-        )
+        posxy2 = world_to_pix(wsg.img, griduv; wsg.wcsn, parent = true)
+        θ = atan(posxy2[2] - posxy[2], posxy2[1] - posxy[1])
         push!(annotations2θ, θ)
     end
 
@@ -1043,16 +1035,16 @@ function wcsgridlines(wcsg::WCSGrid)
 end
 function wcsgridlines(gridspec::NamedTuple)
     # Unroll grid lines into a single series separated by NaNs
-    xs1 = mapreduce(vcat, gridspec.gridlinesxy1, init=Float64[]) do gridline
+    xs1 = mapreduce(vcat, gridspec.gridlinesxy1, init = Float64[]) do gridline
         return vcat(gridline[1], NaN)
     end
-    ys1 = mapreduce(vcat, gridspec.gridlinesxy1, init=Float64[]) do gridline
+    ys1 = mapreduce(vcat, gridspec.gridlinesxy1, init = Float64[]) do gridline
         return vcat(gridline[2], NaN)
     end
-    xs2 = mapreduce(vcat, gridspec.gridlinesxy2, init=Float64[]) do gridline
+    xs2 = mapreduce(vcat, gridspec.gridlinesxy2, init = Float64[]) do gridline
         return vcat(gridline[1], NaN)
     end
-    ys2 = mapreduce(vcat, gridspec.gridlinesxy2, init=Float64[]) do gridline
+    ys2 = mapreduce(vcat, gridspec.gridlinesxy2, init = Float64[]) do gridline
         return vcat(gridline[2], NaN)
     end
 
@@ -1062,8 +1054,6 @@ function wcsgridlines(gridspec::NamedTuple)
 end
 
 
-
-
 @userplot PolQuiver
 @recipe function f(h::PolQuiver)
     cube = only(h.args)
@@ -1071,23 +1061,23 @@ end
     ticklen = get(plotattributes, :ticklen, nothing)
     minpol = get(plotattributes, :minpol, 0.1)
 
-    i = cube[Pol=At(:I)]
-    q = cube[Pol=At(:Q)]
-    u = cube[Pol=At(:U)]
+    i = cube[Pol = At(:I)]
+    q = cube[Pol = At(:Q)]
+    u = cube[Pol = At(:U)]
     polinten = @. sqrt(q^2 + u^2)
     linpolfrac = polinten ./ i
 
-    binratio=1/bins
-    xs = imresize([x for x in dims(cube,1), y in dims(cube,2)], ratio=binratio)
-    ys = imresize([y for x in dims(cube,1), y in dims(cube,2)], ratio=binratio)
-    qx = imresize(q, ratio=binratio)
-    qy = imresize(u, ratio=binratio)
-    qlinpolfrac = imresize(linpolfrac, ratio=binratio)
-    qpolintenr = imresize(polinten, ratio=binratio)
+    binratio = 1 / bins
+    xs = imresize([x for x in dims(cube, 1), y in dims(cube, 2)], ratio = binratio)
+    ys = imresize([y for x in dims(cube, 1), y in dims(cube, 2)], ratio = binratio)
+    qx = imresize(q, ratio = binratio)
+    qy = imresize(u, ratio = binratio)
+    qlinpolfrac = imresize(linpolfrac, ratio = binratio)
+    qpolintenr = imresize(polinten, ratio = binratio)
 
 
     # We want the longest ticks to be around 1 bin long by default.
-    qmaxlen = quantile(filter(isfinite,qpolintenr), 0.98)
+    qmaxlen = quantile(filter(isfinite, qpolintenr), 0.98)
     if isnothing(ticklen)
         a = bins / qmaxlen
     else
@@ -1095,16 +1085,16 @@ end
     end
     # Only show arrows where the data is finite, and more than a couple pixels
     # long.
-    mask = (isfinite.(qpolintenr)) .& (qpolintenr .>= minpol.*qmaxlen)
-    pointstmp = map(xs[mask],ys[mask],qx[mask],qy[mask]) do x,y,qxi,qyi
-        return ([x, x+a*qxi, NaN], [y, y+a*qyi, NaN])
+    mask = (isfinite.(qpolintenr)) .& (qpolintenr .>= minpol .* qmaxlen)
+    pointstmp = map(xs[mask], ys[mask], qx[mask], qy[mask]) do x, y, qxi, qyi
+        return ([x, x + a * qxi, NaN], [y, y + a * qyi, NaN])
     end
     xs = reduce(vcat, getindex.(pointstmp, 1))
     ys = reduce(vcat, getindex.(pointstmp, 2))
 
     colors = qlinpolfrac[mask]
     if !isnothing(colors)
-        line_z := repeat(colors, inner=3)
+        line_z := repeat(colors, inner = 3)
     end
 
     label --> ""
@@ -1115,8 +1105,8 @@ end
     colorbar --> true
     colorbar_title --> "Linear polarization fraction"
 
-    xl = first(dims(i,2)), last(dims(i,2))
-    yl = first(dims(i,1)), last(dims(i,1))
+    xl = first(dims(i, 2)), last(dims(i, 2))
+    yl = first(dims(i, 1)), last(dims(i, 1))
     ylims --> yl
     xlims --> xl
 

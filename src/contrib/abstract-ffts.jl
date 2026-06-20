@@ -1,19 +1,19 @@
 for f in [
-    :(AbstractFFTs.fft),
-    :(AbstractFFTs.bfft),
-    :(AbstractFFTs.ifft),
-    :(AbstractFFTs.fft!),
-    :(AbstractFFTs.bfft!),
-    :(AbstractFFTs.ifft!),
-    :(AbstractFFTs.rfft),
-]
+        :(AbstractFFTs.fft),
+        :(AbstractFFTs.bfft),
+        :(AbstractFFTs.ifft),
+        :(AbstractFFTs.fft!),
+        :(AbstractFFTs.bfft!),
+        :(AbstractFFTs.ifft!),
+        :(AbstractFFTs.rfft),
+    ]
     # TODO: should we try to alter the image headers to change the units?
     @eval ($f)(img::AstroImage, args...; kwargs...) = copyheader(img, $f(parent(img), args...; kwargs...))
 end
 
 for f in [
-    :(AbstractFFTs.fftshift),
-]
+        :(AbstractFFTs.fftshift),
+    ]
     # TODO: should we try to alter the image headers to change the units?
     @eval ($f)(img::AstroImage, args...; kwargs...) = shareheader(img, $f(parent(img), args...; kwargs...))
 end

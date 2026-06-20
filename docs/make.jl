@@ -21,7 +21,7 @@ links = InterLinks(
     "DimensionalData" => (
         "https://rafaqz.github.io/DimensionalData.jl/stable/",
         "https://rafaqz.github.io/DimensionalData.jl/stable/objects.inv",
-     ),
+    ),
     "FileIO" => (
         "https://juliaio.github.io/FileIO.jl/stable/",
         "https://juliaio.github.io/FileIO.jl/stable/objects.inv",
@@ -29,7 +29,7 @@ links = InterLinks(
     "WCS" => (
         "https://juliaastro.org/WCS/stable/",
         "https://juliaastro.org/WCS/stable/objects.inv",
-     ),
+    ),
 )
 
 makedocs(;
