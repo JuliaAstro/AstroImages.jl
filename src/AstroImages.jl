@@ -266,7 +266,7 @@ end
         A::AstroImage,
         data::AbstractArray,
         I::Tuple,
-        header = header(A),
+        header::FITSHeader = header(A),
         wcs = getfield(A, :wcs),
         wcs_stale = getfield(A, :wcs_stale)[],
         wcsdims = getfield(A, :wcsdims),
