@@ -7,7 +7,7 @@ using FITSIO: FITS, FITSHeader, read_header
 
 using ImageBase: Gray, RGBA, Normed, N0f8, N0f16, N0f32, N0f64
 
-using WCS: to_header, from_header
+using FITSWCS: pixel_to_world, world_to_pixel
 
 @testset "Conversion to float and fixed-point" begin
     @testset "Float" begin
@@ -202,16 +202,29 @@ end
     write(f, indata; header=inhdr)
     close(f)
 
+    # Sample pixels for a pixel -> world -> pixel round-trip check.
+    testpix = ([1.0, 1.0], [2.5, 10.0], [5.0, 20.0])
+
     img = AstroImage(fname)
     f = FITS(fname)
     @test length(wcs(img)) == 2
-    @test to_header(wcs(img,1)) === to_header(from_header(read_header(f[1], String))[1])
-    @test to_header(wcs(img,2)) === to_header(from_header(read_header(f[1], String))[2])
+    for n in 1:2
+        w = wcs(img, n)
+        @test w.ctype == ["RA---TAN", "DEC--TAN"]
+        for p in testpix
+            @test world_to_pixel(w, pixel_to_world(w, p)) ≈ p rtol=1e-8
+        end
+    end
 
     img = AstroImage(f)
     @test length(wcs(img)) == 2
-    @test to_header(wcs(img,1)) === to_header(from_header(read_header(f[1], String))[1])
-    @test to_header(wcs(img,2)) === to_header(from_header(read_header(f[1], String))[2])
+    for n in 1:2
+        w = wcs(img, n)
+        @test w.ctype == ["RA---TAN", "DEC--TAN"]
+        for p in testpix
+            @test world_to_pixel(w, pixel_to_world(w, p)) ≈ p rtol=1e-8
+        end
+    end
     close(f)
 end
 

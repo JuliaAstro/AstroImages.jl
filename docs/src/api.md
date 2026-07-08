@@ -24,6 +24,8 @@ AstroImages.powerdiststretch
 AstroImages.copyheader
 AstroImages.shareheader
 AstroImages.recenter
+AstroImages.pix_to_world
+AstroImages.world_to_pix
 ```
 
 ## DimensionalData
@@ -46,10 +48,3 @@ AstroImages.recenter
 | [FileIO.load](@extref)
 | [FileIO.save](@extref)
 | [FileIO.query](@extref)
-
-## WCS
-
-| |
-| :-- |
-| [WCS.pix\_to\_world](@extref)
-| [WCS.world\_to\_pix](@extref)

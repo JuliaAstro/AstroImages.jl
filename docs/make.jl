@@ -26,10 +26,6 @@ links = InterLinks(
         "https://juliaio.github.io/FileIO.jl/stable/",
         "https://juliaio.github.io/FileIO.jl/stable/objects.inv",
     ),
-    "WCS" => (
-        "https://juliaastro.org/WCS/stable/",
-        "https://juliaastro.org/WCS/stable/objects.inv",
-     ),
 )
 
 makedocs(;

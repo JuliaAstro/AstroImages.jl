@@ -26,8 +26,7 @@ using RecipesBase: RecipesBase, @layout, @recipe, @series, @userplot
 using Statistics: Statistics, mean, quantile
 using Tables: Tables
 using UUIDs: UUIDs # can remove once reigstered with FileIO
-using WCS: WCS, WCSTransform, pix_to_world, pix_to_world!, world_to_pix,
-         world_to_pix!
+using FITSWCS: FITSWCS, WCSTransform, WCS, pixel_to_world, world_to_pixel
 
 export load,
     save,
@@ -229,7 +228,7 @@ DimensionalData.metadata(::AstroImage) = DimensionalData.Dimensions.LookupArrays
     # FITS Header beloning to this image, if any
     header::FITSHeader=deepcopy(header(img)),
     # Cached WCSTransform objects for this data
-    wcs::Vector{WCSTransform}=getfield(img, :wcs),
+    wcs::AbstractVector{<:WCSTransform}=getfield(img, :wcs),
     wcs_stale::Bool=getfield(img, :wcs_stale)[],
     wcsdims::Tuple=(dims...,refdims...),
 )
@@ -249,7 +248,7 @@ end
     # FITS Header beloning to this image, if any
     header::FITSHeader=deepcopy(header(img)),
     # Cached WCSTransform objects for this data
-    wcs::Vector{WCSTransform}=getfield(img, :wcs),
+    wcs::AbstractVector{<:WCSTransform}=getfield(img, :wcs),
     wcs_stale::Bool=getfield(img, :wcs_stale)[],
     wcsdims::Tuple=(dims...,refdims...),
 )
@@ -299,7 +298,7 @@ function AstroImage(
     dims::Union{Tuple,NamedTuple}=(),
     refdims::Union{Tuple,NamedTuple}=(),
     header::FITSHeader=emptyheader(),
-    wcs::Union{Vector{WCSTransform},Nothing}=nothing;
+    wcs::Union{AbstractVector{<:WCSTransform},Nothing}=nothing;
     wcsdims=nothing
 ) where {T, N}
     wcs_stale = isnothing(wcs)
@@ -357,7 +356,7 @@ end
 function AstroImage(
     darr::AbstractDimArray,
     header::FITSHeader=emptyheader(),
-    wcs::Union{Vector{WCSTransform},Nothing}=nothing;
+    wcs::Union{AbstractVector{<:WCSTransform},Nothing}=nothing;
 )
     wcs_stale = isnothing(wcs)
     if isnothing(wcs)
@@ -370,18 +369,36 @@ AstroImage(
     data::AbstractArray,
     dims::Union{Tuple,NamedTuple},
     header::FITSHeader,
-    wcs::Union{Vector{WCSTransform},Nothing}=nothing;
+    wcs::Union{AbstractVector{<:WCSTransform},Nothing}=nothing;
 ) = AstroImage(data, dims, (), header, wcs)
 AstroImage(
     data::AbstractArray,
     header::FITSHeader,
-    wcs::Union{Vector{WCSTransform},Nothing}=nothing;
+    wcs::Union{AbstractVector{<:WCSTransform},Nothing}=nothing;
 ) = AstroImage(data, (), (), header, wcs)
 
 
 # TODO: ensure this gets WCS dims.
-AstroImage(data::AbstractArray, wcs::Vector{WCSTransform}) = AstroImage(data, emptyheader(), wcs)
+AstroImage(data::AbstractArray, wcs::AbstractVector{<:WCSTransform}) = AstroImage(data, emptyheader(), wcs)
 AstroImage(data::AbstractArray, wcs::WCSTransform) = AstroImage(data, [wcs])
+
+# FITSWCS's `WCSTransform` is parametric, so a concrete `Vector{WCSTransform{N,…}}`
+# is not `<: Vector{WCSTransform}`. Normalize any vector of transforms to the
+# invariant `Vector{WCSTransform}` element type that the struct field stores.
+function AstroImage(
+    data::AbstractArray{T,N},
+    dims::D,
+    refdims::R,
+    header::FITSHeader,
+    wcs::AbstractVector{<:WCSTransform},
+    wcs_stale::Base.RefValue{Bool},
+    wcsdims::W,
+) where {T,N,D<:Tuple,R<:Tuple,W<:Tuple}
+    return AstroImage{T,N,D,R,typeof(data),W}(
+        data, dims, refdims, header,
+        convert(Vector{WCSTransform}, wcs), wcs_stale, wcsdims,
+    )
+end
 
 """
 Index for accessing a comment associated with a header keyword

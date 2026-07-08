@@ -28,7 +28,7 @@ using Downloads: download
 eagle = load(download("https://ds9.si.edu/download/data/656nmos.fits"))
 ```
 
-This image contains world coordinate system headers. AstroImages.jl uses WCS.jl (and wcslib under the hood) to parse these headers. We can generate a WCSTransform object to inspect:
+This image contains world coordinate system headers. AstroImages.jl uses FITSWCS.jl (a pure-Julia implementation of the FITS WCS standard) to parse these headers. We can generate a WCSTransform object to inspect:
 
 ```@example coords
 wcs(eagle, 1) # specify which coordinate system

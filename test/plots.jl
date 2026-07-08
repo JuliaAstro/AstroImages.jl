@@ -1,14 +1,14 @@
 using RecipesBase: apply_recipe
 using AstroImages: AstroImage, ImPlot
-using WCS: WCSTransform
+using FITSWCS: WCS
 
 @testset "Plot recipes" begin
     data = randn(10, 10)
-    wcs1 = WCSTransform(2; ctype = ["RA---AIR", "DEC--AIR"])
-    wcs2 = WCSTransform(2; ctype = ["GLON--", "GLAT--"])
-    wcs3 = WCSTransform(2; ctype = ["TLON--", "TLAT--"])
-    wcs4 = WCSTransform(2; ctype = ["UNK---", "UNK---"])
-    wcs5 = WCSTransform(2;)
+    wcs1 = WCS(2; ctype = ["RA---AIR", "DEC--AIR"])
+    wcs2 = WCS(2; ctype = ["GLON--", "GLAT--"])
+    wcs3 = WCS(2; ctype = ["TLON--", "TLAT--"])
+    wcs4 = WCS(2; ctype = ["UNK---", "UNK---"])
+    wcs5 = WCS(2;)
 
     img = AstroImage(data)
     p = ImPlot((img,))
