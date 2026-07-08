@@ -59,6 +59,9 @@ makedocs(;
         "API" => "api.md",
     ],
     doctest = false,
+    # Only require exported names to be documented in the manual; internal
+    # helpers may carry docstrings without appearing in the API reference.
+    checkdocs = :exports,
     plugins = [links],
 )
 

@@ -4,6 +4,7 @@
 
 ```@docs
 AstroImages.AstroImage
+AstroImages.Centered
 AstroImages.imview
 AstroImages.implot
 AstroImages.Comment
@@ -24,6 +25,7 @@ AstroImages.powerdiststretch
 AstroImages.copyheader
 AstroImages.shareheader
 AstroImages.recenter
+AstroImages.pix_to_world(::AstroImages.AstroImage, ::Any)
 ```
 
 ## DimensionalData
@@ -51,5 +53,4 @@ AstroImages.recenter
 
 | |
 | :-- |
-| [WCS.pix\_to\_world](@extref)
 | [WCS.world\_to\_pix](@extref)
