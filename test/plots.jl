@@ -1,5 +1,5 @@
 using RecipesBase: apply_recipe
-using AstroImages: AstroImage, ImPlot
+using AstroImages: ImPlot
 using WCS: WCSTransform
 
 @testset "Plot recipes" begin

@@ -2,7 +2,7 @@ using ParallelTestRunner: runtests, find_tests, parse_args
 import AstroImages
 
 const init_code = quote
-    # Factor out common modules here
+    using AstroImages
 end
 
 args = parse_args(Base.ARGS)
