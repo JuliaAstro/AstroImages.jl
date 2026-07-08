@@ -23,7 +23,8 @@ links = InterLinks(
 
 makedocs(;
     modules = [AstroImages],
-    authors = ["Mosè Giordano", "Rohit Kumar", "William Thompson"],
+    authors = "Mosè Giordano, Rohit Kumar, William Thompson",
+    repo = GitHub("JuliaAstro/AstroImages.jl"),
     sitename = "AstroImages.jl",
     format = Documenter.HTML(;
         assets = [
