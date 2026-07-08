@@ -369,13 +369,11 @@ function _stokes_name(symb)
 end
 
 
-# These are owned by AstroImages now that we no longer re-export them from WCS.jl.
-# `pix_to_world!` is kept for API compatibility; it has no AstroImage method.
-function pix_to_world! end
-
-# Smart versions of pix_to_world and world_to_pix
+# Dimension-aware wrappers that extend FITSWCS's `pixel_to_world` / `world_to_pixel`
+# with methods accepting an `AstroImage`: they handle dims/refdims, slicing, and
+# coordinate scaling, then delegate the projection to the underlying `WCSTransform`.
 """
-    pix_to_world(img::AstroImage, pixcoords; all=false)
+    pixel_to_world(img::AstroImage, pixcoords; all=false)
 
 Given an astro image, look up the world coordinates of the pixels given
 by `pixcoords`. World coordinates are resolved using FITSWCS.jl and a
@@ -393,7 +391,7 @@ julia> slice = cube[10:20, 30:40, 5]
 Then to look up the coordinates of the pixel in the bottom left corner of
 `slice`, run:
 ```julia-repl
-julia> world_coords = pix_to_world(img, [1, 1])
+julia> world_coords = pixel_to_world(img, [1, 1])
 [10, 30]
 ```
 
@@ -402,14 +400,14 @@ would be resolved using axis 1, 2, and 3 respectively.
 
 To include world coordinates in all axes, pass `all=true`
 ```julia-repl
-julia> world_coords = pix_to_world(img, [1, 1], all=true)
+julia> world_coords = pixel_to_world(img, [1, 1], all=true)
 [10, 30, 5]
 ```
 
 !! Coordinates must be provided in the order of `dims(img)`. If you transpose
 an image, the order you pass the coordinates should not change.
 """
-function pix_to_world(img::AstroImage, pixcoords; wcsn = 1, all = false, parent = false)
+function FITSWCS.pixel_to_world(img::AstroImage, pixcoords; wcsn = 1, all = false, parent = false)
     if pixcoords isa Array{Float64}
         pixcoords_prepared = pixcoords
     else
@@ -483,10 +481,10 @@ end
 
 
 """
-    world_to_pix(img::AstroImage, worldcoords)
+    world_to_pixel(img::AstroImage, worldcoords)
 
 Given an astro image, look up the pixel coordinates corresponding to the world
-coordinates `worldcoords`. This is the inverse of [`pix_to_world`](@ref): world
+coordinates `worldcoords`. This is the inverse of [`pixel_to_world`](@ref): world
 coordinates are resolved using FITSWCS.jl and a WCSTransform calculated from any
 FITS header present in `img`. If no WCS information is in the header, or the axes
 are all linear, this just returns the input coordinates.
@@ -496,7 +494,7 @@ in general lie at fractional pixel positions.
 
 `worldcoords` must be provided in the order of `dims(img)`.
 """
-function world_to_pix(img::AstroImage, worldcoords; parent = false, wcsn = 1)
+function FITSWCS.world_to_pixel(img::AstroImage, worldcoords; parent = false, wcsn = 1)
     if worldcoords isa Array{Float64}
         worldcoords_prepared = worldcoords
     else
@@ -508,9 +506,12 @@ function world_to_pix(img::AstroImage, worldcoords; parent = false, wcsn = 1)
     else
         out = similar(worldcoords_prepared, Float64, D_out)
     end
-    return world_to_pix!(out, img, worldcoords_prepared; parent)
+    return _world_to_pixel!(out, img, worldcoords_prepared; wcsn, parent)
 end
-function world_to_pix!(pixcoords_out, img::AstroImage, worldcoords; wcsn = 1, parent = false)
+
+# Internal in-place worker shared by `world_to_pixel` and the deprecated
+# `world_to_pix!` shim. Fills `pixcoords_out` with the pixel coordinates.
+function _world_to_pixel!(pixcoords_out, img::AstroImage, worldcoords; wcsn = 1, parent = false)
     # # Find the coordinates in the parent array.
     # # Dimensional data
     # worldcoords_floored = floor.(Int, worldcoords)
@@ -575,4 +576,21 @@ function world_to_pix!(pixcoords_out, img::AstroImage, worldcoords; wcsn = 1, pa
         pixcoords_out .= (pixcoords_out .+ 1) ./ coordsteps
     end
     return pixcoords_out
+end
+
+
+# ── Deprecated names ────────────────────────────────────────────────────────
+# `pix_to_world` / `world_to_pix` were renamed to match FITSWCS.jl's
+# `pixel_to_world` / `world_to_pixel`. `pix_to_world!` (which never had an
+# `AstroImage` method) has been dropped.
+Base.@deprecate pix_to_world pixel_to_world false
+Base.@deprecate world_to_pix world_to_pixel false
+
+function world_to_pix!(pixcoords_out, img::AstroImage, worldcoords; kwargs...)
+    Base.depwarn(
+        "`world_to_pix!` is deprecated; use `world_to_pixel(img, worldcoords)`, " *
+            "which allocates and returns the pixel coordinates.",
+        :world_to_pix!,
+    )
+    return copyto!(pixcoords_out, world_to_pixel(img, worldcoords; kwargs...))
 end

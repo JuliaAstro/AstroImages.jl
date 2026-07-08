@@ -60,8 +60,10 @@ export load,
     At, Near, ..,
     dims, refdims,
     recenter,
+    pixel_to_world,
+    world_to_pixel,
+    # Deprecated: renamed to pixel_to_world / world_to_pixel
     pix_to_world,
-    pix_to_world!,
     world_to_pix,
     world_to_pix!
 

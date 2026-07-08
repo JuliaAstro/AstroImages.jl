@@ -24,8 +24,8 @@ AstroImages.powerdiststretch
 AstroImages.copyheader
 AstroImages.shareheader
 AstroImages.recenter
-AstroImages.pix_to_world
-AstroImages.world_to_pix
+AstroImages.pixel_to_world
+AstroImages.world_to_pixel
 ```
 
 ## DimensionalData

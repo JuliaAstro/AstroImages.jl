@@ -39,13 +39,13 @@ Note that we specify with an index which coordinate system we'd like to use. Mos
 We can look up a coordinate from the image:
 
 ```@example coords
-world = pix_to_world(eagle, [1, 1]) # Bottom left corner
+world = pixel_to_world(eagle, [1, 1]) # Bottom left corner
 ```
 
 Or convert back from world coordinates to pixel coordinates. We can lookup a coordinate from the image:
 
 ```@example coords
-world_to_pix(eagle, world) # Bottom left corner
+world_to_pixel(eagle, world) # Bottom left corner
 ```
 
 These pixel coordinates do not necessarily have to lie within the bounds of the original image, and in general lie at a fractional pixel position.
@@ -89,11 +89,11 @@ plot(
 World coordinate queries from that slice are aware of their position in the parent image:
 
 ```@example coords
-@show pix_to_world(slice1, [1, 1])
+@show pixel_to_world(slice1, [1, 1])
 ```
 
 ```@example coords
-@show pix_to_world(slice2, [1, 1])
+@show pixel_to_world(slice2, [1, 1])
 ```
 
 Note that you can query the dimensions of an image using the [`dims`](@extref DimensionalData.Dimensions.dims) function from DimensionalData:
