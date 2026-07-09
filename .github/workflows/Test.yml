@@ -3,6 +3,7 @@ on:
   pull_request:
     branches:
       - main
+      - fitswcs # TODO: Remove before merge
   push:
     branches:
       - main
