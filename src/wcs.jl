@@ -265,10 +265,10 @@ core per-axis keywords (e.g. `CTYPE1A`, `CRVAL2B`). The result is sorted, so the
 primary (if any) comes first. An empty result means the header carries no WCS.
 """
 const _WCS_ALT_KEY_RE = r"^(?:CTYPE|CRVAL|CRPIX|CDELT|CUNIT|CROTA)\d+([A-Z]?)$"
-function wcsalts(hdr)
+function wcsalts(cards)
     alts = Set{Char}()
-    for key in keys(hdr)
-        m = match(_WCS_ALT_KEY_RE, uppercase(String(key)))
+    for card in cards
+        m = match(_WCS_ALT_KEY_RE, uppercase(String(card.key)))
         m === nothing && continue
         suffix = m.captures[1]
         push!(alts, isempty(suffix) ? ' ' : suffix[1])
@@ -292,7 +292,7 @@ function wcsfromheader(img::AstroImage)
     wcsout = WCSTransform[]
     for alt in wcsalts(hdr)
         try
-            # FITSWCS parses the FITSIO header directly via its FITSIO extension.
+            # FITSWCS parses the FITSFiles header cards via its FITSFiles extension.
             push!(wcsout, WCS(hdr; alt))
         catch err
             @warn "Failed to parse WCS information (alt=$(repr(alt))); it may be malformed." exception = err

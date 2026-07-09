@@ -1,27 +1,32 @@
-"""
-    AstroImage(fits::FITS, ext::Int=1)
+## Loading
 
-Given an open FITS file from the FITSIO library,
-load the HDU number `ext` as an AstroImage.
 """
-AstroImage(fits::FITS, ext::Int = 1, args...; kwargs...) = AstroImage(fits[ext], args...; kwargs...)
+    AstroImage(hdus::AbstractVector{<:HDU}, ext::Int=1)
+
+Given FITS HDUs read by FITSFiles, load HDU number `ext` as an AstroImage.
+"""
+AstroImage(hdus::AbstractVector{<:HDU}, ext::Int, args...; kwargs...) =
+    AstroImage(hdus[ext], args...; kwargs...)
+function AstroImage(hdus::AbstractVector{<:HDU}; kwargs...)
+    ext = indexer(hdus)
+    return AstroImage(hdus[ext]; kwargs...)
+end
 
 """
     AstroImage(hdu::HDU)
 
-Given an open FITS HDU, load it as an AstroImage.
+Given a FITSFiles HDU, load it as an AstroImage.
 """
-AstroImage(hdu::HDU, args...; kwargs...) = AstroImage(read(hdu), args..., read_header(hdu); kwargs...)
+AstroImage(hdu::HDU, args...; kwargs...) = _loadhdu(hdu, args...; kwargs...)
 
 """
     img = AstroImage(filename::AbstractString, ext::Integer=1)
 
-Load an image HDU `ext` from the  FITS file at `filename` as an AstroImage.
+Load an image HDU `ext` from the FITS file at `filename` as an AstroImage.
 """
 function AstroImage(filename::AbstractString, ext::Integer, args...; kwargs...)
-    return FITS(filename, "r") do fits
-        return AstroImage(fits[ext], args...; kwargs...)
-    end
+    hdus = fits(filename)
+    return AstroImage(hdus[ext], args...; kwargs...)
 end
 """
     img1, img2 = AstroImage(filename::AbstractString, exts)
@@ -43,23 +48,20 @@ function AstroImage(
         args...;
         kwargs...
     ) where {N}
-    return FITS(filename, "r") do fits
-        return map(exts) do ext
-            return AstroImage(fits[ext], args...; kwargs...)
-        end
+    hdus = fits(filename)
+    return map(exts) do ext
+        return AstroImage(hdus[ext], args...; kwargs...)
     end
 end
 function AstroImage(filename::AbstractString; kwargs...)
-    return FITS(filename, "r") do fits
-        ext = indexer(fits)
-        return AstroImage(fits[ext]; kwargs...)
-    end
+    hdus = fits(filename)
+    ext = indexer(hdus)
+    return AstroImage(hdus[ext]; kwargs...)
 end
 function AstroImage(filename::AbstractString, ::Colon, args...; kwargs...)
-    return FITS(filename, "r") do fits
-        return map(fits) do hdu
-            return AstroImage(hdu, args...; kwargs...)
-        end
+    hdus = fits(filename)
+    return map(hdus) do hdu
+        return AstroImage(hdu, args...; kwargs...)
     end
 end
 
@@ -67,66 +69,75 @@ end
 """
     load(fitsfile::String)
 
-Read and return the data from the first ImageHDU in a FITS file
-as an AstroImage. If no ImageHDUs are present, an error is returned.
+Read and return the data from the first image HDU in a FITS file
+as an AstroImage. If no image HDUs are present, an error is returned.
 
     load(fitsfile::String, ext::Int)
 
-Read and return the data from the HDU `ext`. If it is an ImageHDU,
-as AstroImage is returned. If it is a TableHDU, a plain Julia
+Read and return the data from the HDU `ext`. If it is an image HDU,
+an AstroImage is returned. If it is a table HDU, a plain Julia
 column table is returned.
 
     load(fitsfile::String, :)
 
-Read and return the data from each HDU in an FITS file. ImageHDUs are
-returned as AstroImage, and TableHDUs are returned as column tables.
+Read and return the data from each HDU in an FITS file. Image HDUs are
+returned as AstroImage, and table HDUs are returned as column tables.
 
     load(fitsfile::String, exts::Union{NTuple, AbstractArray})
 
-Read and return the data from the HDUs given by `exts`. ImageHDUs are
-returned as AstroImage, and TableHDUs are returned as column tables.
+Read and return the data from the HDUs given by `exts`. Image HDUs are
+returned as AstroImage, and table HDUs are returned as column tables.
 
-!!! Currently any header on TableHDUs are not supported and are ignored.
+!!! Currently any header on table HDUs are not supported and are ignored.
 """
 function fileio_load(f::File{format"FITS"}, ext::Union{Int, Nothing} = nothing, args...; kwargs...)
-    return FITS(f.filename, "r") do fits
-        if isnothing(ext)
-            ext = indexer(fits)
-        end
-        _loadhdu(fits[ext], args...; kwargs...)
+    hdus = fits(f.filename)
+    if isnothing(ext)
+        ext = indexer(hdus)
     end
+    return _loadhdu(hdus[ext], args...; kwargs...)
 end
 function fileio_load(f::File{format"FITS"}, exts::Union{NTuple{N, <:Integer}, AbstractArray{<:Integer}}, args...; kwargs...) where {N}
-    return FITS(f.filename, "r") do fits
-        map(exts) do ext
-            _loadhdu(fits[ext], args...; kwargs...)
-        end
+    hdus = fits(f.filename)
+    return map(exts) do ext
+        _loadhdu(hdus[ext], args...; kwargs...)
     end
 end
 function fileio_load(f::File{format"FITS"}, ::Colon, args...; kwargs...)
-    return FITS(f.filename, "r") do fits
-        exts_resolved = 1:length(fits)
-        map(exts_resolved) do ext
-            _loadhdu(fits[ext], args...; kwargs...)
-        end
+    hdus = fits(f.filename)
+    return map(hdus) do hdu
+        _loadhdu(hdu, args...; kwargs...)
     end
 end
 
-_loadhdu(hdu::FITSIO.TableHDU) = Tables.columntable(hdu)
-function _loadhdu(hdu::FITSIO.ImageHDU, args...; kwargs...)
-    if size(hdu) != ()
-        return AstroImage(hdu, args...; kwargs...)
-    else
-        # Sometimes files have an empty data HDU that shows up as an image HDU but has headers.
-        # Fallback to creating an empty AstroImage with those headers.
+# Header cards attached to an HDU, normalized to the invariant `Vector{Card}`
+# element type that the AstroImage struct field stores.
+_headercards(hdu::HDU) = convert(FITSHeader, hdu.cards)
+
+# Convert a FITSFiles HDU into the appropriate Julia object: image HDUs become
+# AstroImages, table HDUs become column tables (NamedTuples).
+function _loadhdu(hdu::HDU, args...; kwargs...)
+    data = hdu.data
+    if data isa NamedTuple
+        # Table HDU -> Tables.jl column table
+        return data
+    elseif data === missing || (data isa AbstractArray && size(data) == ())
+        # Sometimes files have an empty data HDU that shows up as an image HDU
+        # but has headers. Fall back to creating an empty AstroImage with those
+        # headers.
         emptydata = fill(missing)
-        return AstroImage(emptydata, (), (), read_header(hdu), [emptywcs(emptydata)], Ref(false), ())
+        return AstroImage(emptydata, (), (), _headercards(hdu), [emptywcs(emptydata)], Ref(false), ())
+    else
+        return AstroImage(collect(data), args..., _headercards(hdu); kwargs...)
     end
 end
-function indexer(fits::FITS)
+
+# Index of the first image HDU (at least 1D) in a list of HDUs.
+function indexer(hdus::AbstractVector{<:HDU})
     ext = 0
-    for (i, hdu) in enumerate(fits)
-        if hdu isa ImageHDU && length(size(hdu)) >= 1 # check if Image is atleast 1D
+    for (i, hdu) in enumerate(hdus)
+        data = hdu.data
+        if data isa AbstractArray && ndims(data) >= 1 && size(data) != () # check if Image is atleast 1D
             ext = i
             break
         end
@@ -134,16 +145,35 @@ function indexer(fits::FITS)
     if ext > 1
         @info "Image was loaded from HDU $ext"
     elseif ext == 0
-        error("There are no ImageHDU extensions in '$(fits.filename)'")
+        error("There are no image HDU extensions in the FITS file")
     end
     return ext
 end
-indexer(fits::NTuple{N, FITS}) where {N} = ntuple(i -> indexer(fits[i]), N)
 
+
+## Saving
 
 # Fallback for saving arbitrary arrays
 function fileio_save(f::File{format"FITS"}, args...)
     return writefits(f.filename, args...)
+end
+
+# Structural / column-descriptor keywords are regenerated by FITSFiles from the
+# data when building an HDU, so drop any copies carried in the AstroImage header
+# to avoid duplicate or conflicting cards on write.
+const _STRUCTURAL_HEADER_KEYS = Set(
+    [
+        "SIMPLE", "BITPIX", "NAXIS", "EXTEND", "PCOUNT", "GCOUNT", "XTENSION", "END",
+        "BSCALE", "BZERO", "TFIELDS",
+    ]
+)
+function _writablecards(cards::FITSHeader)
+    return Card[
+        c for c in cards
+            if !(uppercase(c.key) in _STRUCTURAL_HEADER_KEYS) &&
+            !occursin(r"^NAXIS\d+$", uppercase(c.key)) &&
+            !occursin(r"^T(TYPE|FORM|UNIT|SCAL|ZERO|DIM|NULL|DISP)\d+$", uppercase(c.key))
+    ]
 end
 
 """
@@ -154,34 +184,43 @@ Write arguments to a FITS file.
 See also [`FileIO.save`](@ref)
 """
 function writefits(fname, args...)
-    return FITS(fname, "w") do fits
-        for arg in args
-            writearg(fits, arg)
+    hdus = HDU[]
+    for arg in args
+        # A FITS file must begin with a Primary (image) HDU. If the first
+        # argument is a table, prepend an empty Primary HDU.
+        if isempty(hdus) && !_isimagearg(arg)
+            push!(hdus, HDU(FITSFiles.Primary, missing))
         end
+        push!(hdus, _tohdu(arg, isempty(hdus)))
     end
+    write(fname, hdus)
+    return
 end
+
+_isimagearg(::AbstractArray) = true
+_isimagearg(_) = false
+
 parent_recurse(img::AbstractArray) = img
 parent_recurse(img::AstroImage) = parent_recurse(parent(img))
-writearg(fits, img::AstroImage) = write(fits, parent_recurse(img), header = header(img))
-# Fallback for writing plain arrays
-writearg(fits, arr::AbstractArray) = write(fits, arr)
+
+# Build an HDU for a writeable argument. `primary=true` requests a Primary HDU
+# (only valid as the first HDU in a file); otherwise an image extension HDU.
+function _tohdu(img::AstroImage, primary::Bool)
+    hdutype = primary ? FITSFiles.Primary : FITSFiles.Image
+    return HDU(hdutype, collect(parent_recurse(img)), _writablecards(header(img)))
+end
+function _tohdu(arr::AbstractArray, primary::Bool)
+    hdutype = primary ? FITSFiles.Primary : FITSFiles.Image
+    return HDU(hdutype, collect(arr))
+end
 # For table compatible data.
 # This allows users to round trip: dat = load("abc.fits", :); write("abc", dat)
 # when it contains FITS tables.
-function writearg(fits, table)
+function _tohdu(table, ::Bool)
     if !Tables.istable(table)
         error("Cannot save argument to FITS file. Value is not an AbstractArray or table.")
     end
-    # FITSIO has fairly restrictive input types for writing tables (assertions for documentation only)
-    colname_strings = string.(collect(Tables.columnnames(table)))::Vector{String}
-    columns = collect(Tables.columns(table))::Vector
-    return write(
-        fits,
-        colname_strings,
-        columns;
-        hdutype = TableHDU,
-        # TODO: In future, we want to be able to access and round-trip coments
-        # on table HDUs
-        # header = nothing
-    )
+    # TODO: In future, we want to be able to access and round-trip comments on
+    # table HDUs.
+    return HDU(FITSFiles.Bintable, Tables.columntable(table))
 end

@@ -5,8 +5,9 @@ using AstroAngles: AstroAngles, deg2dms, deg2hms
 using ColorSchemes: ColorSchemes, get
 using DimensionalData: DimensionalData, AbstractDimArray, At, Dim, Lookups,
     Dimensions, Near, (..), Ti, X, Y, Z, dims, name, rebuild, refdims
-using FITSIO: FITSIO, FITS, FITSHeader, HDU, ImageHDU, TableHDU, get_comment,
-    read_header, set_comment!
+# NB: import selectively — FITSFiles exports `Comment` and `History`, which
+# collide with AstroImages' own header-indexing singletons of the same name.
+using FITSFiles: FITSFiles, fits, HDU, Card
 using FileIO: FileIO, @format_str, File, filename, load, save
 # Rather than pulling in all of Images.jl, just grab the packages
 # We also need ImageShow so that user's images appear automatically.
@@ -26,6 +27,11 @@ using Statistics: Statistics, mean, quantile
 using Tables: Tables
 using UUIDs: UUIDs # can remove once reigstered with FileIO
 using FITSWCS: FITSWCS, WCSTransform, WCS, pixel_to_world, world_to_pixel
+
+# AstroImages stores a FITS header as a vector of FITSFiles `Card`s (each `Card`
+# carries a `.key`, `.value`, and `.comment`). This alias preserves the
+# `FITSHeader` name used throughout the package and as the struct field type.
+const FITSHeader = Vector{Card}
 
 export load,
     save,
@@ -159,16 +165,16 @@ end
 """
     header(img::AstroImage)
 
-Return the underlying FITSIO.FITSHeader object wrapped by an AstroImage.
-Note that this object has less flexible getindex and setindex methods.
-Indexing by symbol, Comment, History, etc are not supported.
+Return the underlying FITS header (a `Vector{FITSFiles.Card}`) wrapped by an
+AstroImage. Note that this object has less flexible getindex and setindex
+methods. Indexing by symbol, Comment, History, etc are not supported.
 """
 header(img::AstroImage) = getfield(img, :header)
 """
     header(array::AbstractArray)
 
-Returns an empty FITSIO.FITSHeader object when called with a non-AstroImage
-abstract array.
+Returns an empty FITS header (a `Vector{FITSFiles.Card}`) when called with a
+non-AstroImage abstract array.
 """
 header(::AbstractArray) = emptyheader()
 
@@ -440,11 +446,37 @@ struct History end
 #     error("getproperty reserved for future use.")
 # end
 
-# Getting and setting comments
-const HeaderValUnion = Union{Float64, String, Nothing, Int64}
-Base.getindex(img::AstroImage, inds::AbstractString...) = getindex(header(img), inds...) # accesing header using strings
+# Getting and setting header values / comments.
+# The header is a `Vector{Card}`; each `Card` carries a `.key`, `.value`, and
+# `.comment`. These helpers reproduce FITSIO's "set or insert" behaviour on top
+# of FITSFiles cards (whose own `setindex!` only updates existing keywords).
+const HeaderValUnion = Union{Bool, Integer, AbstractFloat, AbstractString, Nothing, Missing}
+
+_findcard(cards::FITSHeader, key::AbstractString) =
+    findfirst(c -> uppercase(c.key) == uppercase(key), cards)
+function _setcardvalue!(cards::FITSHeader, key::AbstractString, value)
+    i = _findcard(cards, key)
+    if isnothing(i)
+        push!(cards, Card(key, value))
+    else
+        cards[i] = Card(key, value, cards[i].comment)
+    end
+    return value
+end
+function _getcardcomment(cards::FITSHeader, key::AbstractString)
+    i = _findcard(cards, key)
+    return isnothing(i) ? nothing : cards[i].comment
+end
+function _setcardcomment!(cards::FITSHeader, key::AbstractString, comment)
+    i = _findcard(cards, key)
+    isnothing(i) && throw(KeyError(key))
+    cards[i] = Card(cards[i].key, cards[i].value, comment)
+    return comment
+end
+
+Base.getindex(img::AstroImage, ind::AbstractString) = get(header(img), ind, nothing) # accessing header using strings
 function Base.setindex!(img::AstroImage, v, ind::AbstractString)  # modifying header using a string
-    setindex!(header(img), v, ind)
+    _setcardvalue!(header(img), ind, v)
     # Mark the WCS object as being out of date if this was a WCS header keyword
     if ind ∈ WCS_HEADERS
         getfield(img, :wcs_stale)[] = true
@@ -453,39 +485,28 @@ function Base.setindex!(img::AstroImage, v, ind::AbstractString)  # modifying he
 end
 Base.getindex(img::AstroImage, inds::Symbol...) = getindex(img, string.(inds)...)::HeaderValUnion # accessing header using symbol
 Base.setindex!(img::AstroImage, v, ind::Symbol) = setindex!(img, v, string(ind))
-Base.getindex(img::AstroImage, ind::AbstractString, ::Type{Comment}) = get_comment(header(img), ind) # accesing header comment using strings
-Base.setindex!(img::AstroImage, v, ind::AbstractString, ::Type{Comment}) = set_comment!(header(img), ind, v) # modifying header comment using strings
-Base.getindex(img::AstroImage, ind::Symbol, ::Type{Comment}) = get_comment(header(img), string(ind)) # accessing header comment using symbol
-Base.setindex!(img::AstroImage, v, ind::Symbol, ::Type{Comment}) = set_comment!(header(img), string(ind), v) # modifying header comment using Symbol
+Base.getindex(img::AstroImage, ind::AbstractString, ::Type{Comment}) = _getcardcomment(header(img), ind) # accesing header comment using strings
+Base.setindex!(img::AstroImage, v, ind::AbstractString, ::Type{Comment}) = _setcardcomment!(header(img), ind, v) # modifying header comment using strings
+Base.getindex(img::AstroImage, ind::Symbol, ::Type{Comment}) = _getcardcomment(header(img), string(ind)) # accessing header comment using symbol
+Base.setindex!(img::AstroImage, v, ind::Symbol, ::Type{Comment}) = _setcardcomment!(header(img), string(ind), v) # modifying header comment using Symbol
 
 # Ambiguity fixes for 0-dimensional AstroImages
 Base.getindex(img::AstroImage) = getindex(parent(img))
 Base.setindex!(img::AstroImage, v) = setindex!(parent(img), v)
 
-# Support for special HISTORY and COMMENT entries
-function Base.getindex(img::AstroImage, ::Type{History})
-    hdr = header(img)
-    ii = findall(==("HISTORY"), hdr.keys)
-    return view(hdr.comments, ii)
-end
-function Base.getindex(img::AstroImage, ::Type{Comment})
-    hdr = header(img)
-    ii = findall(==("COMMENT"), hdr.keys)
-    return view(hdr.comments, ii)
-end
+# Support for special HISTORY and COMMENT entries. FITSFiles stores commentary
+# text in the card's `.value` field.
+Base.getindex(img::AstroImage, ::Type{History}) =
+    [c.value for c in header(img) if uppercase(c.key) == "HISTORY"]
+Base.getindex(img::AstroImage, ::Type{Comment}) =
+    [c.value for c in header(img) if uppercase(c.key) == "COMMENT"]
 # Adding new comment and history entries
-function Base.push!(img::AstroImage, ::Type{Comment}, history::AbstractString)
-    hdr = header(img)
-    push!(hdr.keys, "COMMENT")
-    push!(hdr.values, nothing)
-    push!(hdr.comments, history)
+function Base.push!(img::AstroImage, ::Type{Comment}, comment::AbstractString)
+    push!(header(img), Card("COMMENT", comment))
     return
 end
 function Base.push!(img::AstroImage, ::Type{History}, history::AbstractString)
-    hdr = header(img)
-    push!(hdr.keys, "HISTORY")
-    push!(hdr.values, nothing)
-    push!(hdr.comments, history)
+    push!(header(img), Card("HISTORY", history))
     return
 end
 
@@ -555,9 +576,10 @@ Base.convert(::Type{AstroImage{T, N, D, R, AT}}, A::AbstractArray{T, N}) where {
 """
     emptyheader()
 
-Convenience function to create a FITSHeader with no keywords set.
+Convenience function to create an empty FITS header (a `Vector{Card}` with no
+keywords set).
 """
-emptyheader() = FITSHeader(String[], [], String[])
+emptyheader() = Card[]
 
 """
     recenter(img::AstroImage)

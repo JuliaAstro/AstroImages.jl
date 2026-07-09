@@ -3,7 +3,8 @@ using AstroImages:
     # Stretches
     sqrtstretch, asinhstretch, powerdiststretch, logstretch, powstretch, squarestretch, sinhstretch
 
-using FITSIO: FITS, FITSHeader, read_header
+using FITSFiles: fits, HDU, Card
+using FITSFiles: Primary, Image, Bintable
 
 using ImageBase: Gray, RGBA, Normed, N0f8, N0f16, N0f32, N0f64
 
@@ -37,14 +38,15 @@ end
 
 @testset "FITS and images" begin
     fname = tempname() * ".fits"
+    # Standard FITS BITPIX element types. FITSFiles does not (yet) write the
+    # non-native integer types (Int8, UInt16, UInt32) that FITSIO supported via
+    # BSCALE/BZERO scaling.
     for T in [
-            UInt8, Int8, UInt16, Int16, UInt32, Int32, Int64,
+            UInt8, Int16, Int32, Int64,
             Float32, Float64,
         ]
         data = reshape(T[1:100;], 5, 20)
-        FITS(fname, "w") do f
-            write(f, data)
-        end
+        write(fname, HDU[HDU(Primary, data)])
         @test load(fname, 1) == data
         @test load(fname, (1, 1)) == (data, data)
         img = AstroImage(fname)
@@ -58,63 +60,41 @@ end
     fname = tempname() * ".fits"
     @testset "less dimensions than 2" begin
         data = rand(2)
-        FITS(fname, "w") do f
-            write(f, data)
-        end
+        write(fname, HDU[HDU(Primary, data)])
         @test ndims(AstroImage(fname)) == 1
     end
 
     @testset "no ImageHDU" begin
-        ## Binary table
-        indata = Dict{String, Array}()
-        i = length(indata) + 1
-        indata["col$i"] = [randstring(10) for j in 1:20]  # ASCIIString column
-        i += 1
-        indata["col$i"] = ones(Bool, 20)  # Bool column
-        i += 1
-        indata["col$i"] = reshape([1:40;], (2, 20))  # vector Int64 column
-        i += 1
-        indata["col$i"] = [randstring(5) for j in 1:2, k in 1:20]  # vector ASCIIString col
-        indata["vcol"] = [randstring(j) for j in 1:20]  # variable length column
-        indata["VCOL"] = [collect(1.0:j) for j in 1.0:20.0] # variable length
-
-        FITS(fname, "w") do f
-            write(f, indata; varcols = ["vcol", "VCOL"])
-            @test_throws Exception AstroImage(f)
-        end
+        # A file whose only HDUs are an empty primary and a binary table.
+        write(
+            fname, HDU[
+                HDU(Primary, missing),
+                HDU(Bintable, (col1 = Int32[1:20;], col2 = ones(Bool, 20))),
+            ]
+        )
+        hdus = fits(fname)
+        @test_throws Exception AstroImage(hdus)
     end
 
     @testset "Opening AstroImage in different ways" begin
         data = rand(2, 2)
-        FITS(fname, "w") do f
-            write(f, data)
-        end
-        f = FITS(fname)
-        header = read_header(f[1])
+        write(fname, HDU[HDU(Primary, data)])
+        hdus = fits(fname)
+        header = convert(Vector{Card}, hdus[1].cards)
         @test AstroImage(fname, 1) isa AstroImage
-        @test AstroImage(f, 1) isa AstroImage
+        @test AstroImage(hdus, 1) isa AstroImage
         @test AstroImage(data, header) isa AstroImage
-        close(f)
     end
 
     @testset "Image HDU is not at 1st position" begin
-        ## Binary table
-        indata = Dict{String, Array}()
-        i = length(indata) + 1
-        indata["col$i"] = [randstring(10) for j in 1:20]  # ASCIIString column
-        i += 1
-        indata["col$i"] = ones(Bool, 20)  # Bool column
-        i += 1
-        indata["col$i"] = reshape([1:40;], (2, 20))  # vector Int64 column
-        i += 1
-        indata["col$i"] = [randstring(5) for j in 1:2, k in 1:20]  # vector ASCIIString col
-        indata["vcol"] = [randstring(j) for j in 1:20]  # variable length column
-        indata["VCOL"] = [collect(1.0:j) for j in 1.0:20.0] # variable length
-
-        FITS(fname, "w") do f
-            write(f, indata; varcols = ["vcol", "VCOL"])
-            write(f, rand(2, 2))
-        end
+        # Empty primary, then a binary table, then the image at HDU 3.
+        write(
+            fname, HDU[
+                HDU(Primary, missing),
+                HDU(Bintable, (col1 = Int32[1:20;], col2 = ones(Bool, 20))),
+                HDU(Image, rand(2, 2)),
+            ]
+        )
 
         @test @test_logs (:info, "Image was loaded from HDU 3") AstroImage(fname) isa AstroImage
     end
@@ -128,91 +108,37 @@ end
 
 @testset "multi wcs AstroImage" begin
     fname = tempname() * ".fits"
-    f = FITS(fname, "w")
-    inhdr = FITSHeader(
-        [
-            "FLTKEY", "INTKEY", "BOOLKEY", "STRKEY", "COMMENT", "HISTORY",
-            "CRVAL1a",
-            "CRVAL2a",
-            "CRPIX1a",
-            "CRPIX2a",
-            "CDELT1a",
-            "CDELT2a",
-            "CTYPE1a",
-            "CTYPE2a",
-            "CUNIT1a",
-            "CUNIT2a",
+    inhdr = Card[
+        Card("FLTKEY", 1.0, "floating point keyword"),
+        Card("INTKEY", 1, ""),
+        Card("BOOLKEY", true, "boolean keyword"),
+        Card("STRKEY", "string value", "string value"),
+        Card("COMMENT", "this is a comment"),
+        Card("HISTORY", "this is a history"),
 
-            "CRVAL1b",
-            "CRVAL2b",
-            "CRPIX1b",
-            "CRPIX2b",
-            "CDELT1b",
-            "CDELT2b",
-            "CTYPE1b",
-            "CTYPE2b",
-            "CUNIT1b",
-            "CUNIT2b",
-        ],
-        [
-            1.0, 1, true, "string value", nothing, nothing,
-            0.5,
-            89.5,
-            1,
-            1,
-            1,
-            -1,
-            "RA---TAN",
-            "DEC--TAN",
-            "deg     ",
-            "deg     ",
+        Card("CRVAL1A", 0.5), Card("CRVAL2A", 89.5),
+        Card("CRPIX1A", 1), Card("CRPIX2A", 1),
+        Card("CDELT1A", 1), Card("CDELT2A", -1),
+        Card("CTYPE1A", "RA---TAN", "Terrestrial East Longitude"),
+        Card("CTYPE2A", "DEC--TAN", "Terrestrial North Latitude"),
+        Card("CUNIT1A", "deg"), Card("CUNIT2A", "deg"),
 
-            0.5,
-            89.5,
-            1,
-            1,
-            1,
-            -1,
-            "RA---TAN",
-            "DEC--TAN",
-            "deg     ",
-            "deg     ",
-        ],
-        [
-            "floating point keyword", "", "boolean keyword", "string value", "this is a comment", "this is a history",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "Terrestrial East Longitude",
-            "Terrestrial North Latitude",
-            "",
-            "",
-
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "Terrestrial East Longitude",
-            "Terrestrial North Latitude",
-            "",
-            "",
-        ]
-    )
+        Card("CRVAL1B", 0.5), Card("CRVAL2B", 89.5),
+        Card("CRPIX1B", 1), Card("CRPIX2B", 1),
+        Card("CDELT1B", 1), Card("CDELT2B", -1),
+        Card("CTYPE1B", "RA---TAN", "Terrestrial East Longitude"),
+        Card("CTYPE2B", "DEC--TAN", "Terrestrial North Latitude"),
+        Card("CUNIT1B", "deg"), Card("CUNIT2B", "deg"),
+    ]
 
     indata = reshape(Float32[1:100;], 5, 20)
-    write(f, indata; header = inhdr)
-    close(f)
+    write(fname, HDU[HDU(Primary, indata, inhdr)])
 
     # Sample pixels for a pixel -> world -> pixel round-trip check.
     testpix = ([1.0, 1.0], [2.5, 10.0], [5.0, 20.0])
 
     img = AstroImage(fname)
-    f = FITS(fname)
+    hdus = fits(fname)
     @test length(wcs(img)) == 2
     for n in 1:2
         w = wcs(img, n)
@@ -222,7 +148,7 @@ end
         end
     end
 
-    img = AstroImage(f)
+    img = AstroImage(hdus)
     @test length(wcs(img)) == 2
     for n in 1:2
         w = wcs(img, n)
@@ -231,7 +157,6 @@ end
             @test world_to_pixel(w, pixel_to_world(w, p)) ≈ p rtol = 1.0e-8
         end
     end
-    close(f)
 end
 
 ##

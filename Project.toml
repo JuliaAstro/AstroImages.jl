@@ -7,6 +7,7 @@ authors = ["Mosè Giordano", "Rohit Kumar", "William Thompson"]
 projects = ["test", "docs"]
 
 [sources]
+FITSFiles = {url = "https://github.com/JuliaAstro/FITSFiles.jl"}
 FITSWCS = {url = "https://github.com/JuliaAstro/FITSWCS.jl"}
 
 [deps]
@@ -14,7 +15,7 @@ AbstractFFTs = "621f4979-c628-5d54-868e-fcf4e3e8185c"
 AstroAngles = "5c4adb95-c1fc-4c53-b4ea-2a94080c53d2"
 ColorSchemes = "35d6a980-a343-548e-a6ea-1d62b119f2f4"
 DimensionalData = "0703355e-b756-11e9-17c0-8b28908087d0"
-FITSIO = "525bcba6-941b-5504-bd06-fd0dc1a4d2eb"
+FITSFiles = "358a0a88-3548-4ad6-b652-8bdbf64af8e5"
 FITSWCS = "b9a10f0d-c86c-4e01-8e2e-1f1d7c5fb3f2"
 FileIO = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
 ImageAxes = "2803e5a7-5153-5ecf-9a86-9b4c37f5f5ac"
@@ -35,7 +36,7 @@ AbstractFFTs = "1.1"
 AstroAngles = "0.1, 0.2"
 ColorSchemes = "3.18"
 DimensionalData = "0.27, 0.29, 0.30"
-FITSIO = "0.16, 0.17"
+FITSFiles = "0.2, 0.3"
 FITSWCS = "0.1"
 FileIO = "1.15"
 ImageAxes = "0.6"
