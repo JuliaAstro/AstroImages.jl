@@ -1,21 +1,10 @@
-using Documenter, DocumenterInterLinks
 using AstroImages
+using Photometry, Reproject, Images
+using Documenter, DocumenterInterLinks
+using Documenter.Remotes: GitHub
 
 # Deps for examples
 ENV["GKSwstype"] = "nul"
-
-using Photometry, Reproject, Images
-
-setup = quote
-    using AstroImages
-    using Random
-    Random.seed!(123456)
-
-    AstroImages.set_clims!(Percent(99.5))
-    AstroImages.set_cmap!(:magma)
-    AstroImages.set_stretch!(identity)
-end
-DocMeta.setdocmeta!(AstroImages, :DocTestSetup, setup; recursive = true)
 
 links = InterLinks(
     "DimensionalData" => (
@@ -33,7 +22,17 @@ links = InterLinks(
 )
 
 makedocs(;
+    modules = [AstroImages],
+    authors = "Mosè Giordano, Rohit Kumar, William Thompson",
+    repo = GitHub("JuliaAstro/AstroImages.jl"),
     sitename = "AstroImages.jl",
+    format = Documenter.HTML(;
+        assets = [
+            "assets/theme.css",
+            "assets/favicon.ico",
+        ],
+        example_size_threshold = 0,
+    ),
     pages = [
         "Home" => "index.md",
         "Manual" => [
@@ -59,14 +58,10 @@ makedocs(;
         ],
         "API" => "api.md",
     ],
-    format = Documenter.HTML(;
-        assets = [
-            "assets/theme.css",
-            "assets/favicon.ico",
-        ],
-        canonical = "https://JuliaAstro.org/AstroImages/stable/",
-        example_size_threshold = 0,
-    ),
+    doctest = false,
+    # Only require exported names to be documented in the manual; internal
+    # helpers may carry docstrings without appearing in the API reference.
+    checkdocs = :exports,
     plugins = [links],
 )
 
@@ -74,7 +69,7 @@ makedocs(;
 in_CI_env = get(ENV, "CI", "false") == "true"
 if in_CI_env
     deploydocs(;
-        repo = "github.com/JuliaAstro/AstroImages.jl.git",
+        repo = "github.com/JuliaAstro/AstroImages.jl",
         push_preview = true,
         versions = ["stable" => "v^", "v#.#"], # Restrict to minor releases
     )
