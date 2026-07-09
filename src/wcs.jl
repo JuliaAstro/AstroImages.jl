@@ -502,8 +502,6 @@ function _world_to_pixel(img::AstroImage, worldcoords; wcsn = ' ', parent = fals
         worldcoords_prepared[j, :] .= z
     end
 
-    # The batched `world_to_pixel` allocates and returns the parent pixel
-    # coordinates, so we bind its result directly and mutate it in place below.
     pixcoords_out = world_to_pixel(wcs(img, wcsn), worldcoords_prepared)
 
     if !parent
@@ -529,8 +527,10 @@ function _world_to_pixel(img::AstroImage, worldcoords; wcsn = ' ', parent = fals
             end
         end
 
-        pixcoords_out .-= coordoffsets
-        pixcoords_out .= (pixcoords_out .+ 1) ./ coordsteps
+        # `world_to_pixel` returns an immutable `SVector` for single-coordinate
+        # (vector) inputs, so apply the parent-frame correction as a fresh
+        # broadcast rather than mutating `pixcoords_out` in place.
+        pixcoords_out = (pixcoords_out .- coordoffsets .+ 1) ./ coordsteps
     end
     return pixcoords_out
 end
