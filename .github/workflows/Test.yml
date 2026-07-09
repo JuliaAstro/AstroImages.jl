@@ -3,6 +3,7 @@ on:
   pull_request:
     branches:
       - main
+      - fitswcs # TODO: remove after #113 merged
   push:
     branches:
       - main
