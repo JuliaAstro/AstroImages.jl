@@ -4,6 +4,7 @@
 
 ```@docs
 AstroImages.AstroImage
+AstroImages.Centered
 AstroImages.imview
 AstroImages.implot
 AstroImages.Comment

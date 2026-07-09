@@ -1,5 +1,6 @@
 [deps]
 AstroImages = "fe3fc30c-9b16-11e9-1c73-17dabf39f4ad"
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 FITSIO = "525bcba6-941b-5504-bd06-fd0dc1a4d2eb"
 FITSWCS = "b9a10f0d-c86c-4e01-8e2e-1f1d7c5fb3f2"
 ImageBase = "c817782e-172a-44cc-b673-b171935fbb9e"
@@ -10,6 +11,7 @@ Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [compat]
+Documenter = "1"
 FITSIO = "0.16, 0.17"
 ImageBase = "0.1.5"
 ParallelTestRunner = "2.6.2"

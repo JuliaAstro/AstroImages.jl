@@ -1,5 +1,5 @@
 using AstroImages:
-    AstroImage, Percent, Zscale, clampednormedview, composecolors, imview, load, render, wcs, _float,
+    Percent, Zscale, clampednormedview, composecolors, imview, load, render, wcs, _float,
     # Stretches
     sqrtstretch, asinhstretch, powerdiststretch, logstretch, powstretch, squarestretch, sinhstretch
 
