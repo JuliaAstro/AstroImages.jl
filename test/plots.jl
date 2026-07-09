@@ -26,27 +26,27 @@ using FITSWCS: WCS
     )
     @test p.args[1].data == img.data
 
-    img = AstroImage(data, [wcs1])
+    img = AstroImage(data, wcs1)
     p = ImPlot((img,))
     rec = apply_recipe(Dict{Symbol, Any}(), p)
     @test rec[1].plotattributes[:xguide] == "Right Ascension (ICRS)" && rec[1].plotattributes[:yguide] == "Declination (ICRS)"
 
-    img = AstroImage(data, [wcs2])
+    img = AstroImage(data, wcs2)
     p = ImPlot((img,))
     rec = apply_recipe(Dict{Symbol, Any}(), p)
     @test rec[1].plotattributes[:xguide] == "Galactic Longitude" && rec[1].plotattributes[:yguide] == "Galactic Latitude"
 
-    img = AstroImage(data, [wcs3])
+    img = AstroImage(data, wcs3)
     p = ImPlot((img,))
     rec = apply_recipe(Dict{Symbol, Any}(), p)
     @test rec[1].plotattributes[:xguide] == "ITRS" && rec[1].plotattributes[:yguide] == "TLAT--"
 
-    img = AstroImage(data, [wcs4])
+    img = AstroImage(data, wcs4)
     p = ImPlot((img,))
     rec = apply_recipe(Dict{Symbol, Any}(), p)
     @test rec[1].plotattributes[:xguide] == "UNK---" && rec[1].plotattributes[:yguide] == "UNK---"
 
-    img = AstroImage(data, [wcs5])
+    img = AstroImage(data, wcs5)
     p = ImPlot((img,))
     rec = apply_recipe(Dict{Symbol, Any}(), p)
     @test !haskey(rec[1].plotattributes, :xguide) && !haskey(rec[1].plotattributes, :yguide)

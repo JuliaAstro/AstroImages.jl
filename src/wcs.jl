@@ -256,54 +256,24 @@ emptywcs(img::AstroImage) = WCS(length(dims(img)) + length(refdims(img)))
 # end
 
 """
-    wcsalts(hdr)
-
-Return the WCS coordinate-system version characters actually present in a FITS
-header. The primary system (`' '`) is included only if primary WCS keywords are
-present; alternate systems `A`–`Z` are detected from a trailing letter on the
-core per-axis keywords (e.g. `CTYPE1A`, `CRVAL2B`). The result is sorted, so the
-primary (if any) comes first. An empty result means the header carries no WCS.
-"""
-const _WCS_ALT_KEY_RE = r"^(?:CTYPE|CRVAL|CRPIX|CDELT|CUNIT|CROTA)\d+([A-Z]?)$"
-function wcsalts(hdr)
-    alts = Set{Char}()
-    for key in keys(hdr)
-        m = match(_WCS_ALT_KEY_RE, uppercase(String(key)))
-        m === nothing && continue
-        suffix = m.captures[1]
-        push!(alts, isempty(suffix) ? ' ' : suffix[1])
-    end
-    # ' ' (0x20) sorts before 'A'–'Z', so the primary comes first when present.
-    return sort!(collect(alts))
-end
-
-"""
     wcsfromheader(img::AstroImage)
 
-Helper function to create a list of `WCSTransform` objects from the FITS header
-attached to `img`. One transform is returned per WCS coordinate system present
-in the header (the primary system plus any alternate systems `A`–`Z`). If the
-header carries no WCS information, a single blank transform of the appropriate
-dimensionality is returned.
+Helper function to create a `Dict{Char,WCSTransform}` from the FITS header attached
+to `img`, keyed by WCS version character. One transform is included per WCS coordinate
+system present in the header (the primary system `' '` plus any alternate systems
+`A`–`Z`). If the header carries no WCS information, a single blank transform of the
+appropriate dimensionality is returned under the primary key `' '`.
 """
 function wcsfromheader(img::AstroImage)
-    hdr = header(img)
+    # `WCS_all` parses every WCS alternate present in the header (via FITSWCS's
+    # FITSIO extension), warning on and skipping any that fail to parse. It
+    # returns a `Dict{Char,WCSTransform}` keyed by version character.
+    wcsdict = WCS_all(header(img))
 
-    wcsout = WCSTransform[]
-    for alt in wcsalts(hdr)
-        try
-            # FITSWCS parses the FITSIO header directly via its FITSIO extension.
-            push!(wcsout, WCS(hdr; alt))
-        catch err
-            @warn "Failed to parse WCS information (alt=$(repr(alt))); it may be malformed." exception = err
-        end
+    if isempty(wcsdict)
+        return Dict(' ' => emptywcs(img))
     end
-
-    if length(wcsout) == 0
-        return [emptywcs(img)]
-    else
-        return wcsout
-    end
+    return wcsdict
 end
 
 # Map FITS stokes numbers to a symbol
@@ -407,7 +377,7 @@ julia> world_coords = pixel_to_world(img, [1, 1], all=true)
 !! Coordinates must be provided in the order of `dims(img)`. If you transpose
 an image, the order you pass the coordinates should not change.
 """
-function FITSWCS.pixel_to_world(img::AstroImage, pixcoords; wcsn = 1, all = false, parent = false)
+function FITSWCS.pixel_to_world(img::AstroImage, pixcoords; wcsn = ' ', all = false, parent = false)
     if pixcoords isa Array{Float64}
         pixcoords_prepared = pixcoords
     else
@@ -487,7 +457,7 @@ in general lie at fractional pixel positions.
 
 `worldcoords` must be provided in the order of `dims(img)`.
 """
-function FITSWCS.world_to_pixel(img::AstroImage, worldcoords; parent = false, wcsn = 1)
+function FITSWCS.world_to_pixel(img::AstroImage, worldcoords; parent = false, wcsn = ' ')
     if worldcoords isa Array{Float64}
         worldcoords_prepared = worldcoords
     else
@@ -497,7 +467,7 @@ function FITSWCS.world_to_pixel(img::AstroImage, worldcoords; parent = false, wc
 end
 
 # Internal worker backing `world_to_pixel`. Returns the parent-adjusted pixel coordinates.
-function _world_to_pixel(img::AstroImage, worldcoords; wcsn = 1, parent = false)
+function _world_to_pixel(img::AstroImage, worldcoords; wcsn = ' ', parent = false)
     # # Find the coordinates in the parent array.
     # # Dimensional data
     # worldcoords_floored = floor.(Int, worldcoords)
