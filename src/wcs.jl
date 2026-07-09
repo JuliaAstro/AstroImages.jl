@@ -413,13 +413,6 @@ function FITSWCS.pixel_to_world(img::AstroImage, pixcoords; wcsn = 1, all = fals
     else
         pixcoords_prepared = [Float64(c) for c in pixcoords]
     end
-    D_out = wcs(img, wcsn).naxis
-    if ndims(pixcoords_prepared) > 1
-        worldcoords_out = similar(pixcoords_prepared, Float64, D_out, size(pixcoords_prepared, 2))
-    else
-        worldcoords_out = similar(pixcoords_prepared, Float64, D_out)
-    end
-
     # Find the coordinates in the parent array.
     # Dimensional data
     # pixcoords_floored = floor.(Int, pixcoords)
@@ -430,8 +423,8 @@ function FITSWCS.pixel_to_world(img::AstroImage, pixcoords; wcsn = 1, all = fals
     else
         parentcoords = pixcoords .* step.(dims(img)) .+ first.(dims(img))
     end
-    # WCS.jl is very restrictive. We need to supply a Vector{Float64}
-    # as input, not any other kind of collection.
+    # Build a Float64 buffer sized to the WCS's full axis count; the loops below
+    # scatter this image's dims/refdims into their WCS-axis positions.
     # TODO: avoid allocation in case where refdims=() and pixcoords isa Array{Float64}
     if ndims(pixcoords_prepared) > 1
         parentcoords_prepared = zeros(wcs(img, wcsn).naxis, size(pixcoords_prepared, 2))
@@ -456,8 +449,8 @@ function FITSWCS.pixel_to_world(img::AstroImage, pixcoords; wcsn = 1, all = fals
         parentcoords_prepared[j, :] .= z
     end
 
-    # Get world coordinates along all slices
-    worldcoords_out .= pixel_to_world(wcs(img, wcsn), parentcoords_prepared)
+    # Get world coordinates along all slices.
+    worldcoords_out = pixel_to_world(wcs(img, wcsn), parentcoords_prepared)
 
     # If user requested world coordinates in all dims, not just selected
     # dims of img
@@ -500,33 +493,27 @@ function FITSWCS.world_to_pixel(img::AstroImage, worldcoords; parent = false, wc
     else
         worldcoords_prepared = [Float64(c) for c in worldcoords]
     end
-    D_out = wcs(img, wcsn).naxis
-    if ndims(worldcoords_prepared) > 1
-        out = similar(worldcoords_prepared, Float64, D_out, size(worldcoords_prepared, 2))
-    else
-        out = similar(worldcoords_prepared, Float64, D_out)
-    end
-    return _world_to_pixel!(out, img, worldcoords_prepared; wcsn, parent)
+    return _world_to_pixel(img, worldcoords_prepared; wcsn, parent)
 end
 
-# Internal in-place worker shared by `world_to_pixel` and the deprecated
-# `world_to_pix!` shim. Fills `pixcoords_out` with the pixel coordinates.
-function _world_to_pixel!(pixcoords_out, img::AstroImage, worldcoords; wcsn = 1, parent = false)
+# Internal worker backing `world_to_pixel`. Returns the parent-adjusted pixel coordinates.
+function _world_to_pixel(img::AstroImage, worldcoords; wcsn = 1, parent = false)
     # # Find the coordinates in the parent array.
     # # Dimensional data
     # worldcoords_floored = floor.(Int, worldcoords)
     # worldcoords_frac = (worldcoords .- worldcoords_floored) .* step.(dims(img))
     # parentcoords = getindex.(dims(img), worldcoords_floored) .+ worldcoords_frac
-    # WCS.jl is very restrictive. We need to supply a Vector{Float64}
-    # as input, not any other kind of collection.
+    # Build a Float64 buffer sized to the WCS's full axis count; the loops below
+    # scatter this image's world coords into their WCS-axis positions.
     # TODO: avoid allocation in case where refdims=() and worldcoords isa Array{Float64}
     if ndims(worldcoords) > 1
         worldcoords_prepared = zeros(wcs(img, wcsn).naxis, size(worldcoords, 2))
     else
         worldcoords_prepared = zeros(wcs(img, wcsn).naxis)
     end
-    # TODO: we need to pass in ref dims locations as well, and then filter the
-    # output to only include the dims of the current slice?
+    # TODO: unlike `pixel_to_world` (which has an `all` kwarg and filters its
+    # output to the selected dims), this returns coordinates for every WCS axis.
+    # Consider mirroring that: add an `all` kwarg and filter to the current slice.
     # out = zeros(Float64, wcs(img,wcsn).naxis, size(worldcoords,2))
     for (i, dim) in enumerate(dims(img))
         j = wcsax(img, dim)
@@ -545,9 +532,9 @@ function _world_to_pixel!(pixcoords_out, img::AstroImage, worldcoords; wcsn = 1,
         worldcoords_prepared[j, :] .= z
     end
 
-    # This returns the parent pixel coordinates.
-    # TODO: switch to non-allocating version.
-    pixcoords_out .= world_to_pixel(wcs(img, wcsn), worldcoords_prepared)
+    # The batched `world_to_pixel` allocates and returns the parent pixel
+    # coordinates, so we bind its result directly and mutate it in place below.
+    pixcoords_out = world_to_pixel(wcs(img, wcsn), worldcoords_prepared)
 
     if !parent
         coordoffsets = zeros(wcs(img, wcsn).naxis)
