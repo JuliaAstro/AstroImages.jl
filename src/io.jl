@@ -120,7 +120,9 @@ function _loadhdu(hdu::FITSIO.ImageHDU, args...; kwargs...)
         # Sometimes files have an empty data HDU that shows up as an image HDU but has headers.
         # Fallback to creating an empty AstroImage with those headers.
         emptydata = fill(missing)
-        return AstroImage(emptydata, (), (), read_header(hdu), Dict(' ' => emptywcs(emptydata)), Ref(false), ())
+        # Abstract WCS container: this fallback image resolves its WCS lazily from
+        # the header, so the concrete transform type isn't known at construction.
+        return AstroImage(emptydata, (), (), read_header(hdu), Dict{Char, WCSTransform}(' ' => emptywcs(emptydata)), Ref(false), ())
     end
 end
 function indexer(fits::FITS)

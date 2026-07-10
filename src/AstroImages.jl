@@ -97,6 +97,15 @@ struct AstroImage{
         R <: Tuple,
         A <: AbstractArray{T, N},
         W <: Tuple,
+        # PROTOTYPE (fitswcs-parametric): the WCS container is a type parameter so
+        # that, when an image is built with an explicit WCS, the concrete
+        # `WCSTransform` type is inferable from the image type (see `wcs(img, alt)`).
+        # Images built lazily from a header instead store an *abstract*
+        # `Dict{Char,WCSTransform}` here, because their WCS is parsed (and possibly
+        # recomputed after header edits) only on first access, so the concrete type
+        # is not known at construction. Compare against the `fitswcs` branch, which
+        # always stores the invariant `Dict{Char,WCSTransform}`.
+        Wc <: AbstractDict{Char, <:WCSTransform},
     } <: AbstractDimArray{T, N, D, A}
     # Parent array we are wrapping
     data::A
@@ -107,13 +116,22 @@ struct AstroImage{
     header::FITSHeader
     # Cached WCSTransform objects for this data, keyed by WCS version character
     # (`' '` for the primary system, `'A'`–`'Z'` for alternates).
-    wcs::Dict{Char, WCSTransform}
+    wcs::Wc
     # A flag that is set when a user modifies a WCS header.
     # The next access to the wcs object will regenerate from
     # the new header on demand.
     wcs_stale::Base.RefValue{Bool}
     # Correspondance between dims & refdims -> WCS Axis numbers
     wcsdims::W
+    # Explicit inner constructor: defining one suppresses the auto-generated
+    # convenience constructor, which would otherwise collide with the 7-positional
+    # `AstroImage(...)` outer constructor below (a precompile "method overwriting"
+    # error once `wcs` is the type parameter `Wc`).
+    function AstroImage{T, N, D, R, A, W, Wc}(
+            data, dims, refdims, header, wcs, wcs_stale, wcsdims
+        ) where {T, N, D <: Tuple, R <: Tuple, A <: AbstractArray{T, N}, W <: Tuple, Wc <: AbstractDict{Char, <:WCSTransform}}
+        return new{T, N, D, R, A, W, Wc}(data, dims, refdims, header, wcs, wcs_stale, wcsdims)
+    end
 end
 # Provide type aliases for 1D and 2D versions of our data structure.
 const AstroImageVec{T, D} = AstroImage{T, 1} where {T}
@@ -313,7 +331,9 @@ function AstroImage(
     ) where {T, N}
     wcs_stale = isnothing(wcs)
     if isnothing(wcs)
-        wcs = Dict(' ' => emptywcs(data))
+        # Abstract value type: this image's WCS is computed lazily from the header
+        # and merged in place on first access, so its concrete type isn't known yet.
+        wcs = Dict{Char, WCSTransform}(' ' => emptywcs(data))
     end
     # If the user passes in a WCSTransform of their own, we use it and mark
     # wcs_stale=false. It will be kept unless they manually change a WCS header.
@@ -370,7 +390,8 @@ function AstroImage(
     )
     wcs_stale = isnothing(wcs)
     if isnothing(wcs)
-        wcs = Dict(' ' => emptywcs(darr))
+        # Abstract value type; see the array constructor above.
+        wcs = Dict{Char, WCSTransform}(' ' => emptywcs(darr))
     end
     wcsdims = (dims(darr)..., refdims(darr)...)
     return AstroImage(parent(darr), dims(darr), refdims(darr), header, wcs, Ref(wcs_stale), wcsdims)
@@ -393,9 +414,11 @@ AstroImage(data::AbstractArray, wcs::AbstractDict{Char, <:WCSTransform}) = Astro
 # A lone transform is taken as the primary (`' '`) WCS.
 AstroImage(data::AbstractArray, wcs::WCSTransform) = AstroImage(data, Dict(' ' => wcs))
 
-# FITSWCS's `WCSTransform` is parametric, so a concrete `Dict{Char,WCSTransform{N,…}}`
-# is not `<: Dict{Char,WCSTransform}`. Normalize any dict of transforms to the
-# invariant `Dict{Char,WCSTransform}` value type that the struct field stores.
+# PROTOTYPE (fitswcs-parametric): preserve the concrete container type as the `Wc`
+# type parameter (rather than widening to the invariant `Dict{Char,WCSTransform}`),
+# so an image built with an explicit, concrete WCS keeps an inferable transform type.
+# Callers that need the abstract, mutable-in-place container (the lazy header path)
+# pass a `Dict{Char,WCSTransform}` explicitly, which is preserved verbatim here.
 function AstroImage(
         data::AbstractArray{T, N},
         dims::D,
@@ -405,9 +428,9 @@ function AstroImage(
         wcs_stale::Base.RefValue{Bool},
         wcsdims::W,
     ) where {T, N, D <: Tuple, R <: Tuple, W <: Tuple}
-    return AstroImage{T, N, D, R, typeof(data), W}(
+    return AstroImage{T, N, D, R, typeof(data), W, typeof(wcs)}(
         data, dims, refdims, header,
-        convert(Dict{Char, WCSTransform}, wcs), wcs_stale, wcsdims,
+        wcs, wcs_stale, wcsdims,
     )
 end
 
