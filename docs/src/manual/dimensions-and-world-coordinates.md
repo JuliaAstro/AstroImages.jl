@@ -31,10 +31,10 @@ eagle = load(download("https://ds9.si.edu/download/data/656nmos.fits"))
 This image contains world coordinate system headers. AstroImages.jl uses FITSWCS.jl (a pure-Julia implementation of the FITS WCS standard) to parse these headers. We can generate a WCSTransform object to inspect:
 
 ```@example coords
-wcs(eagle, 1) # specify which coordinate system
+wcs(eagle, ' ') # specify which coordinate system
 ```
 
-Note that we specify with an index which coordinate system we'd like to use. Most images just contain one, but some contain multiple systems.
+Note that we specify with a version character which coordinate system we'd like to use: `' '` for the primary system, or `'A'`–`'Z'` for an alternate. Most images just contain the primary system, but some contain multiple systems.
 
 We can look up a coordinate from the image:
 

@@ -140,7 +140,7 @@ end
     img = AstroImage(fname)
     hdus = fits(fname)
     @test length(wcs(img)) == 2
-    for n in 1:2
+    for n in ('A', 'B')
         w = wcs(img, n)
         @test w.ctype == ["RA---TAN", "DEC--TAN"]
         for p in testpix
@@ -150,7 +150,7 @@ end
 
     img = AstroImage(hdus)
     @test length(wcs(img)) == 2
-    for n in 1:2
+    for n in ('A', 'B')
         w = wcs(img, n)
         @test w.ctype == ["RA---TAN", "DEC--TAN"]
         for p in testpix

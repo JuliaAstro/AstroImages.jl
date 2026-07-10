@@ -126,7 +126,7 @@ function _loadhdu(hdu::HDU, args...; kwargs...)
         # but has headers. Fall back to creating an empty AstroImage with those
         # headers.
         emptydata = fill(missing)
-        return AstroImage(emptydata, (), (), _headercards(hdu), [emptywcs(emptydata)], Ref(false), ())
+        return AstroImage(emptydata, (), (), _headercards(hdu), Dict(' ' => emptywcs(emptydata)), Ref(false), ())
     else
         return AstroImage(collect(data), args..., _headercards(hdu); kwargs...)
     end

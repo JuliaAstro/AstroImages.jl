@@ -26,7 +26,7 @@ using RecipesBase: RecipesBase, @layout, @recipe, @series, @userplot
 using Statistics: Statistics, mean, quantile
 using Tables: Tables
 using UUIDs: UUIDs # can remove once reigstered with FileIO
-using FITSWCS: FITSWCS, WCSTransform, WCS, pixel_to_world, world_to_pixel
+using FITSWCS: FITSWCS, WCSTransform, WCS, WCS_all, pixel_to_world, world_to_pixel
 
 # AstroImages stores a FITS header as a vector of FITSFiles `Card`s (each `Card`
 # carries a `.key`, `.value`, and `.comment`). This alias preserves the
@@ -111,8 +111,9 @@ struct AstroImage{
     refdims::R
     # FITS Heads beloning to this image, if any
     header::FITSHeader
-    # Cached WCSTransform objects for this data.
-    wcs::Vector{WCSTransform}
+    # Cached WCSTransform objects for this data, keyed by WCS version character
+    # (`' '` for the primary system, `'A'`–`'Z'` for alternates).
+    wcs::Dict{Char, WCSTransform}
     # A flag that is set when a user modifies a WCS header.
     # The next access to the wcs object will regenerate from
     # the new header on demand.
@@ -190,37 +191,38 @@ Base.haskey(img::AstroImage, key::Symbol) = haskey(header(img), String(key))
 """
     wcs(img)
 
-Computes and returns a list of World Coordinate System WCSTransform objects from WCS.jl.
-The resultss are cached after the first call, so subsequent calls are fast.
+Computes and returns a `Dict{Char,WCSTransform}` of World Coordinate System transforms
+from FITSWCS.jl, keyed by WCS version character (`' '` for the primary system, `'A'`–`'Z'`
+for alternates). The results are cached after the first call, so subsequent calls are fast.
 Modifying a WCS header invalidates this cache automatically, so users should call `wcs(...)`
 each time rather than keeping the WCSTransform object around.
 """
 function wcs(img::AstroImage)
     if getfield(img, :wcs_stale)[]
         empty!(getfield(img, :wcs))
-        append!(getfield(img, :wcs), wcsfromheader(img))
+        merge!(getfield(img, :wcs), wcsfromheader(img))
         getfield(img, :wcs_stale)[] = false
     end
     return getfield(img, :wcs)
 end
 """
-    wcs(img, index)
+    wcs(img, alt)
 
-Computes and returns a World Coordinate System WCSTransform objects from WCS.jl by index.
-This is to support files with multiple WCS transforms specified.
-`wcs(img,1)` is useful for selecting selecting the first WCSTranform object.
-The resultss are cached after the first call, so subsequent calls are fast.
+Computes and returns a single World Coordinate System WCSTransform object from FITSWCS.jl
+by WCS version character. This is to support files with multiple WCS transforms specified.
+`wcs(img, ' ')` selects the primary transform; `wcs(img, 'A')` selects the first alternate.
+The results are cached after the first call, so subsequent calls are fast.
 Modifying a WCS header invalidates this cache automatically, so users should call `wcs(...)`
 each time rather than keeping the WCSTransform object around.
 """
-wcs(img, ind) = wcs(img)[ind]
+wcs(img, alt) = wcs(img)[alt]
 """
     wcs(array)
 
-Returns a list with a single basic WCSTransform object when called with a non-AstroImage
-abstract array.
+Returns a `Dict{Char,WCSTransform}` with a single primary WCSTransform (keyed by `' '`)
+when called with a non-AstroImage abstract array.
 """
-wcs(arr::AbstractArray) = [emptywcs(arr)]
+wcs(arr::AbstractArray) = Dict(' ' => emptywcs(arr))
 
 # Implement DimensionalData interface
 Base.parent(img::AstroImage) = getfield(img, :data)
@@ -241,7 +243,7 @@ DimensionalData.metadata(::AstroImage) = Lookups.NoMetadata()
         # FITS Header beloning to this image, if any
         header::FITSHeader = deepcopy(header(img)),
         # Cached WCSTransform objects for this data
-        wcs::AbstractVector{<:WCSTransform} = getfield(img, :wcs),
+        wcs::AbstractDict{Char, <:WCSTransform} = getfield(img, :wcs),
         wcs_stale::Bool = getfield(img, :wcs_stale)[],
         wcsdims::Tuple = (dims..., refdims...),
     )
@@ -261,7 +263,7 @@ end
         # FITS Header beloning to this image, if any
         header::FITSHeader = deepcopy(header(img)),
         # Cached WCSTransform objects for this data
-        wcs::AbstractVector{<:WCSTransform} = getfield(img, :wcs),
+        wcs::AbstractDict{Char, <:WCSTransform} = getfield(img, :wcs),
         wcs_stale::Bool = getfield(img, :wcs_stale)[],
         wcsdims::Tuple = (dims..., refdims...),
     )
@@ -312,12 +314,12 @@ function AstroImage(
         dims::Union{Tuple, NamedTuple} = (),
         refdims::Union{Tuple, NamedTuple} = (),
         header::FITSHeader = emptyheader(),
-        wcs::Union{AbstractVector{<:WCSTransform}, Nothing} = nothing;
+        wcs::Union{AbstractDict{Char, <:WCSTransform}, Nothing} = nothing;
         wcsdims = nothing
     ) where {T, N}
     wcs_stale = isnothing(wcs)
     if isnothing(wcs)
-        wcs = [emptywcs(data)]
+        wcs = Dict(' ' => emptywcs(data))
     end
     # If the user passes in a WCSTransform of their own, we use it and mark
     # wcs_stale=false. It will be kept unless they manually change a WCS header.
@@ -370,11 +372,11 @@ end
 function AstroImage(
         darr::AbstractDimArray,
         header::FITSHeader = emptyheader(),
-        wcs::Union{AbstractVector{<:WCSTransform}, Nothing} = nothing
+        wcs::Union{AbstractDict{Char, <:WCSTransform}, Nothing} = nothing
     )
     wcs_stale = isnothing(wcs)
     if isnothing(wcs)
-        wcs = [emptywcs(darr)]
+        wcs = Dict(' ' => emptywcs(darr))
     end
     wcsdims = (dims(darr)..., refdims(darr)...)
     return AstroImage(parent(darr), dims(darr), refdims(darr), header, wcs, Ref(wcs_stale), wcsdims)
@@ -383,34 +385,35 @@ AstroImage(
     data::AbstractArray,
     dims::Union{Tuple, NamedTuple},
     header::FITSHeader,
-    wcs::Union{AbstractVector{<:WCSTransform}, Nothing} = nothing
+    wcs::Union{AbstractDict{Char, <:WCSTransform}, Nothing} = nothing
 ) = AstroImage(data, dims, (), header, wcs)
 AstroImage(
     data::AbstractArray,
     header::FITSHeader,
-    wcs::Union{AbstractVector{<:WCSTransform}, Nothing} = nothing
+    wcs::Union{AbstractDict{Char, <:WCSTransform}, Nothing} = nothing
 ) = AstroImage(data, (), (), header, wcs)
 
 
 # TODO: ensure this gets WCS dims.
-AstroImage(data::AbstractArray, wcs::AbstractVector{<:WCSTransform}) = AstroImage(data, emptyheader(), wcs)
-AstroImage(data::AbstractArray, wcs::WCSTransform) = AstroImage(data, [wcs])
+AstroImage(data::AbstractArray, wcs::AbstractDict{Char, <:WCSTransform}) = AstroImage(data, emptyheader(), wcs)
+# A lone transform is taken as the primary (`' '`) WCS.
+AstroImage(data::AbstractArray, wcs::WCSTransform) = AstroImage(data, Dict(' ' => wcs))
 
-# FITSWCS's `WCSTransform` is parametric, so a concrete `Vector{WCSTransform{N,…}}`
-# is not `<: Vector{WCSTransform}`. Normalize any vector of transforms to the
-# invariant `Vector{WCSTransform}` element type that the struct field stores.
+# FITSWCS's `WCSTransform` is parametric, so a concrete `Dict{Char,WCSTransform{N,…}}`
+# is not `<: Dict{Char,WCSTransform}`. Normalize any dict of transforms to the
+# invariant `Dict{Char,WCSTransform}` value type that the struct field stores.
 function AstroImage(
         data::AbstractArray{T, N},
         dims::D,
         refdims::R,
         header::FITSHeader,
-        wcs::AbstractVector{<:WCSTransform},
+        wcs::AbstractDict{Char, <:WCSTransform},
         wcs_stale::Base.RefValue{Bool},
         wcsdims::W,
     ) where {T, N, D <: Tuple, R <: Tuple, W <: Tuple}
     return AstroImage{T, N, D, R, typeof(data), W}(
         data, dims, refdims, header,
-        convert(Vector{WCSTransform}, wcs), wcs_stale, wcsdims,
+        convert(Dict{Char, WCSTransform}, wcs), wcs_stale, wcsdims,
     )
 end
 
