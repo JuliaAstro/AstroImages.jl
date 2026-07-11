@@ -7,6 +7,7 @@ authors = ["Mosè Giordano", "Rohit Kumar", "William Thompson"]
 projects = ["test", "docs"]
 
 [sources]
+DimensionalData = {url = "https://github.com/icweaver/DimensionalData.jl", rev = "makie-0.25"}
 FITSFiles = {url = "https://github.com/JuliaAstro/FITSFiles.jl"}
 FITSWCS = {rev = "slices-astroimages", url = "https://github.com/JuliaAstro/FITSWCS.jl"}
 
@@ -37,7 +38,6 @@ Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
 AstroImagesMakieExt = "Makie"
 
 [compat]
-Makie = "0.25"
 AbstractFFTs = "1.1"
 AstroAngles = "0.1, 0.2"
 ColorSchemes = "3.18"
@@ -49,6 +49,7 @@ ImageAxes = "0.6"
 ImageBase = "^0.1.5"
 ImageIO = "0.6"
 ImageShow = "0.3"
+Makie = "0.25"
 MappedArrays = "0.4"
 PlotUtils = "1.2"
 PrecompileTools = "1"
