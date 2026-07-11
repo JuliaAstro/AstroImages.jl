@@ -1,5 +1,5 @@
 using AstroImages:
-    Percent, Zscale, clampednormedview, composecolors, imview, load, render, wcs, _float,
+    Percent, Zscale, clampednormedview, composecolors, imview, load, render, wcs, refdims, Pol, At, _float,
     # Stretches
     sqrtstretch, asinhstretch, powerdiststretch, logstretch, powstretch, squarestretch, sinhstretch
 
@@ -157,6 +157,112 @@ end
             @test world_to_pixel(w, pixel_to_world(w, p)) ≈ p rtol = 1.0e-8
         end
     end
+
+    # The round-trips above call the raw-`WCSTransform` methods directly. Here we
+    # exercise the dimension-aware `AstroImage` methods in `src/wcs.jl`, which
+    # scale slice-local coordinates to/from the parent pixel frame.
+    @testset "img-level transforms (wcsn = $n)" for n in ('A', 'B')
+        w = wcs(img, n)
+        for p in testpix
+            # Default (`parent = false`) path: for a non-sliced image the dims are
+            # 1-based unit ranges, so it reduces to the raw transform and round-trips.
+            worldf = pixel_to_world(img, p; wcsn = n)
+            @test worldf ≈ pixel_to_world(w, p) rtol = 1.0e-8
+            @test world_to_pixel(img, worldf; wcsn = n) ≈ p rtol = 1.0e-8
+            # `parent = true` treats inputs as parent-frame coordinates, applying
+            # only the 1→0-based shift before the raw transform (no dim scaling).
+            worldp = pixel_to_world(img, p; wcsn = n, parent = true)
+            @test worldp ≈ pixel_to_world(w, p .- 1) rtol = 1.0e-8
+            @test world_to_pixel(img, worldp; wcsn = n, parent = true) ≈
+                world_to_pixel(w, worldp) rtol = 1.0e-8
+        end
+
+        # Integer pixel input is accepted (converted to Float64 internally).
+        @test pixel_to_world(img, [1, 1]; wcsn = n) ≈
+            pixel_to_world(img, [1.0, 1.0]; wcsn = n) rtol = 1.0e-8
+
+        # `all = true` returns coordinates for every WCS axis; here naxis equals
+        # the number of dims, so it matches the filtered result.
+        @test pixel_to_world(img, [1.0, 1.0]; wcsn = n, all = true) ≈
+            pixel_to_world(img, [1.0, 1.0]; wcsn = n) rtol = 1.0e-8
+
+        # Batched (matrix) transform: each column is one coordinate.
+        pixmat = reduce(hcat, testpix)
+        worldmat = pixel_to_world(img, pixmat; wcsn = n)
+        @test size(worldmat) == size(pixmat)
+        for (k, p) in enumerate(testpix)
+            @test worldmat[:, k] ≈ pixel_to_world(img, p; wcsn = n) rtol = 1.0e-8
+        end
+        @test world_to_pixel(img, worldmat; wcsn = n) ≈ pixmat rtol = 1.0e-8
+    end
+end
+
+@testset "sliced cube world coordinates" begin
+    fname = tempname() * ".fits"
+    hdr = Card[
+        Card("CRVAL1", 0.5), Card("CRVAL2", 89.5), Card("CRVAL3", 1.0e9),
+        Card("CRPIX1", 1), Card("CRPIX2", 1), Card("CRPIX3", 1),
+        Card("CDELT1", 1), Card("CDELT2", -1), Card("CDELT3", 1.0e6),
+        Card("CTYPE1", "RA---TAN"), Card("CTYPE2", "DEC--TAN"), Card("CTYPE3", "FREQ"),
+        Card("CUNIT1", "deg"), Card("CUNIT2", "deg"), Card("CUNIT3", "Hz"),
+    ]
+    cube_data = reshape(Float32[1:(5 * 6 * 4);], 5, 6, 4)
+    write(fname, HDU[HDU(Primary, cube_data, hdr)])
+
+    cube = AstroImage(fname)
+    @test ndims(cube) == 3
+    @test isempty(refdims(cube))
+
+    # Dropping the 3rd (spectral) axis moves it into `refdims`; the transform
+    # wrappers must then scatter the frozen axis into its WCS slot. This is the
+    # only path that exercises the `refdims` loops in `src/wcs.jl`.
+    sl = cube[:, :, 2]
+    @test ndims(sl) == 2
+    @test length(refdims(sl)) == 1
+
+    testpix = ([1.0, 1.0], [2.0, 3.0], [5.0, 6.0])
+    for p in testpix
+        world = pixel_to_world(sl, p)      # filtered to the two kept dims
+        @test length(world) == 2
+        back = world_to_pixel(sl, world)   # returns all WCS axes
+        @test back[1:2] ≈ p rtol = 1.0e-8  # kept dims round-trip
+    end
+
+    # `all = true` additionally returns the frozen spectral world coordinate.
+    @test length(pixel_to_world(sl, [1.0, 1.0]; all = true)) == 3
+end
+
+@testset "polarization (symbol) axis slicing" begin
+    fname = tempname() * ".fits"
+    hdr = Card[
+        Card("CRVAL1", 0.5), Card("CRVAL2", 89.5), Card("CRVAL3", 1.0),
+        Card("CRPIX1", 1), Card("CRPIX2", 1), Card("CRPIX3", 1),
+        Card("CDELT1", 1), Card("CDELT2", -1), Card("CDELT3", 1),
+        Card("CTYPE1", "RA---TAN"), Card("CTYPE2", "DEC--TAN"), Card("CTYPE3", "STOKES"),
+        Card("CUNIT1", "deg"), Card("CUNIT2", "deg"),
+    ]
+    data = reshape(Float32[1:(5 * 6 * 4);], 5, 6, 4)
+    write(fname, HDU[HDU(Primary, data, hdr)])
+
+    # A categorical polarization axis: its lookup values are Symbols, not numbers.
+    cube = AstroImage(fname, 1, (X = 1:5, Y = 1:6, Pol = [:I, :Q, :U, :V]))
+
+    # Slicing to a single polarization drops a *non-numeric* refdim, exercising the
+    # symbol-lookup branches of the transform wrappers, which map the symbol back
+    # to its parent pixel index.
+    sl = cube[Pol = At(:Q)]
+    @test ndims(sl) == 2
+    @test length(refdims(sl)) == 1
+    @test eltype(refdims(sl)[1]) == Symbol
+
+    for p in ([1.0, 1.0], [2.0, 3.0], [5.0, 6.0])
+        world = pixel_to_world(sl, p)
+        back = world_to_pixel(sl, world)
+        @test back[1:2] ≈ p rtol = 1.0e-8
+    end
+
+    # Integer world input is accepted (converted to Float64 internally).
+    @test world_to_pixel(sl, [1, 89]) ≈ world_to_pixel(sl, [1.0, 89.0]) rtol = 1.0e-8
 end
 
 ##
