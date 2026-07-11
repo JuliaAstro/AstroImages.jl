@@ -451,8 +451,8 @@ struct History end
 
 # Getting and setting header values / comments.
 # The header is a `Vector{Card}`; each `Card` carries a `.key`, `.value`, and
-# `.comment`. These helpers reproduce FITSIO's "set or insert" behaviour on top
-# of FITSFiles cards (whose own `setindex!` only updates existing keywords).
+# `.comment`. These helpers provide "set or insert" semantics on top of FITSFiles
+# cards (whose own `setindex!` only updates existing keywords).
 const HeaderValUnion = Union{Bool, Integer, AbstractFloat, AbstractString, Nothing, Missing}
 
 _findcard(cards::FITSHeader, key::AbstractString) =
