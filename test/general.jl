@@ -1,5 +1,6 @@
 using AstroImages:
     Percent, Zscale, clampednormedview, composecolors, imview, load, render, wcs, refdims, Pol, At, _float, _loadhdu,
+    header, shareheader, Centered, dims, name, Comment,
     # Stretches
     sqrtstretch, asinhstretch, powerdiststretch, logstretch, powstretch, squarestretch, sinhstretch
 
@@ -117,6 +118,44 @@ end
 @testset "Utility functions" begin
     @test size(AstroImage(rand(10, 10))) == (10, 10)
     @test length(AstroImage(rand(10, 10))) == 100
+end
+
+@testset "constructor & accessor variants" begin
+    data = reshape(Float32[1:20;], 4, 5)
+
+    # `header` on a plain array returns an empty header.
+    @test isempty(header(data))
+
+    # `Centered()` dim values are replaced with an automatic range centered on 0.
+    imgc = AstroImage(data, (X = Centered(), Y = Centered()))
+    @test collect(dims(imgc)[1]) == [-1.5, -0.5, 0.5, 1.5]
+
+    # `dims` given as a plain tuple of lookup values (neither a NamedTuple nor
+    # Dimensions) are wrapped with the default X, Y, … names.
+    imgt = AstroImage(data, (1:4, 1:5))
+    @test map(name, dims(imgt)) == (:X, :Y)
+
+    # `shareheader` between two AstroImages carries the header across.
+    img1 = AstroImage(data)
+    img1["FOO"] = 42
+    shared = shareheader(img1, AstroImage(data .* 2))
+    @test shared isa AstroImage
+    @test shared["FOO"] == 42
+
+    # Re-setting an existing header key updates it in place (rather than pushing a
+    # duplicate card) and preserves any existing comment.
+    img1["FOO", Comment] = "the answer"
+    img1["FOO"] = 7
+    @test img1["FOO"] == 7
+    @test count(c -> uppercase(c.key) == "FOO", header(img1)) == 1
+    @test img1["FOO", Comment] == "the answer"
+
+    # Setting a WCS header keyword marks the cached WCS as stale so it is rebuilt.
+    imgw = AstroImage(data)
+    wcs(imgw)  # force the (lazy) WCS to build, clearing the stale flag
+    @test !getfield(imgw, :wcs_stale)[]
+    imgw["CRVAL1"] = 1.5
+    @test getfield(imgw, :wcs_stale)[]
 end
 
 @testset "multi wcs AstroImage" begin
