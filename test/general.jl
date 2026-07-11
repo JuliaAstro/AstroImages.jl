@@ -1,5 +1,5 @@
 using AstroImages:
-    Percent, Zscale, clampednormedview, composecolors, imview, load, render, wcs, refdims, Pol, At, _float,
+    Percent, Zscale, clampednormedview, composecolors, imview, load, render, wcs, refdims, Pol, At, _float, _loadhdu,
     # Stretches
     sqrtstretch, asinhstretch, powerdiststretch, logstretch, powstretch, squarestretch, sinhstretch
 
@@ -97,6 +97,19 @@ end
         )
 
         @test @test_logs (:info, "Image was loaded from HDU 3") AstroImage(fname) isa AstroImage
+    end
+
+    @testset "empty/dataless HDU" begin
+        # A dataless HDU (e.g. an empty primary carrying only header cards) should
+        # load as an empty AstroImage wrapping those headers, not throw. Its
+        # placeholder data is 0-dimensional, so the blank WCS must still be built
+        # with a valid (>= 1) axis count.
+        write(fname, HDU[HDU(Primary, missing), HDU(Image, rand(2, 2))])
+        hdus = fits(fname)
+        empty_img = _loadhdu(hdus[1])
+        @test empty_img isa AstroImage
+        @test ndims(empty_img) == 0
+        @test wcs(empty_img, ' ').naxis == 1
     end
     rm(fname, force = true)
 end

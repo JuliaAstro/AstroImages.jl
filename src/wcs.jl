@@ -235,8 +235,11 @@ const WCS_HEADERS = Set(
 Given an AbstractArray, return a blank WCSTransform of the appropriate
 dimensionality.
 """
-emptywcs(data::AbstractArray) = WCS(ndims(data))
-emptywcs(img::AstroImage) = WCS(length(dims(img)) + length(refdims(img)))
+# A WCSTransform must have at least one axis, so floor the count at 1. This
+# matters for dataless HDUs (e.g. an empty primary), whose placeholder data is
+# 0-dimensional; without the floor `WCS(0)` throws `naxis must be >= 1`.
+emptywcs(data::AbstractArray) = WCS(max(ndims(data), 1))
+emptywcs(img::AstroImage) = WCS(max(length(dims(img)) + length(refdims(img)), 1))
 
 
 # """
