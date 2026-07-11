@@ -22,7 +22,6 @@ using PlotUtils: PlotUtils
 using PlotUtils: optimize_ticks, AbstractColorList
 using PrecompileTools: PrecompileTools, @compile_workload, @setup_workload
 using Printf: Printf, @printf, @sprintf
-using RecipesBase: RecipesBase, @layout, @recipe, @series, @userplot
 using Statistics: Statistics, mean, quantile
 using Tables: Tables
 using UUIDs: UUIDs # can remove once reigstered with FileIO
@@ -68,6 +67,11 @@ export load,
     recenter,
     pixel_to_world,
     world_to_pixel,
+    # Plotting (implemented in the Makie package extension)
+    implot,
+    implot!,
+    polquiver,
+    polquiver!,
     # Deprecated: renamed to pixel_to_world / world_to_pixel
     pix_to_world,
     world_to_pix,
@@ -632,7 +636,7 @@ include("io.jl")
 include("imview.jl")
 include("showmime.jl")
 include("wcs-grid.jl")
-include("plot-recipes.jl")
+include("plot-interface.jl")
 include("contrib/images.jl")
 include("contrib/abstract-ffts.jl")
 # include("contrib/reproject.jl")
