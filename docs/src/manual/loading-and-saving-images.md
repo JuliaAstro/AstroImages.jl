@@ -1,6 +1,6 @@
 # Loading & Saving Images
 
-FITS (Flexible Image Transport System) files can be loaded and saved using AstroImages thanks to the [FITSIO.jl](https://github.com/JuliaAstro/FITSIO.jl) package.
+FITS (Flexible Image Transport System) files can be loaded and saved using AstroImages thanks to the [FITSFiles.jl](https://github.com/JuliaAstro/FITSFiles.jl) package.
 
 AstroImages is registered with [FileIO.jl](https://juliaio.github.io/FileIO.jl/stable/), so if both packages are installed the `FileIO.load` function will work seamlessly with astronomical data. When you pass a file name with the appropriate file extension (".fits", ".fit", ".fits.gz", etc.), FileIO will import AstroImages automatically. For convenience, we also reexport this function from AstroImages:
 

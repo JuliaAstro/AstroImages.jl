@@ -28,24 +28,24 @@ using Downloads: download
 eagle = load(download("https://ds9.si.edu/download/data/656nmos.fits"))
 ```
 
-This image contains world coordinate system headers. AstroImages.jl uses WCS.jl (and wcslib under the hood) to parse these headers. We can generate a WCSTransform object to inspect:
+This image contains world coordinate system headers. AstroImages.jl uses FITSWCS.jl (a pure-Julia implementation of the FITS WCS standard) to parse these headers. We can generate a WCSTransform object to inspect:
 
 ```@example coords
-wcs(eagle, 1) # specify which coordinate system
+wcs(eagle, ' ') # specify which coordinate system
 ```
 
-Note that we specify with an index which coordinate system we'd like to use. Most images just contain one, but some contain multiple systems.
+Note that we specify with a version character which coordinate system we'd like to use: `' '` for the primary system, or `'A'`–`'Z'` for an alternate. Most images just contain the primary system, but some contain multiple systems.
 
 We can look up a coordinate from the image:
 
 ```@example coords
-world = pix_to_world(eagle, [1, 1]) # Bottom left corner
+world = pixel_to_world(eagle, [1, 1]) # Bottom left corner
 ```
 
 Or convert back from world coordinates to pixel coordinates. We can lookup a coordinate from the image:
 
 ```@example coords
-world_to_pix(eagle, world) # Bottom left corner
+world_to_pixel(eagle, world) # Bottom left corner
 ```
 
 These pixel coordinates do not necessarily have to lie within the bounds of the original image, and in general lie at a fractional pixel position.
@@ -89,11 +89,11 @@ plot(
 World coordinate queries from that slice are aware of their position in the parent image:
 
 ```@example coords
-@show pix_to_world(slice1, [1, 1])
+@show pixel_to_world(slice1, [1, 1])
 ```
 
 ```@example coords
-@show pix_to_world(slice2, [1, 1])
+@show pixel_to_world(slice2, [1, 1])
 ```
 
 Note that you can query the dimensions of an image using the [`dims`](@extref DimensionalData.Dimensions.dims) function from DimensionalData:

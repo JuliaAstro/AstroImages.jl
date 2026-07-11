@@ -5,8 +5,9 @@ using AstroAngles: AstroAngles, deg2dms, deg2hms
 using ColorSchemes: ColorSchemes, get
 using DimensionalData: DimensionalData, AbstractDimArray, At, Dim, Lookups,
     Dimensions, Near, (..), Ti, X, Y, Z, dims, name, rebuild, refdims
-using FITSIO: FITSIO, FITS, FITSHeader, HDU, ImageHDU, TableHDU, get_comment,
-    read_header, set_comment!
+# NB: import selectively — FITSFiles exports `Comment` and `History`, which
+# collide with AstroImages' own header-indexing singletons of the same name.
+using FITSFiles: FITSFiles, fits, HDU, Card
 using FileIO: FileIO, @format_str, File, filename, load, save
 # Rather than pulling in all of Images.jl, just grab the packages
 # We also need ImageShow so that user's images appear automatically.
@@ -25,8 +26,12 @@ using RecipesBase: RecipesBase, @layout, @recipe, @series, @userplot
 using Statistics: Statistics, mean, quantile
 using Tables: Tables
 using UUIDs: UUIDs # can remove once reigstered with FileIO
-using WCS: WCS, WCSTransform, pix_to_world, pix_to_world!, world_to_pix,
-    world_to_pix!
+using FITSWCS: FITSWCS, WCSTransform, WCS, WCS_all, pixel_to_world, world_to_pixel
+
+# AstroImages stores a FITS header as a vector of FITSFiles `Card`s (each `Card`
+# carries a `.key`, `.value`, and `.comment`). This alias preserves the
+# `FITSHeader` name used throughout the package and as the struct field type.
+const FITSHeader = Vector{Card}
 
 export load,
     save,
@@ -61,8 +66,10 @@ export load,
     At, Near, ..,
     dims, refdims,
     recenter,
+    pixel_to_world,
+    world_to_pixel,
+    # Deprecated: renamed to pixel_to_world / world_to_pixel
     pix_to_world,
-    pix_to_world!,
     world_to_pix,
     world_to_pix!
 
@@ -104,8 +111,9 @@ struct AstroImage{
     refdims::R
     # FITS Heads beloning to this image, if any
     header::FITSHeader
-    # Cached WCSTransform objects for this data.
-    wcs::Vector{WCSTransform}
+    # Cached WCSTransform objects for this data, keyed by WCS version character
+    # (`' '` for the primary system, `'A'`–`'Z'` for alternates).
+    wcs::Dict{Char, WCSTransform}
     # A flag that is set when a user modifies a WCS header.
     # The next access to the wcs object will regenerate from
     # the new header on demand.
@@ -158,16 +166,16 @@ end
 """
     header(img::AstroImage)
 
-Return the underlying FITSIO.FITSHeader object wrapped by an AstroImage.
-Note that this object has less flexible getindex and setindex methods.
-Indexing by symbol, Comment, History, etc are not supported.
+Return the underlying FITS header (a `Vector{FITSFiles.Card}`) wrapped by an
+AstroImage. Note that this object has less flexible getindex and setindex
+methods. Indexing by symbol, Comment, History, etc are not supported.
 """
 header(img::AstroImage) = getfield(img, :header)
 """
     header(array::AbstractArray)
 
-Returns an empty FITSIO.FITSHeader object when called with a non-AstroImage
-abstract array.
+Returns an empty FITS header (a `Vector{FITSFiles.Card}`) when called with a
+non-AstroImage abstract array.
 """
 header(::AbstractArray) = emptyheader()
 
@@ -183,37 +191,38 @@ Base.haskey(img::AstroImage, key::Symbol) = haskey(header(img), String(key))
 """
     wcs(img)
 
-Computes and returns a list of World Coordinate System WCSTransform objects from WCS.jl.
-The resultss are cached after the first call, so subsequent calls are fast.
+Computes and returns a `Dict{Char,WCSTransform}` of World Coordinate System transforms
+from FITSWCS.jl, keyed by WCS version character (`' '` for the primary system, `'A'`–`'Z'`
+for alternates). The results are cached after the first call, so subsequent calls are fast.
 Modifying a WCS header invalidates this cache automatically, so users should call `wcs(...)`
 each time rather than keeping the WCSTransform object around.
 """
 function wcs(img::AstroImage)
     if getfield(img, :wcs_stale)[]
         empty!(getfield(img, :wcs))
-        append!(getfield(img, :wcs), wcsfromheader(img))
+        merge!(getfield(img, :wcs), wcsfromheader(img))
         getfield(img, :wcs_stale)[] = false
     end
     return getfield(img, :wcs)
 end
 """
-    wcs(img, index)
+    wcs(img, alt)
 
-Computes and returns a World Coordinate System WCSTransform objects from WCS.jl by index.
-This is to support files with multiple WCS transforms specified.
-`wcs(img,1)` is useful for selecting selecting the first WCSTranform object.
-The resultss are cached after the first call, so subsequent calls are fast.
+Computes and returns a single World Coordinate System WCSTransform object from FITSWCS.jl
+by WCS version character. This is to support files with multiple WCS transforms specified.
+`wcs(img, ' ')` selects the primary transform; `wcs(img, 'A')` selects the first alternate.
+The results are cached after the first call, so subsequent calls are fast.
 Modifying a WCS header invalidates this cache automatically, so users should call `wcs(...)`
 each time rather than keeping the WCSTransform object around.
 """
-wcs(img, ind) = wcs(img)[ind]
+wcs(img, alt) = wcs(img)[alt]
 """
     wcs(array)
 
-Returns a list with a single basic WCSTransform object when called with a non-AstroImage
-abstract array.
+Returns a `Dict{Char,WCSTransform}` with a single primary WCSTransform (keyed by `' '`)
+when called with a non-AstroImage abstract array.
 """
-wcs(arr::AbstractArray) = [emptywcs(arr)]
+wcs(arr::AbstractArray) = Dict(' ' => emptywcs(arr))
 
 # Implement DimensionalData interface
 Base.parent(img::AstroImage) = getfield(img, :data)
@@ -234,7 +243,7 @@ DimensionalData.metadata(::AstroImage) = Lookups.NoMetadata()
         # FITS Header beloning to this image, if any
         header::FITSHeader = deepcopy(header(img)),
         # Cached WCSTransform objects for this data
-        wcs::Vector{WCSTransform} = getfield(img, :wcs),
+        wcs::AbstractDict{Char, <:WCSTransform} = getfield(img, :wcs),
         wcs_stale::Bool = getfield(img, :wcs_stale)[],
         wcsdims::Tuple = (dims..., refdims...),
     )
@@ -254,7 +263,7 @@ end
         # FITS Header beloning to this image, if any
         header::FITSHeader = deepcopy(header(img)),
         # Cached WCSTransform objects for this data
-        wcs::Vector{WCSTransform} = getfield(img, :wcs),
+        wcs::AbstractDict{Char, <:WCSTransform} = getfield(img, :wcs),
         wcs_stale::Bool = getfield(img, :wcs_stale)[],
         wcsdims::Tuple = (dims..., refdims...),
     )
@@ -305,12 +314,12 @@ function AstroImage(
         dims::Union{Tuple, NamedTuple} = (),
         refdims::Union{Tuple, NamedTuple} = (),
         header::FITSHeader = emptyheader(),
-        wcs::Union{Vector{WCSTransform}, Nothing} = nothing;
+        wcs::Union{AbstractDict{Char, <:WCSTransform}, Nothing} = nothing;
         wcsdims = nothing
     ) where {T, N}
     wcs_stale = isnothing(wcs)
     if isnothing(wcs)
-        wcs = [emptywcs(data)]
+        wcs = Dict(' ' => emptywcs(data))
     end
     # If the user passes in a WCSTransform of their own, we use it and mark
     # wcs_stale=false. It will be kept unless they manually change a WCS header.
@@ -363,11 +372,11 @@ end
 function AstroImage(
         darr::AbstractDimArray,
         header::FITSHeader = emptyheader(),
-        wcs::Union{Vector{WCSTransform}, Nothing} = nothing
+        wcs::Union{AbstractDict{Char, <:WCSTransform}, Nothing} = nothing
     )
     wcs_stale = isnothing(wcs)
     if isnothing(wcs)
-        wcs = [emptywcs(darr)]
+        wcs = Dict(' ' => emptywcs(darr))
     end
     wcsdims = (dims(darr)..., refdims(darr)...)
     return AstroImage(parent(darr), dims(darr), refdims(darr), header, wcs, Ref(wcs_stale), wcsdims)
@@ -376,18 +385,37 @@ AstroImage(
     data::AbstractArray,
     dims::Union{Tuple, NamedTuple},
     header::FITSHeader,
-    wcs::Union{Vector{WCSTransform}, Nothing} = nothing
+    wcs::Union{AbstractDict{Char, <:WCSTransform}, Nothing} = nothing
 ) = AstroImage(data, dims, (), header, wcs)
 AstroImage(
     data::AbstractArray,
     header::FITSHeader,
-    wcs::Union{Vector{WCSTransform}, Nothing} = nothing
+    wcs::Union{AbstractDict{Char, <:WCSTransform}, Nothing} = nothing
 ) = AstroImage(data, (), (), header, wcs)
 
 
 # TODO: ensure this gets WCS dims.
-AstroImage(data::AbstractArray, wcs::Vector{WCSTransform}) = AstroImage(data, emptyheader(), wcs)
-AstroImage(data::AbstractArray, wcs::WCSTransform) = AstroImage(data, [wcs])
+AstroImage(data::AbstractArray, wcs::AbstractDict{Char, <:WCSTransform}) = AstroImage(data, emptyheader(), wcs)
+# A lone transform is taken as the primary (`' '`) WCS.
+AstroImage(data::AbstractArray, wcs::WCSTransform) = AstroImage(data, Dict(' ' => wcs))
+
+# FITSWCS's `WCSTransform` is parametric, so a concrete `Dict{Char,WCSTransform{N,…}}`
+# is not `<: Dict{Char,WCSTransform}`. Normalize any dict of transforms to the
+# invariant `Dict{Char,WCSTransform}` value type that the struct field stores.
+function AstroImage(
+        data::AbstractArray{T, N},
+        dims::D,
+        refdims::R,
+        header::FITSHeader,
+        wcs::AbstractDict{Char, <:WCSTransform},
+        wcs_stale::Base.RefValue{Bool},
+        wcsdims::W,
+    ) where {T, N, D <: Tuple, R <: Tuple, W <: Tuple}
+    return AstroImage{T, N, D, R, typeof(data), W}(
+        data, dims, refdims, header,
+        convert(Dict{Char, WCSTransform}, wcs), wcs_stale, wcsdims,
+    )
+end
 
 """
 Index for accessing a comment associated with a header keyword
@@ -421,11 +449,37 @@ struct History end
 #     error("getproperty reserved for future use.")
 # end
 
-# Getting and setting comments
-const HeaderValUnion = Union{Float64, String, Nothing, Int64}
-Base.getindex(img::AstroImage, inds::AbstractString...) = getindex(header(img), inds...) # accesing header using strings
+# Getting and setting header values / comments.
+# The header is a `Vector{Card}`; each `Card` carries a `.key`, `.value`, and
+# `.comment`. These helpers provide "set or insert" semantics on top of FITSFiles
+# cards (whose own `setindex!` only updates existing keywords).
+const HeaderValUnion = Union{Bool, Integer, AbstractFloat, AbstractString, Nothing, Missing}
+
+_findcard(cards::FITSHeader, key::AbstractString) =
+    findfirst(c -> uppercase(c.key) == uppercase(key), cards)
+function _setcardvalue!(cards::FITSHeader, key::AbstractString, value)
+    i = _findcard(cards, key)
+    if isnothing(i)
+        push!(cards, Card(key, value))
+    else
+        cards[i] = Card(key, value, cards[i].comment)
+    end
+    return value
+end
+function _getcardcomment(cards::FITSHeader, key::AbstractString)
+    i = _findcard(cards, key)
+    return isnothing(i) ? nothing : cards[i].comment
+end
+function _setcardcomment!(cards::FITSHeader, key::AbstractString, comment)
+    i = _findcard(cards, key)
+    isnothing(i) && throw(KeyError(key))
+    cards[i] = Card(cards[i].key, cards[i].value, comment)
+    return comment
+end
+
+Base.getindex(img::AstroImage, ind::AbstractString) = get(header(img), ind, nothing) # accessing header using strings
 function Base.setindex!(img::AstroImage, v, ind::AbstractString)  # modifying header using a string
-    setindex!(header(img), v, ind)
+    _setcardvalue!(header(img), ind, v)
     # Mark the WCS object as being out of date if this was a WCS header keyword
     if ind ∈ WCS_HEADERS
         getfield(img, :wcs_stale)[] = true
@@ -434,39 +488,28 @@ function Base.setindex!(img::AstroImage, v, ind::AbstractString)  # modifying he
 end
 Base.getindex(img::AstroImage, inds::Symbol...) = getindex(img, string.(inds)...)::HeaderValUnion # accessing header using symbol
 Base.setindex!(img::AstroImage, v, ind::Symbol) = setindex!(img, v, string(ind))
-Base.getindex(img::AstroImage, ind::AbstractString, ::Type{Comment}) = get_comment(header(img), ind) # accesing header comment using strings
-Base.setindex!(img::AstroImage, v, ind::AbstractString, ::Type{Comment}) = set_comment!(header(img), ind, v) # modifying header comment using strings
-Base.getindex(img::AstroImage, ind::Symbol, ::Type{Comment}) = get_comment(header(img), string(ind)) # accessing header comment using symbol
-Base.setindex!(img::AstroImage, v, ind::Symbol, ::Type{Comment}) = set_comment!(header(img), string(ind), v) # modifying header comment using Symbol
+Base.getindex(img::AstroImage, ind::AbstractString, ::Type{Comment}) = _getcardcomment(header(img), ind) # accesing header comment using strings
+Base.setindex!(img::AstroImage, v, ind::AbstractString, ::Type{Comment}) = _setcardcomment!(header(img), ind, v) # modifying header comment using strings
+Base.getindex(img::AstroImage, ind::Symbol, ::Type{Comment}) = _getcardcomment(header(img), string(ind)) # accessing header comment using symbol
+Base.setindex!(img::AstroImage, v, ind::Symbol, ::Type{Comment}) = _setcardcomment!(header(img), string(ind), v) # modifying header comment using Symbol
 
 # Ambiguity fixes for 0-dimensional AstroImages
 Base.getindex(img::AstroImage) = getindex(parent(img))
 Base.setindex!(img::AstroImage, v) = setindex!(parent(img), v)
 
-# Support for special HISTORY and COMMENT entries
-function Base.getindex(img::AstroImage, ::Type{History})
-    hdr = header(img)
-    ii = findall(==("HISTORY"), hdr.keys)
-    return view(hdr.comments, ii)
-end
-function Base.getindex(img::AstroImage, ::Type{Comment})
-    hdr = header(img)
-    ii = findall(==("COMMENT"), hdr.keys)
-    return view(hdr.comments, ii)
-end
+# Support for special HISTORY and COMMENT entries. FITSFiles stores commentary
+# text in the card's `.value` field.
+Base.getindex(img::AstroImage, ::Type{History}) =
+    [c.value for c in header(img) if uppercase(c.key) == "HISTORY"]
+Base.getindex(img::AstroImage, ::Type{Comment}) =
+    [c.value for c in header(img) if uppercase(c.key) == "COMMENT"]
 # Adding new comment and history entries
-function Base.push!(img::AstroImage, ::Type{Comment}, history::AbstractString)
-    hdr = header(img)
-    push!(hdr.keys, "COMMENT")
-    push!(hdr.values, nothing)
-    push!(hdr.comments, history)
+function Base.push!(img::AstroImage, ::Type{Comment}, comment::AbstractString)
+    push!(header(img), Card("COMMENT", comment))
     return
 end
 function Base.push!(img::AstroImage, ::Type{History}, history::AbstractString)
-    hdr = header(img)
-    push!(hdr.keys, "HISTORY")
-    push!(hdr.values, nothing)
-    push!(hdr.comments, history)
+    push!(header(img), Card("HISTORY", history))
     return
 end
 
@@ -536,9 +579,10 @@ Base.convert(::Type{AstroImage{T, N, D, R, AT}}, A::AbstractArray{T, N}) where {
 """
     emptyheader()
 
-Convenience function to create a FITSHeader with no keywords set.
+Convenience function to create an empty FITS header (a `Vector{Card}` with no
+keywords set).
 """
-emptyheader() = FITSHeader(String[], [], String[])
+emptyheader() = Card[]
 
 """
     recenter(img::AstroImage)
