@@ -266,7 +266,7 @@ appropriate dimensionality is returned under the primary key `' '`.
 """
 function wcsfromheader(img::AstroImage)
     # `WCS_all` parses every WCS alternate present in the header (via FITSWCS's
-    # FITSIO extension), warning on and skipping any that fail to parse. It
+    # FITSFiles extension), warning on and skipping any that fail to parse. It
     # returns a `Dict{Char,WCSTransform}` keyed by version character.
     wcsdict = WCS_all(header(img))
 
