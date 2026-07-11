@@ -8,7 +8,7 @@ projects = ["test", "docs"]
 
 [sources]
 FITSFiles = {url = "https://github.com/JuliaAstro/FITSFiles.jl"}
-FITSWCS = {rev = "slices-astroimages", url = "https://github.com/JuliaAstro/FITSWCS.jl"}
+FITSWCS = {url = "https://github.com/JuliaAstro/FITSWCS.jl"}
 
 [deps]
 AbstractFFTs = "621f4979-c628-5d54-868e-fcf4e3e8185c"
