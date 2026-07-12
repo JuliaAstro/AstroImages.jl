@@ -50,5 +50,5 @@ imview(
 ```@example 1
 using CairoMakie
 
-implot(mw_rgb_cube[Spec = At(:B)])
+implotview(mw_rgb_cube[Spec = At(:B)])
 ```

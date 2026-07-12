@@ -330,7 +330,7 @@ function refdimstitle(img, wcsn, usewcs)
             if usewcs
                 i = wcsax(img, d)
                 w = wcs(img, wcsn)
-                ct = w.ctype[i]
+                ct = AstroImages.stripfitsstr(w.ctype[i])
                 label = ctype_label(ct, w.radesys)
                 if label == "NONE"
                     label = string(name(d))
@@ -339,7 +339,7 @@ function refdimstitle(img, wcsn, usewcs)
                 if ct == "STOKES"
                     return _stokes_name(_stokes_symbol(value))
                 else
-                    return @sprintf("%s = %.5g %s", label, value, w.cunit[i])
+                    return @sprintf("%s = %.5g %s", label, value, AstroImages.stripfitsstr(w.cunit[i]))
                 end
             else
                 return "$(name(d))= $(d[1])"
@@ -434,6 +434,8 @@ end
         colorbar = true
         "Colorbar label. Defaults to the UNIT/BUNIT header if present."
         colorbar_label = automatic
+        "Attributes forwarded to the created Axis, overriding the WCS defaults, e.g. `axis = (; title = \"M42\")`."
+        axis = (;)
     end
 end
 
@@ -450,6 +452,10 @@ function Makie.initialize_block!(bl::ImPlotView)
         wcsn = bl.wcsn[], platescale = bl.platescale[],
         wcsticks = bl.wcsticks[], wcstitle = bl.wcstitle[],
     )
+    # User-provided axis attributes override the WCS-derived defaults
+    for (k, v) in pairs(bl.axis[])
+        axattrs[k] = v
+    end
     ax = Makie.Axis(bl[1, 1]; axattrs...)
     plt = implot!(
         ax, bl.img;

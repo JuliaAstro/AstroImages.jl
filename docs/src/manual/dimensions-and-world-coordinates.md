@@ -50,16 +50,16 @@ world_to_pixel(eagle, world) # Bottom left corner
 
 These pixel coordinates do not necessarily have to lie within the bounds of the original image, and in general lie at a fractional pixel position.
 
-If an image contains WCS headers, we can visualize them using [`implot`](@ref):
+If an image contains WCS headers, we can visualize them using [`implotview`](@ref):
 
 ```@example coords
-implot(eagle)
+implotview(eagle)
 ```
 
 We can adjust the color of the grid:
 
 ```@example coords
-implot(eagle; gridcolor = :cyan)
+implotview(eagle; gridcolor = :cyan)
 ```
 
 If these aren't desired, we can turn off the grid or the WCS tick marks:
@@ -203,11 +203,11 @@ eagle_cen = recenter(eagle, 801, 801);
 Unlike an OffsetArray, `eagle_cen[1,1]` still refers to the bottom left of the image. This also has no effect on broadcasting; `eagle_cen .+ ones(1600,1600)` is perfectly valid. However, we see the new centered dimensions when we go to plot the image:
 
 ```@example coords
-implot(eagle_cen; wcsticks = false)
+implot(eagle_cen; wcsticks = false, wcsgrid = false)
 ```
 
 And we can query positions using the offset dimensions:
 
 ```@example coords
-implot(eagle_cen[X=-300..300, Y=-300..300]; wcsticks = false)
+implot(eagle_cen[X=-300..300, Y=-300..300]; wcsticks = false, wcsgrid = false)
 ```

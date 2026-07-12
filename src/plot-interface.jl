@@ -7,7 +7,10 @@
     implot!([ax], img::AstroImage; kwargs...)
 
 Display an `AstroImage` with Makie, with support for astronomical image
-rendering and world coordinate system (WCS) axes.
+rendering and world coordinate system (WCS) axes. `implot` plots into a
+single axis, which makes it the right tool for composing multi-panel figures
+and overplotting other data; for a complete standalone panel including a
+colorbar, see [`implotview`](@ref).
 
 !!! note
     Requires a Makie backend (e.g. `using CairoMakie` or `using GLMakie`) to
@@ -66,6 +69,8 @@ header when present. Accepts the rendering and WCS keyword arguments of
 
 * `colorbar` (default `true`) display the colorbar
 * `colorbar_label` (default from the `UNIT`/`BUNIT` header) colorbar label
+* `axis` (default `(;)`) attributes forwarded to the created Axis, overriding
+  the WCS defaults, e.g. `axis = (; title = "M42")`
 
 Called with just an image, returns `(fig, iv)` like other Makie blocks;
 called with a figure or grid position (e.g. `implotview(fig[1, 2], img)`),
