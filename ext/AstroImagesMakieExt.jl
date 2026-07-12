@@ -14,7 +14,7 @@ module AstroImagesMakieExt
 
 using AstroImages
 using Makie
-using Makie: automatic, Automatic, ReversibleScale, DataAspect, Point2f
+using Makie: automatic, Automatic, ReversibleScale, DataAspect, Point2f, Aspect, Auto
 
 using AstroImages: AstroImageMat, WCSGrid, wcsgridspec, wcsgridlines, wcslabels, wcsax,
     ctype_label, _resolve_clims, _default_clims, _default_stretch, _default_cmap,
@@ -339,7 +339,7 @@ function refdimstitle(img, wcsn, usewcs)
                 if ct == "STOKES"
                     return _stokes_name(_stokes_symbol(value))
                 else
-                    return @sprintf("%s = %.5g %s", label, value, AstroImages.stripfitsstr(w.cunit[i]))
+                    return @sprintf("%s = %.5g %s", label, value, AstroImages.axisunit(w, i))
                 end
             else
                 return "$(name(d))= $(d[1])"
@@ -378,7 +378,7 @@ function wcsaxisattributes(img::AstroImageMat; wcsn = ' ', platescale = 1, wcsti
     # sky-square), except when the axes have wildly different scales. Mixed
     # frames (e.g. a longitude/velocity slice) get Makie's automatic aspect.
     w = wcs(img, wcsn)
-    bothangular = !haswcs || all(d -> AstroImages.stripfitsstr(w.cunit[wcsax(img, d)]) == "deg", dims(img))
+    bothangular = !haswcs || all(d -> AstroImages.isangular(w, wcsax(img, d)), dims(img))
     ratio = (extent[2] - extent[1]) / (extent[4] - extent[3])
     if bothangular && 1 / 7 < ratio < 7
         attrs[:aspect] = DataAspect()
@@ -407,6 +407,10 @@ end
 # WCS ticks and a Colorbar — what the Plots.jl recipe approximated with
 # @layout. Usage: `fig, iv = ImPlotView(img)` or `ImPlotView(fig[1, 1], img)`.
 # ---------------------------------------------------------------------------
+
+# Gap between the image and the colorbar, in px (Makie's layout default of 18 is
+# noticeably loose for an image panel).
+const COLORBAR_GAP = 8
 
 @Block ImPlotView (img,) begin
     @attributes begin
@@ -447,7 +451,35 @@ function Makie.convert_arguments(::Type{<:ImPlotView}, img::AbstractMatrix)
     return (img isa AstroImageMat ? img : AstroImage(img),)
 end
 
-implotview(args...; kwargs...) = ImPlotView(args...; kwargs...)
+function implotview(args...; kwargs...)
+    res = ImPlotView(args...; kwargs...)
+    # Called without a figure position, `ImPlotView` creates its own Figure, whose
+    # default size has nothing to do with the image: an aspect-locked panel then
+    # sits in it surrounded by whitespace. Shrink the figure onto its content
+    # instead. An explicit `figure = (; size = ...)` wins, and a view placed into
+    # someone else's figure never resizes it.
+    if res isa Makie.FigureBlock && !(:size in keys(get(kwargs, :figure, (;))))
+        fittofigure!(res.figure, res.block)
+    end
+    return res
+end
+
+# `resize_to_layout!` cannot do this for us: an `Aspect` row or column leaves the
+# enclosing layout's size undetermined, so a block containing one reports no
+# preferred size to the figure and the figure has nothing to shrink onto. But the
+# gap between the figure and the block's cell (padding and protrusions) is fixed,
+# so the size the content wants can be recovered from the block's own layout.
+function fittofigure!(fig::Makie.Figure, bl::ImPlotView)
+    Makie.update_state_before_display!(fig)
+    # `tight_bbox` would read the inner layout's `suggestedbbox`, which a Block
+    # never sets — it drives `align_to_bbox!` from its `computedbbox` instead.
+    have = bl.layoutobservables.computedbbox[]
+    _, cells = Makie.GridLayoutBase.compute_rowcols(bl.layout, have)
+    want = (cells.rights[end] - cells.lefts[1], cells.tops[1] - cells.bottoms[end])
+    size = Makie.widths(Makie.viewport(fig.scene)[]) .+ want .- Makie.widths(have)
+    all(>(0), size) && Makie.resize!(fig, round.(Int, size)...)
+    return fig
+end
 
 function Makie.initialize_block!(bl::ImPlotView)
     img = bl.img[]
@@ -468,12 +500,14 @@ function Makie.initialize_block!(bl::ImPlotView)
         wcsgrid = bl.wcsgrid, gridcolor = bl.gridcolor,
         platescale = bl.platescale, interpolate = bl.interpolate,
     )
+    cb = nothing
     if bl.colorbar[] && !(eltype(img) <: Colorant)
         label = bl.colorbar_label[]
         if label isa Automatic
             label = string(something(img["UNIT"], img["BUNIT"], ""))
         end
-        Makie.Colorbar(bl[1, 2], plt; label)
+        cb = Makie.Colorbar(bl[1, 2], plt; label)
+        Makie.colgap!(bl.layout, COLORBAR_GAP)
     end
     # Keep the WCS ticks' shared extent state and the grid overlay in sync
     # with the displayed region, so both refine on zoom/pan.
@@ -488,6 +522,67 @@ function Makie.initialize_block!(bl::ImPlotView)
             return
         end
     end
+    ratio = cellaspectratio(axattrs)
+    isnothing(ratio) || lockcellaspect!(bl, ax, cb, ratio)
+    return
+end
+
+# The width:height the *axis box* should have, given the attributes it was
+# created with, or `nothing` if it is free to fill its cell.
+function cellaspectratio(axattrs)
+    aspect = get(axattrs, :aspect, nothing)
+    aspect isa Real && return Float64(aspect)
+    aspect isa DataAspect || return nothing
+    lims = get(axattrs, :limits, nothing)
+    lims isa NTuple{4, Any} && (lims = ((lims[1], lims[2]), (lims[3], lims[4])))
+    lims isa Tuple{Any, Any} || return nothing
+    x, y = lims
+    (x isa Tuple{Any, Any} && y isa Tuple{Any, Any}) || return nothing
+    any(isnothing, (x..., y...)) && return nothing
+    return (x[2] - x[1]) / (y[2] - y[1])
+end
+
+# An `Axis` `aspect` shrinks the axis *inside* its layout cell, so the cell keeps
+# whatever shape the layout gives it and the leftover space shows up as a gap
+# between the image and the colorbar. Give the cell itself the right shape
+# instead — then the axis fills it and the colorbar sits flush against the image.
+# (This is the approach in Makie's "Aspect ratios and automatic figure sizes"
+# tutorial.) `Aspect` derives one cell dimension from the other, and the derived
+# one is unbounded: deriving the width from the height overflows the layout for
+# wide images, deriving the height from the width overflows it for tall ones. So
+# pick the direction that fits in the space the block was actually given, and
+# revisit it whenever that space changes.
+function lockcellaspect!(bl::ImPlotView, ax::Makie.Axis, cb, ratio::Real)
+    layout = bl.layout
+    # The block's bbox is already net of protrusions (tick labels, axis labels,
+    # colorbar labels), so the only thing between the axis cell and the block's
+    # right edge is the colorbar column and the gap before it.
+    function reservedwidth()
+        isnothing(cb) && return 0.0
+        bar = something(cb.layoutobservables.autosize[][1], 0.0f0)
+        gap = max(ax.layoutobservables.protrusions[].right, cb.layoutobservables.protrusions[].left)
+        return bar + gap + COLORBAR_GAP
+    end
+    function relayout(bbox)
+        w, h = Makie.widths(bbox)
+        availw = max(w - reservedwidth(), 1.0)
+        availh = max(h, 1.0)
+        colsize, rowsize = if availw / availh >= ratio
+            Aspect(1, ratio), Auto()   # height binds: derive the width from it
+        else
+            Auto(), Aspect(1, 1 / ratio)   # width binds: derive the height from it
+        end
+        (layout.colsizes[1] == colsize && layout.rowsizes[1] == rowsize) && return
+        # Both must change together: an Aspect row and an Aspect column cannot be
+        # resolved at the same time, so the layout errors on the intermediate state.
+        Makie.GridLayoutBase.with_updates_suspended(layout) do
+            layout.colsizes[1] = colsize
+            layout.rowsizes[1] = rowsize
+        end
+        return
+    end
+    relayout(bl.layoutobservables.computedbbox[])
+    Makie.on(relayout, bl.layoutobservables.computedbbox)
     return
 end
 
