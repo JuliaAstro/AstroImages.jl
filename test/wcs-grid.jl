@@ -58,6 +58,43 @@ end
     @test labels == ["23ʰ23ᵐ36.00ˢ", "48.00ˢ"]
 end
 
+@testset "non-square images and sliced cubes" begin
+    # WCSGrid(img) extent orientation: first array dimension along x. This was
+    # transposed for years, invisible on square images.
+    img = AstroImage(
+        randn(10, 20),
+        WCS(2; ctype = ["RA---TAN", "DEC--TAN"], cunit = ["deg", "deg"], cdelt = [-0.01, 0.01], crval = [180.0, 45.0], crpix = [5.0, 10.0])
+    )
+    wcsg = WCSGrid(img)
+    @test wcsg.extent == (0.5, 10.5, 0.5, 20.5)
+    gs = wcsgridspec(wcsg)
+    @test length(gs.tickpos1x) >= 2 && length(gs.tickpos2x) >= 2
+    @test all(p -> 0.5 <= p <= 10.5, gs.tickpos1x)
+    @test all(p -> 0.5 <= p <= 20.5, gs.tickpos2x)
+
+    # Slicing away one celestial axis leaves a mixed (RA, FREQ) frame whose
+    # grid lines are separable. Tick registration must tolerate world->pixel
+    # round-trip error, and the frozen-axis inverse must be refined onto the
+    # slice plane rather than using a constant fill (see
+    # _world_to_plotted_pixel), or no ticks are found at all.
+    wcs3 = WCS(
+        3;
+        ctype = ["RA---TAN", "DEC--TAN", "FREQ"],
+        cunit = ["deg", "deg", "Hz"],
+        cdelt = [-0.01, 0.01, 1.0e6],
+        crval = [180.0, 45.0, 1.0e9],
+        crpix = [8.0, 8.0, 1.0],
+    )
+    cube = AstroImage(randn(16, 16, 8), wcs3)
+    sl = cube[:, 4, :]
+    wcsg = WCSGrid(sl)
+    @test wcsg.extent == (0.5, 16.5, 0.5, 8.5)
+    gs = wcsgridspec(wcsg)
+    @test length(gs.tickpos1x) >= 2 && length(gs.tickpos2x) >= 2
+    @test all(p -> 0.5 <= p <= 16.5, gs.tickpos1x)
+    @test all(p -> 0.5 <= p <= 8.5, gs.tickpos2x)
+end
+
 @testset "no-WCS image" begin
     img = AstroImage(randn(10, 10))
     # With no WCS headers set, all ctypes are empty: the plotting code uses

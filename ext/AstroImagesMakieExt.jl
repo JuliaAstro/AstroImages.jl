@@ -374,9 +374,13 @@ function wcsaxisattributes(img::AstroImageMat; wcsn = ' ', platescale = 1, wcsti
     attrs = Dict{Symbol, Any}(
         :limits => ((extent[1], extent[2]) .* platescale, (extent[3], extent[4]) .* platescale),
     )
-    # Equal data aspect, except when the axes have wildly different scales.
+    # Equal data aspect when both plotted axes share angular units (pixels are
+    # sky-square), except when the axes have wildly different scales. Mixed
+    # frames (e.g. a longitude/velocity slice) get Makie's automatic aspect.
+    w = wcs(img, wcsn)
+    bothangular = !haswcs || all(d -> AstroImages.stripfitsstr(w.cunit[wcsax(img, d)]) == "deg", dims(img))
     ratio = (extent[2] - extent[1]) / (extent[4] - extent[3])
-    if 1 / 7 < ratio < 7
+    if bothangular && 1 / 7 < ratio < 7
         attrs[:aspect] = DataAspect()
     end
     if !isempty(refdims(img))

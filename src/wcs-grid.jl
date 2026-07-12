@@ -21,8 +21,10 @@ plot(img, xticks=wcsticks(WCSGrid(img), 1), yticks=wcsticks(WCSGrid(img), 2))
 function wcsticks(wcsg::WCSGrid, axnum, gs = wcsgridspec(wcsg))
     tickposx = axnum == 1 ? gs.tickpos1x : gs.tickpos2x
     tickposw = axnum == 1 ? gs.tickpos1w : gs.tickpos2w
+    # Map the plotted axis number to its WCS axis index; they differ for
+    # sliced cubes (e.g. the y axis of a [Y = i] slice is WCS axis 3).
     return tickposx, wcslabels(
-            wcs(wcsg.img, wcsg.wcsn), axnum, tickposw
+            wcs(wcsg.img, wcsg.wcsn), wcsax(wcsg.img, dims(wcsg.img, axnum)), tickposw
         )
 end
 
@@ -207,10 +209,11 @@ curvature of the WCS grid projected on the image coordinates.
 
 """
 function WCSGrid(img::AstroImageMat, wcsn = ' ')
-    minx = first(dims(img, 2))
-    maxx = last(dims(img, 2))
-    miny = first(dims(img, 1))
-    maxy = last(dims(img, 1))
+    # The first array dimension is displayed along x
+    minx = first(dims(img, 1))
+    maxx = last(dims(img, 1))
+    miny = first(dims(img, 2))
+    maxy = last(dims(img, 2))
     extent = (minx - 0.5, maxx + 0.5, miny - 0.5, maxy + 0.5)
     return WCSGrid(img, extent, wcsn)
 end
@@ -218,6 +221,38 @@ end
 
 # Helper: true if all elements in vector are equal to each other.
 allequal(itr) = all(==(first(itr)), itr)
+
+# Invert plotted-dim world coordinates to plotted-dim parent-frame pixels.
+#
+# `world_to_pixel(img, ...; parent = true)` fills world axes frozen by slicing
+# with constants evaluated at pixel (1, 1, …), so for curved transforms (e.g.
+# a velocity/longitude slice through a TAN cube, where the frozen latitude
+# varies across the slice) the inverse drifts off the slice plane away from
+# that anchor. The real constraint is that the frozen *pixel* coordinates are
+# exact, so refine by fixed-point iteration using only exact forward
+# transforms: pin the frozen pixel rows, re-evaluate the frozen world values
+# there, and re-invert. It also returns the full parent-frame pixel vector,
+# so select the plotted dims' rows at the end.
+function _world_to_plotted_pixel(img, wcsn, uv)
+    keep = Int[wcsax(img, d) for d in dims(img)]
+    # collect: FITSWCS returns immutable SVectors for vector inputs
+    P = collect(world_to_pixel(img, uv; wcsn, parent = true))
+    vec = P isa AbstractVector
+    if !isempty(refdims(img))
+        w = wcs(img, wcsn)
+        for _ in 1:3
+            for d in refdims(img)
+                vec ? (P[wcsax(img, d)] = d[1]) : (P[wcsax(img, d), :] .= d[1])
+            end
+            W = collect(pixel_to_world(w, P))
+            for (i, d) in enumerate(dims(img))
+                vec ? (W[wcsax(img, d)] = uv[i]) : (W[wcsax(img, d), :] .= uv[i, :])
+            end
+            P = collect(world_to_pixel(w, W))
+        end
+    end
+    return vec ? P[keep] : P[keep, :]
+end
 
 # This function is responsible for actually laying out grid lines for a WCSGrid,
 # ensuring they don't exceed the plot bounds, finding where they intersect the axes,
@@ -231,6 +266,11 @@ function wcsgridspec(wsg::WCSGrid)
 
     # x and y denote pixel coordinates (along `ax`), u and v are world coordinates roughly along same.
     minx, maxx, miny, maxy = wsg.extent
+    # Grid lines whose endpoints come from world->pixel round trips land on
+    # the plot edges only up to float precision, so tick registration below
+    # compares against the edges with a tolerance.
+    atolx = 1.0e-6 * (maxx - minx)
+    atoly = 1.0e-6 * (maxy - miny)
 
     # Find the extent of this slice in world coordinates
     posxy = [
@@ -279,7 +319,7 @@ function wcsgridspec(wsg::WCSGrid)
             griduv = repeat(posuv[:, 1], 1, N_points)
             griduv[1, :] .= urange
             griduv[2, :] .= tickv
-            posxy = world_to_pixel(wsg.img, griduv; wsg.wcsn, parent = true)
+            posxy = _world_to_plotted_pixel(wsg.img, wsg.wcsn, griduv)
 
             # Now that we have the grid in pixel coordinates,
             # if we find out where the grid intersects the axes we can put
@@ -393,11 +433,11 @@ function wcsgridspec(wsg::WCSGrid)
             end
 
 
-            if point_entered[1] == minx
+            if isapprox(point_entered[1], minx; atol = atolx)
                 push!(tickpos2x, point_entered[2])
                 push!(tickpos2w, tickv)
             end
-            if point_exitted[1] == minx
+            if isapprox(point_exitted[1], minx; atol = atolx)
                 push!(tickpos2x, point_exitted[2])
                 push!(tickpos2w, tickv)
             end
@@ -443,7 +483,7 @@ function wcsgridspec(wsg::WCSGrid)
             griduv = repeat(posuv[:, 1], 1, N_points)
             griduv[1, :] .= ticku
             griduv[2, :] .= vrange
-            posxy = world_to_pixel(wsg.img, griduv; wsg.wcsn, parent = true)
+            posxy = _world_to_plotted_pixel(wsg.img, wsg.wcsn, griduv)
 
             # Now that we have the grid in pixel coordinates,
             # if we find out where the grid intersects the axes we can put
@@ -561,11 +601,11 @@ function wcsgridspec(wsg::WCSGrid)
             posxy_neat = [point_entered  posxy[[1, 2], in_axes] point_exitted]
             # TODO: do unplotted other axes also need a fit?
 
-            if point_entered[2] == miny
+            if isapprox(point_entered[2], miny; atol = atoly)
                 push!(tickpos1x, point_entered[1])
                 push!(tickpos1w, ticku)
             end
-            if point_exitted[2] == miny
+            if isapprox(point_exitted[2], miny; atol = atoly)
                 push!(tickpos1x, point_exitted[1])
                 push!(tickpos1w, ticku)
             end
@@ -588,7 +628,7 @@ function wcsgridspec(wsg::WCSGrid)
         griduv = posuv[:, 1]
         griduv[1] = ticku
         griduv[2] = mean(vrange)
-        posxy = world_to_pixel(wsg.img, griduv; wsg.wcsn, parent = true)
+        posxy = _world_to_plotted_pixel(wsg.img, wsg.wcsn, griduv)
         if !(minx < posxy[1] < maxx) || !(miny < posxy[2] < maxy)
             continue
         end
@@ -599,7 +639,7 @@ function wcsgridspec(wsg::WCSGrid)
         # Now find slope (TODO: stepsize)
         # griduv[ax[2]] -= 1
         griduv[2] += 0.1step(vrange)
-        posxy2 = world_to_pixel(wsg.img, griduv; wsg.wcsn, parent = true)
+        posxy2 = _world_to_plotted_pixel(wsg.img, wsg.wcsn, griduv)
         θ = atan(posxy2[2] - posxy[2], posxy2[1] - posxy[1])
         push!(annotations1θ, θ)
     end
@@ -612,7 +652,7 @@ function wcsgridspec(wsg::WCSGrid)
         griduv = posuv[:, 1]
         griduv[1] = mean(urange)
         griduv[2] = tickv
-        posxy = world_to_pixel(wsg.img, griduv; wsg.wcsn, parent = true)
+        posxy = _world_to_plotted_pixel(wsg.img, wsg.wcsn, griduv)
         if !(minx < posxy[1] < maxx) || !(miny < posxy[2] < maxy)
             continue
         end
@@ -621,7 +661,7 @@ function wcsgridspec(wsg::WCSGrid)
         push!(annotations2y, posxy[2])
 
         griduv[1] += 0.1step(urange)
-        posxy2 = world_to_pixel(wsg.img, griduv; wsg.wcsn, parent = true)
+        posxy2 = _world_to_plotted_pixel(wsg.img, wsg.wcsn, griduv)
         θ = atan(posxy2[2] - posxy[2], posxy2[1] - posxy[1])
         push!(annotations2θ, θ)
     end
