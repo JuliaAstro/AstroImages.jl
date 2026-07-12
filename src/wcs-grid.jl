@@ -26,10 +26,26 @@ function wcsticks(wcsg::WCSGrid, axnum, gs = wcsgridspec(wcsg))
         )
 end
 
+# Format the coordinate components `from_i:to_i` of `vals` with their `units`,
+# e.g. (23, 23, 33.6) with ("ʰ", "ᵐ", "ˢ") over 2:3 -> "23ᵐ33.60ˢ". The final
+# component of the full tuple is displayed with decimal places.
+function _format_label_parts(vals, units, from_i, to_i)
+    return mapreduce(*, from_i:to_i; init = "") do coord_i
+        str = coord_i == length(vals) ? @sprintf("%.2f", vals[coord_i]) : @sprintf("%02d", vals[coord_i])
+        return str * units[coord_i]
+    end
+end
+
 # Function to generate nice string coordinate labels given a WCSTransform, axis number,
 # and a vector of tick positions in world coordinates.
 # This is used for labelling ticks and for annotating grid lines.
-function wcslabels(w::WCSTransform, axnum, tickposw)
+#
+# With `stacked=true`, ticks that would carry context beyond the finest
+# changing component (the first tick, or roll-overs like `23ᵐ48.00ˢ`) are
+# split onto two lines with the finest component on top and the full context
+# below, e.g. "48.00ˢ\n23ʰ23ᵐ", following the pattern of Makie's
+# DateTimeTicks. This keeps dense tick labels from crowding along the x axis.
+function wcslabels(w::WCSTransform, axnum, tickposw; stacked::Bool = false)
 
     if length(tickposw) == 0
         return String[]
@@ -80,24 +96,17 @@ function wcslabels(w::WCSTransform, axnum, tickposw)
         if isnothing(changing_coord_i)
             changing_coord_i = 1
         end
-        # Don't display just e.g. 00" when we should display 50'00"
-        if changing_coord_i > 1 && vals[changing_coord_i] == 0
-            changing_coord_i = changing_coord_i - 1
-        end
-        val_unit_zip = zip(vals[changing_coord_i:zero_coords_i], units[changing_coord_i:zero_coords_i])
-        ticklabels[i] = mapreduce(*, enumerate(val_unit_zip)) do (coord_i, (val, unit))
-            # If the last coordinate we print if the last coordinate we have available,
-            # display it with decimal places
-            if coord_i + changing_coord_i - 1 == length(vals)
-                str = @sprintf("%.2f", val)
-            else
-                str = @sprintf("%02d", val)
+        if stacked && changing_coord_i < zero_coords_i
+            # Two-line label: finest component on top, full context below.
+            top = _format_label_parts(vals, units, zero_coords_i, zero_coords_i)
+            bottom = _format_label_parts(vals, units, 1, zero_coords_i - 1)
+            ticklabels[i] = top * "\n" * bottom
+        else
+            # Don't display just e.g. 00" when we should display 50'00"
+            if changing_coord_i > 1 && vals[changing_coord_i] == 0
+                changing_coord_i = changing_coord_i - 1
             end
-            if length(str) > 0
-                return str * unit
-            else
-                return str
-            end
+            ticklabels[i] = _format_label_parts(vals, units, changing_coord_i, zero_coords_i)
         end
         last_coord = vals
     end

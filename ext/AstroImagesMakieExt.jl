@@ -299,7 +299,9 @@ function Makie.get_ticks(t::WCSTicks, scale, formatter, vmin, vmax)
     perm = sortperm(pos)
     pos, wvals = pos[perm], wvals[perm]
     labels = if formatter isa Makie.Automatic
-        wcslabels(wcs(t.img, t.wcsn), wcsax(t.img, dims(t.img, t.axnum)), wvals)
+        # Stack wide context-bearing labels onto two lines along x, where
+        # neighboring labels can crowd horizontally.
+        wcslabels(wcs(t.img, t.wcsn), wcsax(t.img, dims(t.img, t.axnum)), wvals; stacked = t.axnum == 1)
     else
         Makie.get_ticklabels(formatter, wvals)
     end
