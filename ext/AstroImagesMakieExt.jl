@@ -22,7 +22,7 @@ using AstroImages: AstroImageMat, WCSGrid, wcsgridspec, wcsgridlines, wcslabels,
 using AstroImages.DimensionalData: name
 using AstroImages.Statistics: mean, quantile
 using AstroImages.Printf: @sprintf
-import AstroImages: implot, implot!, polquiver, polquiver!
+import AstroImages: implot, implot!, implotview, polquiver, polquiver!
 
 # ---------------------------------------------------------------------------
 # Colormapping helpers: translate the imview clims/stretch/cmap/contrast/bias
@@ -440,6 +440,8 @@ end
 function Makie.convert_arguments(::Type{<:ImPlotView}, img::AbstractMatrix)
     return (img isa AstroImageMat ? img : AstroImage(img),)
 end
+
+implotview(args...; kwargs...) = ImPlotView(args...; kwargs...)
 
 function Makie.initialize_block!(bl::ImPlotView)
     img = bl.img[]

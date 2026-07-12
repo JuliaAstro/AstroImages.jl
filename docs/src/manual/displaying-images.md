@@ -3,14 +3,14 @@
 ```@setup 1
 using AstroImages
 using AstroImages: restrict
-using Plots
+using CairoMakie
 
 AstroImages.set_clims!(Percent(99.5))
 AstroImages.set_cmap!(:magma)
 AstroImages.set_stretch!(identity)
 ```
 
-The `imview` and `implot` functions are very similar. Both allow any abstract array of numbers to be rendered into an image or a Plots.jl image series. `implot` is largely a superset of `imview` because it also supports colorbars, tick marks, WCS grid lines, overplotting other data & shapes, and automatic axis and title naming (from the FITS header if available).
+The `imview` and `implot` functions are very similar. Both allow any abstract array of numbers to be rendered into an image or a Makie plot. `implot` is largely a superset of `imview` because it also supports colorbars, tick marks, WCS grid lines, overplotting other data & shapes, and automatic axis and title naming (from the FITS header if available).
 
 ## `imview`
 
@@ -113,10 +113,10 @@ iv
 
 ## `implot`
 
-`implot` is a Plots.jl recipe, which means before you can use it you first have to load `Plots.jl`. It accepts all the arguments `imview` does for controlling how data is rendered to the screen:
+`implot` is a Makie recipe, which means before you can use it you first have to load a Makie backend like `CairoMakie` or `GLMakie`. It accepts all the arguments `imview` does for controlling how data is rendered to the screen:
 
 ```@example 1
-using Plots
+using CairoMakie
 
 implot(img; clims = Percent(99.5), cmap = :magma, stretch = identity, contrast = 1.0, bias = 0.5)
 ```

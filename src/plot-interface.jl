@@ -56,6 +56,28 @@ function implot end
 function implot! end
 
 """
+    fig, iv = implotview(img::AstroImage; kwargs...)
+    iv = implotview(fig_or_gridposition, img::AstroImage; kwargs...)
+
+Display an `AstroImage` as a complete figure panel: an axis with WCS ticks,
+labels, and title, plus a colorbar labeled with the image's `UNIT`/`BUNIT`
+header when present. Accepts the rendering and WCS keyword arguments of
+[`implot`](@ref), plus:
+
+* `colorbar` (default `true`) display the colorbar
+* `colorbar_label` (default from the `UNIT`/`BUNIT` header) colorbar label
+
+Called with just an image, returns `(fig, iv)` like other Makie blocks;
+called with a figure or grid position (e.g. `implotview(fig[1, 2], img)`),
+places the panel there and returns it.
+
+!!! note
+    Requires a Makie backend (e.g. `using CairoMakie` or `using GLMakie`) to
+    be loaded.
+"""
+function implotview end
+
+"""
     polquiver(polcube::AstroImage; kwargs...)
     polquiver!([ax], polcube::AstroImage; kwargs...)
 

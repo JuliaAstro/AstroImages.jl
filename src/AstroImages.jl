@@ -70,6 +70,7 @@ export load,
     # Plotting (implemented in the Makie package extension)
     implot,
     implot!,
+    implotview,
     polquiver,
     polquiver!,
     # Deprecated: renamed to pixel_to_world / world_to_pixel

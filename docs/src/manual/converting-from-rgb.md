@@ -48,7 +48,7 @@ imview(
 ```
 
 ```@example 1
-using Plots
+using CairoMakie
 
 implot(mw_rgb_cube[Spec = At(:B)])
 ```
