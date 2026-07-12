@@ -26,6 +26,36 @@ function wcsticks(wcsg::WCSGrid, axnum, gs = wcsgridspec(wcsg))
         )
 end
 
+# FITS header strings may come through right-padded with spaces and, from
+# some files, still wrapped in quote characters.
+stripfitsstr(s) = strip(s, (' ', '"', '\''))
+
+# Decompose tick values (in degrees) into sexagesimal components by exact
+# integer arithmetic when they all lie on an integer multiple of one of the
+# components, zeroing everything below. The naive converters suffer float
+# fuzz at such values — e.g. deg2dmsmμ(-46°40′) is (-46, 39, 59, 999,
+# 999.99…) — which would corrupt the tick labels. `facs` are the per-unit
+# factors from the tick value to each component, `rels` the ratios between
+# neighboring components. Returns `nothing` when no component-exact
+# representation exists (e.g. fractional arcseconds); callers then fall back
+# to the float converters.
+function snappedparts(tickposw, facs, rels, ncomp)
+    for (depth, f) in enumerate(facs)
+        scaled = tickposw .* f
+        all(x -> abs(x - round(x)) < 1.0e-4, scaled) || continue
+        return map(scaled) do x
+            comps = zeros(ncomp)
+            n = round(Int, abs(x))
+            for j in depth:-1:2
+                n, comps[j] = divrem(n, rels[j - 1])
+            end
+            comps[1] = flipsign(Float64(n), x)
+            return Tuple(comps)
+        end
+    end
+    return nothing
+end
+
 # Format the coordinate components `from_i:to_i` of `vals` with their `units`,
 # e.g. (23, 23, 33.6) with ("ʰ", "ᵐ", "ˢ") over 2:3 -> "23ᵐ33.60ˢ". Only the
 # final component of the full tuple is displayed with decimal places
@@ -51,30 +81,32 @@ function wcslabels(w::WCSTransform, axnum, tickposw; stacked::Bool = false)
     end
 
     # Select a unit converter (e.g. 12.12 -> (a,b,c,d)) and list of units
-    if w.cunit[axnum] == "deg"
-        if startswith(uppercase(w.ctype[axnum]), "RA")
+    if stripfitsstr(w.cunit[axnum]) == "deg"
+        if startswith(uppercase(stripfitsstr(w.ctype[axnum])), "RA")
             converter = deg2hms
             units = hms_units
+            facs, rels = (1 / 15, 4.0, 240.0), (60, 60)
         else
             converter = deg2dmsmμ
             units = dmsmμ_units
+            facs, rels = (1.0, 60.0, 3600.0, 3.6e6, 3.6e9), (60, 60, 1000, 1000)
         end
     else
         converter = x -> (x,)
         units = ("",)
+        facs, rels = (), ()
     end
 
     # Format inital ticklabel
     ticklabels = fill("", length(tickposw))
     # We only include the part of the label that has changed since the last time.
-    # Split up coordinates into e.g. sexagesimal
-    parts = map(tickposw) do w
-        vals = converter(w)
-        return vals
-    end
+    # Split up coordinates into e.g. sexagesimal, preferring the exact
+    # decomposition when the ticks land on whole components.
+    snapped = isempty(facs) ? nothing : snappedparts(tickposw, facs, rels, length(units))
+    parts = something(snapped, map(converter, tickposw))
 
     # Start with something impossible of the same size:
-    last_coord = Inf .* converter(first(tickposw))
+    last_coord = Inf .* first(parts)
     zero_coords_i = maximum(
         map(parts) do vals
             changing_coord_i = findfirst(vals .!= last_coord)
@@ -85,15 +117,26 @@ function wcslabels(w::WCSTransform, axnum, tickposw; stacked::Bool = false)
             return changing_coord_i
         end
     )
+    if !isnothing(snapped)
+        # Also display components down to the deepest nonzero one, so that
+        # e.g. -46°40′ is not truncated to -46° when the degrees happen to
+        # change at every tick.
+        deepest = maximum(p -> something(findlast(!iszero, collect(p)), 1), parts)
+        zero_coords_i = max(zero_coords_i, deepest)
+    end
 
 
     # Loop through using only the relevant part of the label
     # Start with something impossible of the same size:
-    last_coord = Inf .* converter(first(tickposw))
+    last_coord = Inf .* first(parts)
     for (i, vals) in enumerate(parts)
         changing_coord_i = findfirst(vals .!= last_coord)
         if isnothing(changing_coord_i)
             changing_coord_i = 1
+        end
+        # Don't display just e.g. 00" when we should display 50'00"
+        if changing_coord_i > 1 && vals[changing_coord_i] == 0
+            changing_coord_i = changing_coord_i - 1
         end
         if stacked && changing_coord_i < zero_coords_i
             # Two-line label: finest component on top, full context below.
@@ -101,10 +144,6 @@ function wcslabels(w::WCSTransform, axnum, tickposw; stacked::Bool = false)
             bottom = _format_label_parts(vals, units, 1, zero_coords_i - 1)
             ticklabels[i] = top * "\n" * bottom
         else
-            # Don't display just e.g. 00" when we should display 50'00"
-            if changing_coord_i > 1 && vals[changing_coord_i] == 0
-                changing_coord_i = changing_coord_i - 1
-            end
             ticklabels[i] = _format_label_parts(vals, units, changing_coord_i, zero_coords_i)
         end
         last_coord = vals
@@ -136,6 +175,7 @@ const hms_units = [
 ]
 
 function ctype_label(ctype, radesys)
+    ctype, radesys = stripfitsstr(ctype), stripfitsstr(radesys)
     if length(ctype) == 0
         return radesys
     elseif startswith(ctype, "RA")
