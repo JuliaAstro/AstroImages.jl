@@ -58,6 +58,32 @@ end
     @test labels == ["23ʰ23ᵐ36.00ˢ", "48.00ˢ"]
 end
 
+@testset "celestial axes with no CUNIT" begin
+    # CUNIT is optional, and the WCS standard makes `deg` the default unit of a
+    # celestial axis. The HST Eagle Nebula image in the docs omits it; taking that
+    # to mean "not angular" cost it sexagesimal labels and its equal-aspect sky
+    # projection.
+    w = WCS(2; ctype = ["RA---TAN", "DEC--TAN"])
+    @test all(isempty, w.cunit)
+    @test AstroImages.isangular(w, 1)
+    @test AstroImages.isangular(w, 2)
+    @test AstroImages.axisunit(w, 1) == "deg"
+    # Sexagesimal, not decimal degrees (later ticks drop the redundant context).
+    @test AstroImages.wcslabels(w, 2, [-13.81, -13.80]) == ["-13°48'36\"", "48'00\""]
+
+    # An explicit non-degree unit still wins, and non-celestial axes are unaffected.
+    wm = WCS(3; ctype = ["GLON-CAR", "GLAT-CAR", "VRAD"], cunit = ["deg", "deg", "m/s"])
+    @test AstroImages.isangular(wm, 1) && AstroImages.isangular(wm, 2)
+    @test !AstroImages.isangular(wm, 3)
+    @test AstroImages.axisunit(wm, 3) == "m/s"
+    wrad = WCS(2; ctype = ["RA---TAN", "DEC--TAN"], cunit = ["rad", "rad"])
+    @test !AstroImages.isangular(wrad, 1)
+
+    @test AstroImages.iscelestial("ELON-TAN") && AstroImages.iscelestial("xyLN-TAN")
+    @test !AstroImages.iscelestial("VRAD") && !AstroImages.iscelestial("FREQ")
+    @test !AstroImages.iscelestial("")
+end
+
 @testset "non-square images and sliced cubes" begin
     # WCSGrid(img) extent orientation: first array dimension along x. This was
     # transposed for years, invisible on square images.

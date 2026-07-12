@@ -58,6 +58,29 @@ function snappedparts(tickposw, facs, rels, ncomp)
     return nothing
 end
 
+# Celestial longitude/latitude axes: "RA---TAN"/"DEC--TAN", the xLON/xLAT family
+# (GLON, ELON, HLON, ...), and the generic yzLN/yzLT form.
+function iscelestial(ctype)
+    ctype = uppercase(stripfitsstr(ctype))
+    (startswith(ctype, "RA") || startswith(ctype, "DEC")) && return true
+    length(ctype) >= 4 || return false
+    return ctype[2:4] in ("LON", "LAT") || ctype[3:4] in ("LN", "LT")
+end
+
+# Whether an axis is measured in degrees. CUNIT is routinely omitted for
+# celestial axes (the Eagle Nebula image in the docs is one), and the WCS
+# standard makes `deg` their default unit — so an absent CUNIT there means
+# degrees, not "unknown". Getting this wrong costs sexagesimal tick labels and
+# the equal-aspect sky projection.
+function isangular(w::WCSTransform, axnum)
+    unit = stripfitsstr(w.cunit[axnum])
+    isempty(unit) || return unit == "deg"
+    return iscelestial(w.ctype[axnum])
+end
+
+# Display unit of an axis, filling in the standard's default where CUNIT is blank.
+axisunit(w::WCSTransform, axnum) = isangular(w, axnum) ? "deg" : stripfitsstr(w.cunit[axnum])
+
 # Format the coordinate components `from_i:to_i` of `vals` with their `units`,
 # e.g. (23, 23, 33.6) with ("ʰ", "ᵐ", "ˢ") over 2:3 -> "23ᵐ33.60ˢ". Only the
 # final component of the full tuple is displayed with decimal places
@@ -83,7 +106,7 @@ function wcslabels(w::WCSTransform, axnum, tickposw; stacked::Bool = false)
     end
 
     # Select a unit converter (e.g. 12.12 -> (a,b,c,d)) and list of units
-    if stripfitsstr(w.cunit[axnum]) == "deg"
+    if isangular(w, axnum)
         if startswith(uppercase(stripfitsstr(w.ctype[axnum])), "RA")
             converter = deg2hms
             units = hms_units
