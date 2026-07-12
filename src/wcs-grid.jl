@@ -27,13 +27,12 @@ function wcsticks(wcsg::WCSGrid, axnum, gs = wcsgridspec(wcsg))
 end
 
 # Format the coordinate components `from_i:to_i` of `vals` with their `units`,
-# e.g. (23, 23, 33.6) with ("ʰ", "ᵐ", "ˢ") over 2:3 -> "23ᵐ33.60ˢ". The final
-# component of the full tuple is displayed with decimal places.
+# e.g. (23, 23, 33.6) with ("ʰ", "ᵐ", "ˢ") over 2:3 -> "23ᵐ33.60ˢ". Only the
+# final component of the full tuple is displayed with decimal places
+# (requires AstroAngles 0.3 for variable-length parts and `digits = 0`).
 function _format_label_parts(vals, units, from_i, to_i)
-    return mapreduce(*, from_i:to_i; init = "") do coord_i
-        str = coord_i == length(vals) ? @sprintf("%.2f", vals[coord_i]) : @sprintf("%02d", vals[coord_i])
-        return str * units[coord_i]
-    end
+    digits = to_i == length(vals) ? 2 : 0
+    return format_angle(vals[from_i:to_i]; delim = units[from_i:to_i], digits)
 end
 
 # Function to generate nice string coordinate labels given a WCSTransform, axis number,

@@ -1,7 +1,7 @@
 module AstroImages
 
 using AbstractFFTs: AbstractFFTs
-using AstroAngles: AstroAngles, deg2dms, deg2hms
+using AstroAngles: AstroAngles, deg2dms, deg2hms, format_angle
 using ColorSchemes: ColorSchemes, get
 using DimensionalData: DimensionalData, AbstractDimArray, At, Dim, Lookups,
     Dimensions, Near, (..), Ti, X, Y, Z, dims, name, rebuild, refdims

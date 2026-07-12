@@ -7,6 +7,7 @@ authors = ["Mosè Giordano", "Rohit Kumar", "William Thompson"]
 projects = ["test", "docs"]
 
 [sources]
+AstroAngles = {url = "https://github.com/JuliaAstro/AstroAngles.jl", rev = "format-angle-nparts"}
 DimensionalData = {url = "https://github.com/icweaver/DimensionalData.jl", rev = "makie-0.25"}
 FITSFiles = {url = "https://github.com/JuliaAstro/FITSFiles.jl"}
 FITSWCS = {url = "https://github.com/JuliaAstro/FITSWCS.jl"}
@@ -39,7 +40,7 @@ AstroImagesMakieExt = "Makie"
 
 [compat]
 AbstractFFTs = "1.1"
-AstroAngles = "0.1, 0.2"
+AstroAngles = "0.3"
 ColorSchemes = "3.18"
 DimensionalData = "0.27, 0.29, 0.30"
 FITSFiles = "0.2, 0.3"
