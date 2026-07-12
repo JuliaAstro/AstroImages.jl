@@ -147,6 +147,8 @@ See the AstroImages.jl documentation for details.
     wcstitle = true
     "Overplot the (possibly curved) WCS coordinate grid. `automatic`: on when WCS headers are present."
     wcsgrid = automatic
+    "Pixel-coordinate extent (xmin, xmax, ymin, ymax) the WCS grid overlay is computed for. `automatic`: the full image. ImPlotView keeps this in sync with the axis limits."
+    viewextent = automatic
     "Color of the WCS grid lines."
     gridcolor = :lightgray
     "Line width of the WCS grid lines."
@@ -184,10 +186,11 @@ end
 # Overplot the WCS coordinate grid as (possibly curved) lines in pixel coords.
 function wcsgridoverlay!(p)
     attr = p.attributes
-    map!(attr, [:img, :wcsn, :wcsgrid, :platescale], [:gridpoints, :gridvisible]) do img, wcsn, wcsgrid, platescale
+    map!(attr, [:img, :wcsn, :wcsgrid, :platescale, :viewextent], [:gridpoints, :gridvisible]) do img, wcsn, wcsgrid, platescale, viewextent
         show = wcsgrid isa Automatic ? haswcsaxes(img, wcsn) : (wcsgrid && haswcsaxes(img, wcsn))
         show || return (Point2f[], false)
-        gs = wcsgridspec(WCSGrid(img, Float64.(imgextent(img)), wcsn))
+        ext = viewextent isa Automatic ? Float64.(imgextent(img)) : Float64.(viewextent)
+        gs = wcsgridspec(WCSGrid(img, ext, wcsn))
         xs, ys = wcsgridlines(gs)
         return (Point2f.(xs .* platescale, ys .* platescale), true)
     end
@@ -251,6 +254,56 @@ function Makie.plot!(::ImPlot{<:Tuple{<:AstroImageMat{<:Complex}}})
                 "Plot the magnitude and phase separately, e.g. `implot(abs.(img))` and `implot(angle.(img), clims=(-pi, pi))`."
         )
     )
+end
+
+# ---------------------------------------------------------------------------
+# WCSTicks: dynamic WCS tick locator/formatter hooked into Makie's
+# `get_ticks` protocol, so tick positions and labels recompute from the
+# current axis limits on zoom/pan.
+#
+# Tick positions along one axis depend on the extent of *both* axes (they are
+# the intersections of world-coordinate grid lines with the axis edge), but
+# `get_ticks` only receives the limits of its own dimension. The x and y
+# WCSTicks therefore share one mutable extent state, which each call refreshes
+# for its own dimension. During continuous zoom/pan both dimensions recompute
+# every frame, so the cross-dimension range is at most one interaction stale;
+# ImPlotView additionally syncs the state from the axis `finallimits`.
+# ---------------------------------------------------------------------------
+
+mutable struct WCSTickState
+    # Current full displayed extent in pixel coordinates (xmin, xmax, ymin, ymax)
+    extent::NTuple{4, Float64}
+end
+
+struct WCSTicks
+    img::AstroImage
+    axnum::Int  # 1 = x, 2 = y
+    wcsn::Char
+    platescale::Float64
+    state::WCSTickState
+end
+
+function Makie.get_ticks(t::WCSTicks, scale, formatter, vmin, vmax)
+    # `scale` is ignored: non-identity axis scales make no sense for WCS axes.
+    lo, hi = Float64(vmin) / t.platescale, Float64(vmax) / t.platescale
+    hi > lo || return (Float64[], String[])
+    ext = t.state.extent
+    ext = t.axnum == 1 ? (lo, hi, ext[3], ext[4]) : (ext[1], ext[2], lo, hi)
+    t.state.extent = ext
+    gs = wcsgridspec(WCSGrid(t.img, ext, t.wcsn))
+    pos = (t.axnum == 1 ? gs.tickpos1x : gs.tickpos2x) .* t.platescale
+    wvals = t.axnum == 1 ? gs.tickpos1w : gs.tickpos2w
+    # Label in screen order (world order can be reversed, e.g. RA), so that
+    # wcslabels puts the full-length anchor label at the axis start and only
+    # truncated labels after it.
+    perm = sortperm(pos)
+    pos, wvals = pos[perm], wvals[perm]
+    labels = if formatter isa Makie.Automatic
+        wcslabels(wcs(t.img, t.wcsn), wcsax(t.img, dims(t.img, t.axnum)), wvals)
+    else
+        Makie.get_ticklabels(formatter, wvals)
+    end
+    return pos, labels
 end
 
 # ---------------------------------------------------------------------------
@@ -328,15 +381,11 @@ function wcsaxisattributes(img::AstroImageMat; wcsn = ' ', platescale = 1, wcsti
         attrs[:title] = refdimstitle(img, wcsn, showtitle)
     end
     if showticks
-        gs = wcsgridspec(WCSGrid(img, extent, wcsn))
         w = wcs(img, wcsn)
         ax1, ax2 = wcsax(img, dims(img, 1)), wcsax(img, dims(img, 2))
-        if !isempty(gs.tickpos1x)
-            attrs[:xticks] = (gs.tickpos1x .* platescale, wcslabels(w, ax1, gs.tickpos1w))
-        end
-        if !isempty(gs.tickpos2x)
-            attrs[:yticks] = (gs.tickpos2x .* platescale, wcslabels(w, ax2, gs.tickpos2w))
-        end
+        state = WCSTickState(extent)
+        attrs[:xticks] = WCSTicks(img, 1, wcsn, platescale, state)
+        attrs[:yticks] = WCSTicks(img, 2, wcsn, platescale, state)
         attrs[:xlabel] = ctype_label(w.ctype[ax1], w.radesys)
         attrs[:ylabel] = ctype_label(w.ctype[ax2], w.radesys)
         # The straight Axis grid would be drawn at the tick positions; the
@@ -411,6 +460,19 @@ function Makie.initialize_block!(bl::ImPlotView)
             label = string(something(img["UNIT"], img["BUNIT"], ""))
         end
         Makie.Colorbar(bl[1, 2], plt; label)
+    end
+    # Keep the WCS ticks' shared extent state and the grid overlay in sync
+    # with the displayed region, so both refine on zoom/pan.
+    xt = get(axattrs, :xticks, nothing)
+    if xt isa WCSTicks
+        Makie.on(ax.finallimits) do rect
+            ps = bl.platescale[]
+            o, w = rect.origin, rect.widths
+            ext = (o[1], o[1] + w[1], o[2], o[2] + w[2]) ./ ps
+            xt.state.extent = ext
+            plt.viewextent = ext
+            return
+        end
     end
     return
 end
