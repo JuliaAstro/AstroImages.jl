@@ -26,7 +26,7 @@ using RecipesBase: RecipesBase, @layout, @recipe, @series, @userplot
 using Statistics: Statistics, mean, quantile
 using Tables: Tables
 using UUIDs: UUIDs # can remove once reigstered with FileIO
-using FITSWCS: FITSWCS, WCSTransform, WCS, WCS_all, pixel_to_world, world_to_pixel
+using FITSWCS: FITSWCS, WCSTransform, WCS, WCS_all, pixel_to_world, world_to_pixel, slice_wcs
 
 # AstroImages stores a FITS header as a vector of FITSFiles `Card`s (each `Card`
 # carries a `.key`, `.value`, and `.comment`). This alias preserves the
@@ -245,7 +245,12 @@ DimensionalData.metadata(::AstroImage) = Lookups.NoMetadata()
         # Cached WCSTransform objects for this data
         wcs::AbstractDict{Char, <:WCSTransform} = getfield(img, :wcs),
         wcs_stale::Bool = getfield(img, :wcs_stale)[],
-        wcsdims::Tuple = (dims..., refdims...),
+        # `wcsdims` records the parent image's dim --> WCS axis correspondence,
+        # so it must survive slicing/permutation unchanged (categorical refdims are
+        # located within it, and `wcsax` derives axis numbers from its order).
+        # DimensionalData may route slicing through either `rebuild` method
+        # directly, so preserve it here rather than recomputing from the (possibly sliced) dims.
+        wcsdims::Tuple = getfield(img, :wcsdims),
     )
     return AstroImage(data, dims, refdims, header, wcs, Ref(wcs_stale), wcsdims)
 end
@@ -265,7 +270,7 @@ end
         # Cached WCSTransform objects for this data
         wcs::AbstractDict{Char, <:WCSTransform} = getfield(img, :wcs),
         wcs_stale::Bool = getfield(img, :wcs_stale)[],
-        wcsdims::Tuple = (dims..., refdims...),
+        wcsdims::Tuple = getfield(img, :wcsdims),
     )
     return AstroImage(data, dims, refdims, header, wcs, Ref(wcs_stale), wcsdims)
 end

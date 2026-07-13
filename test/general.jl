@@ -221,10 +221,12 @@ end
             worldf = pixel_to_world(img, p; wcsn = n)
             @test worldf ≈ pixel_to_world(w, p) rtol = 1.0e-8
             @test world_to_pixel(img, worldf; wcsn = n) ≈ p rtol = 1.0e-8
-            # `parent = true` treats inputs as parent-frame coordinates, applying
-            # only the 1→0-based shift before the raw transform (no dim scaling).
+            # `parent = true` treats inputs as parent-frame coordinates. For a
+            # non-sliced image the parent frame IS the slice-local frame, so it
+            # must agree with both the default path and the raw transform.
             worldp = pixel_to_world(img, p; wcsn = n, parent = true)
-            @test worldp ≈ pixel_to_world(w, p .- 1) rtol = 1.0e-8
+            @test worldp ≈ pixel_to_world(w, p) rtol = 1.0e-8
+            @test worldp ≈ worldf rtol = 1.0e-8
             @test world_to_pixel(img, worldp; wcsn = n, parent = true) ≈
                 world_to_pixel(w, worldp) rtol = 1.0e-8
         end
@@ -276,12 +278,75 @@ end
     for p in testpix
         world = pixel_to_world(sl, p)      # filtered to the two kept dims
         @test length(world) == 2
-        back = world_to_pixel(sl, world)   # returns all WCS axes
-        @test back[1:2] ≈ p rtol = 1.0e-8  # kept dims round-trip
+        back = world_to_pixel(sl, world)   # slice-local pixels for the kept dims
+        @test length(back) == 2
+        @test back ≈ p rtol = 1.0e-8       # round-trips
     end
 
-    # `all = true` additionally returns the frozen spectral world coordinate.
-    @test length(pixel_to_world(sl, [1.0, 1.0]; all = true)) == 3
+    # `all = true` additionally returns the frozen spectral world coordinate:
+    # the slice sits at parent index 2, so FREQ = CRVAL3 + (2 - CRPIX3) * CDELT3.
+    allworld = pixel_to_world(sl, [1.0, 1.0]; all = true)
+    @test length(allworld) == 3
+    @test allworld[3] ≈ 1.0e9 + 1.0e6 rtol = 1.0e-8
+
+    # Strided slices: slice-local pixel p maps to parent pixel (p-1)*step + first,
+    # so pixel 2 of cube[1:2:5, :, 1] is parent pixel 3.
+    st = cube[1:2:5, :, 1]
+    w = wcs(cube, ' ')
+    @test pixel_to_world(st, [2.0, 3.0]) ≈ pixel_to_world(w, [3.0, 3.0, 1.0])[1:2] rtol = 1.0e-8
+    @test world_to_pixel(st, pixel_to_world(st, [2.0, 3.0])) ≈ [2.0, 3.0] rtol = 1.0e-8
+
+    # Transposition: coordinates follow `dims(img)` order and are routed to WCS
+    # axes by dim name, so the same array element gives the same world values.
+    tr = permutedims(sl, (2, 1))
+    @test pixel_to_world(tr, [3.0, 2.0]) ≈ reverse(pixel_to_world(sl, [2.0, 3.0])) rtol = 1.0e-8
+    @test world_to_pixel(tr, pixel_to_world(tr, [3.0, 2.0])) ≈ [3.0, 2.0] rtol = 1.0e-8
+
+    # Slicing must preserve the parent dim -> WCS axis bookkeeping (`wcsdims`).
+    @test length(getfield(sl, :wcsdims)) == 3
+    @test collect(getfield(sl, :wcsdims)[3]) == collect(1:4)
+end
+
+@testset "coupled-axis slicing" begin
+    fname = tempname() * ".fits"
+    # World axes 1-2 depend on pixel axis 3 through off-diagonal PC terms.
+    hdr = Card[
+        Card("CTYPE1", "RA---TAN"), Card("CTYPE2", "DEC--TAN"), Card("CTYPE3", "FREQ"),
+        Card("CRVAL1", 10.0), Card("CRVAL2", 20.0), Card("CRVAL3", 1.0e9),
+        Card("CRPIX1", 3.0), Card("CRPIX2", 3.0), Card("CRPIX3", 2.0),
+        Card("CDELT1", -1.0e-3), Card("CDELT2", 1.0e-3), Card("CDELT3", 1.0e6),
+        Card("CUNIT1", "deg"), Card("CUNIT2", "deg"), Card("CUNIT3", "Hz"),
+        Card("PC1_1", 1.0), Card("PC2_2", 1.0), Card("PC3_3", 1.0),
+        Card("PC1_3", 0.2), Card("PC2_3", 0.1),
+    ]
+    write(fname, HDU[HDU(Primary, reshape(Float32[1:(5 * 6 * 4);], 5, 6, 4), hdr)])
+    cube = AstroImage(fname)
+
+    # Dropping the coupled spectral axis still yields an exact inverse: the
+    # sliced transform knows the frozen axis's exact world contribution.
+    sl = cube[:, :, 3]
+    for p in ([1.0, 1.0], [2.0, 4.0], [5.0, 6.0])
+        world = pixel_to_world(sl, p)
+        @test length(world) == 2
+        @test world_to_pixel(sl, world) ≈ p rtol = 1.0e-8
+    end
+
+    # Slicing away one axis of the celestial pair leaves world axes that depend
+    # on the dropped pixel axis: the forward transform still works per-dim, but
+    # the inverse is underdetermined and must fail loudly.
+    fname2 = tempname() * ".fits"
+    hdr2 = Card[
+        Card("CTYPE1", "RA---TAN"), Card("CTYPE2", "DEC--TAN"),
+        Card("CRVAL1", 10.0), Card("CRVAL2", 20.0),
+        Card("CRPIX1", 5.0), Card("CRPIX2", 5.0),
+        Card("CDELT1", -1.0e-3), Card("CDELT2", 1.0e-3),
+        Card("CUNIT1", "deg"), Card("CUNIT2", "deg"),
+    ]
+    write(fname2, HDU[HDU(Primary, reshape(Float32[1:100;], 10, 10), hdr2)])
+    img = AstroImage(fname2)
+    line = img[:, 5]
+    @test length(pixel_to_world(line, [3.0])) == 1
+    @test_throws ArgumentError world_to_pixel(line, [10.0])
 end
 
 @testset "polarization (symbol) axis slicing" begin
@@ -310,11 +375,16 @@ end
     for p in ([1.0, 1.0], [2.0, 3.0], [5.0, 6.0])
         world = pixel_to_world(sl, p)
         back = world_to_pixel(sl, world)
-        @test back[1:2] ≈ p rtol = 1.0e-8
+        @test back ≈ p rtol = 1.0e-8
     end
 
     # Integer world input is accepted (converted to Float64 internally).
     @test world_to_pixel(sl, [1, 89]) ≈ world_to_pixel(sl, [1.0, 89.0]) rtol = 1.0e-8
+
+    # The frozen STOKES world value corresponds to :Q's parent index (2):
+    # CRVAL3 + (2 - CRPIX3) * CDELT3 = 2. Requires the categorical refdim to be
+    # located within the preserved parent `wcsdims` lookup.
+    @test pixel_to_world(sl, [1.0, 1.0]; all = true)[3] ≈ 2.0 rtol = 1.0e-8
 end
 
 ##

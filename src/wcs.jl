@@ -341,201 +341,186 @@ function _stokes_name(symb)
     end
 end
 
+# Coerce a coordinate vector/matrix to `Float64` without copying when possible
+_f64(x::AbstractArray{Float64}) = x
+_f64(x::Tuple) = collect(Float64, x)
+_f64(x) = Float64.(x)
 
-# Dimension-aware wrappers that extend FITSWCS's `pixel_to_world` / `world_to_pixel`
-# with methods accepting an `AstroImage`: they handle dims/refdims, slicing, and
-# coordinate scaling, then delegate the projection to the underlying `WCSTransform`.
+# Reorder the coordinate axes (rows) of a coordinate vector/matrix by `perm`
+_permrows(x::AbstractVector, perm) = x[perm]
+_permrows(x::AbstractMatrix, perm) = x[perm, :]
+
+# WCS axis number of each selected dim, in `dims(img)` order
+_wcsaxes(img::AstroImage) = Int[wcsax(img, d) for d in dims(img)]
+
+# Frozen parent-frame pixel position of a dropped reference dimension.
+# Numeric refdims carry the position directly in their lookup value (fractional values are allowed).
+# Categorical ones (e.g. a Stokes axis of symbols I/Q/U) are located within the full parent dimension retained in `wcsdims`.
+function _refindex(img::AstroImage, refdim)
+    if eltype(refdim) <: Number
+        return first(refdim)
+    end
+    wcsdimtuple = getfield(img, :wcsdims)
+    parentdim = wcsdimtuple[findfirst(d -> name(d) == name(refdim), wcsdimtuple)]
+    return findfirst(==(first(refdim)), collect(parentdim))
+end
+
+# Build the `SlicedWCSTransform` describing `img`'s current view of `wcsn`.
+# Each kept dim contributes its parent-pixel range (`first:step:last`), each dropped refdim its frozen parent-pixel position.
+# WCS axes beyond the image's dim bookkeeping (e.g. degenerate header axes) are frozen at the reference pixel.
+function _slicedwcs(img::AstroImage, wcsn)
+    w = wcs(img, wcsn)
+    wcsdimtuple = getfield(img, :wcsdims)
+    keptnames = map(name, dims(img))
+    slices = ntuple(w.naxis) do j
+        j > length(wcsdimtuple) && return w.crpix[j]
+        wd = wcsdimtuple[j]
+        di = findfirst(==(name(wd)), keptnames)
+        if di === nothing
+            _refindex(img, refdims(img)[findfirst(rd -> name(rd) == name(wd), refdims(img))])
+        else
+            d = dims(img)[di]
+            first(d):step(d):last(d)
+        end
+    end
+    return slice_wcs(w, slices...)
+end
+
+# Permutation from `dims(img)` order to the sliced WCS's axis slots.
+# Its kept axes are ordered by ascending parent-WCS-axis index.
+function _sliceperm(img::AstroImage)
+    kept = sort!([wcsax(img, d) for d in dims(img)])
+    return Int[findfirst(==(wcsax(img, d)), kept) for d in dims(img)]
+end
+
+# Expand dims-ordered coordinates into a full parent-frame pixel buffer in WCS axis order.
+# Kept dims map slice-local --> parent via their lookup (or pass through unchanged when `parent=true`).
+# Frozen refdims fill their slots, and any remaining axes stay at the reference pixel.
+function _parentpixels(img::AstroImage, pix::AbstractVecOrMat, wcsn, parent::Bool)
+    w = wcs(img, wcsn)
+    P = ndims(pix) > 1 ? repeat(Vector(w.crpix), 1, size(pix, 2)) : Vector{Float64}(w.crpix)
+    for (i, d) in enumerate(dims(img))
+        j = wcsax(img, d)
+        if parent
+            P[j, :] .= pix[i, :]
+        else
+            P[j, :] .= (pix[i, :] .- 1) .* step(d) .+ first(d)
+        end
+    end
+    for rd in refdims(img)
+        P[wcsax(img, rd), :] .= _refindex(img, rd)
+    end
+    return P
+end
+
 """
-    pixel_to_world(img::AstroImage, pixcoords; all=false)
+    pixel_to_world(img::AstroImage, pixcoords; wcsn = ' ', all = false, parent = false)
 
-Given an astro image, look up the world coordinates of the pixels given
-by `pixcoords`. World coordinates are resolved using FITSWCS.jl and a
-WCSTransform calculated from any FITS header present in `img`. If
-no WCS information is in the header, or the axes are all linear, this will
-just return pixel coordinates.
+Given an `AstroImage`, look up the world coordinates of the pixels given by `pixcoords`
+using FITSWCS.jl and a WCSTransform calculated from any FITS header present in `img`.
+If no WCS information is in the header, or the axes are all linear, this will just return pixel coordinates.
 
-`pixcoords` should be the coordinates in your current selection
-of the image. For example, if you select a slice like this:
+`pixcoords` may be a vector (one coordinate) or a matrix whose columns are coordinates,
+given in the order of `dims(img)`, i.e., 1-based positions within your current selection of the image.
+For example, if you select a slice like this:
+
 ```julia-repl
 julia> cube = load("some-3d-cube.fits")
 julia> slice = cube[10:20, 30:40, 5]
 ```
 
-Then to look up the coordinates of the pixel in the bottom left corner of
-`slice`, run:
+Then to look up the coordinates of the pixel in the bottom left corner of `slice`, run:
+
 ```julia-repl
-julia> world_coords = pixel_to_world(img, [1, 1])
+julia> world_coords = pixel_to_world(slice, [1, 1])
 [10, 30]
 ```
 
 If WCS information was present in the header of `cube`, then those coordinates
 would be resolved using axis 1, 2, and 3 respectively.
 
-To include world coordinates in all axes, pass `all=true`
-```julia-repl
-julia> world_coords = pixel_to_world(img, [1, 1], all=true)
-[10, 30, 5]
-```
+Keyword arguments:
 
-!! Coordinates must be provided in the order of `dims(img)`. If you transpose
-an image, the order you pass the coordinates should not change.
+- `wcsn`: Which WCS version character to use (`' '` for the primary system, `'A'`–`'Z'` for alternates).
+- `all=true`: Return world coordinates for **all** WCS axes (in WCS axis order),
+  including axes frozen by slicing, instead of only the selected dims.
+- `parent=true`: Interpret `pixcoords` as 1-based pixel positions in the parent (original) array,
+   rather than in the current slice.
+
+Note: Coordinates must be provided in the order of `dims(img)`. If you transpose an image,
+the order you pass the coordinates should not change.
 """
 function FITSWCS.pixel_to_world(img::AstroImage, pixcoords; wcsn = ' ', all = false, parent = false)
-    if pixcoords isa Array{Float64}
-        pixcoords_prepared = pixcoords
-    else
-        pixcoords_prepared = [Float64(c) for c in pixcoords]
-    end
-    # Find the coordinates in the parent array.
-    # Dimensional data
-    # pixcoords_floored = floor.(Int, pixcoords)
-    # pixcoords_frac = (pixcoords .- pixcoords_floored) .* step.(dims(img))
-    # parentcoords = getindex.(dims(img), pixcoords_floored) .+ pixcoords_frac
-    if parent
-        parentcoords = pixcoords
-    else
-        parentcoords = pixcoords .* step.(dims(img)) .+ first.(dims(img))
-    end
-    # Build a Float64 buffer sized to the WCS's full axis count; the loops below
-    # scatter this image's dims/refdims into their WCS-axis positions.
-    # TODO: avoid allocation in case where refdims=() and pixcoords isa Array{Float64}
-    if ndims(pixcoords_prepared) > 1
-        parentcoords_prepared = zeros(wcs(img, wcsn).naxis, size(pixcoords_prepared, 2))
-    else
-        parentcoords_prepared = zeros(wcs(img, wcsn).naxis)
-    end
-    # out = zeros(Float64, wcs(img,wcsn).naxis, size(pixcoords,2))
-    for (i, dim) in enumerate(dims(img))
-        j = wcsax(img, dim)
-        parentcoords_prepared[j, :] .= parentcoords[i, :] .- 1
-    end
-    for dim in refdims(img)
-        j = wcsax(img, dim)
-        # Non numeric reference dims can be used, e.g. a polarization axis of symbols I, Q, U, etc.
-        if eltype(dim) <: Number
-            z = dim[1] - 1
-        else
-            # Find the index of the symbol into the parent cube
-            parentrefdim = img.wcsdims[findfirst(d -> name(d) == name(dim), img.wcsdims)]
-            z = findfirst(==(first(dim)), collect(parentrefdim)) - 1
-        end
-        parentcoords_prepared[j, :] .= z
-    end
-
-    # Get world coordinates along all slices.
-    worldcoords_out = pixel_to_world(wcs(img, wcsn), parentcoords_prepared)
-
-    # If user requested world coordinates in all dims, not just selected
-    # dims of img
-    if all
-        return worldcoords_out
-    end
-
-    # Otherwise filter to only return coordinates along selected dims.
-    if ndims(pixcoords_prepared) > 1
-        world_coords_of_these_axes = zeros(length(dims(img)), size(pixcoords_prepared, 2))
-    else
-        world_coords_of_these_axes = zeros(length(dims(img)))
-    end
-    for (i, dim) in enumerate(dims(img))
-        j = wcsax(img, dim)
-        world_coords_of_these_axes[i, :] .= worldcoords_out[j, :]
-    end
-
-    return world_coords_of_these_axes
+    pix = _f64(pixcoords)
+    size(pix, 1) == length(dims(img)) || throw(
+        DimensionMismatch(
+            "Got $(size(pix, 1)) pixel coordinates but the image has $(length(dims(img))) dimensions."
+        )
+    )
+    worldcoords = pixel_to_world(wcs(img, wcsn), _parentpixels(img, pix, wcsn, parent))
+    # Return every WCS axis, or filter to the axes of the selected dims.
+    return all ? worldcoords : _permrows(worldcoords, _wcsaxes(img))
 end
 
 
 """
-    world_to_pixel(img::AstroImage, worldcoords)
+    world_to_pixel(img::AstroImage, worldcoords; wcsn = ' ', parent = false)
 
-Given an astro image, look up the pixel coordinates corresponding to the world
-coordinates `worldcoords`. This is the inverse of [`pixel_to_world`](@ref): world
-coordinates are resolved using FITSWCS.jl and a WCSTransform calculated from any
-FITS header present in `img`. If no WCS information is in the header, or the axes
-are all linear, this just returns the input coordinates.
+Given an `AstroImage`, look up the pixel coordinates corresponding to
+the world coordinates `worldcoords`. This is the inverse of [`pixel_to_world`](@ref).
+World coordinates are resolved using FITSWCS.jl and a WCSTransform calculated from any
+FITS header present in `img`. If no WCS information is in the header, or
+the axes are all linear, this just returns the input coordinates.
 
-The returned pixel coordinates need not lie within the bounds of the image, and
-in general lie at fractional pixel positions.
+`worldcoords` may be a vector (one coordinate) or a matrix whose columns are coordinates,
+given in the order of `dims(img)`. The returned pixel coordinates need not lie within the bounds of the image,
+and in general lie at fractional pixel positions.
 
-`worldcoords` must be provided in the order of `dims(img)`.
+By default the result contains one 1-based slice-local pixel coordinate per selected dim, in `dims(img)` order.
+With `parent = true` the world coordinates are inverted through the full parent-frame transform instead.
+Axes frozen by slicing contribute their exact world values, and the result contains parent pixel coordinates
+for **all** WCS axes, in WCS axis order.
+
+If the current slice drops a pixel axis that the remaining world axes depend on
+(e.g. one axis of a celestial longitude/latitude pair), the remaining world coordinates
+alone do not determine pixel coordinates and an `ArgumentError` is thrown.
+Invert through the full transform via `world_to_pixel(wcs(img, wcsn), fullworldcoords)` instead.
 """
 function FITSWCS.world_to_pixel(img::AstroImage, worldcoords; parent = false, wcsn = ' ')
-    if worldcoords isa Array{Float64}
-        worldcoords_prepared = worldcoords
-    else
-        worldcoords_prepared = [Float64(c) for c in worldcoords]
-    end
-    return _world_to_pixel(img, worldcoords_prepared; wcsn, parent)
-end
-
-# Internal worker backing `world_to_pixel`. Returns the parent-adjusted pixel coordinates.
-function _world_to_pixel(img::AstroImage, worldcoords; wcsn = ' ', parent = false)
-    # # Find the coordinates in the parent array.
-    # # Dimensional data
-    # worldcoords_floored = floor.(Int, worldcoords)
-    # worldcoords_frac = (worldcoords .- worldcoords_floored) .* step.(dims(img))
-    # parentcoords = getindex.(dims(img), worldcoords_floored) .+ worldcoords_frac
-    # Build a Float64 buffer sized to the WCS's full axis count; the loops below
-    # scatter this image's world coords into their WCS-axis positions.
-    # TODO: avoid allocation in case where refdims=() and worldcoords isa Array{Float64}
-    if ndims(worldcoords) > 1
-        worldcoords_prepared = zeros(wcs(img, wcsn).naxis, size(worldcoords, 2))
-    else
-        worldcoords_prepared = zeros(wcs(img, wcsn).naxis)
-    end
-    # TODO: unlike `pixel_to_world` (which has an `all` kwarg and filters its
-    # output to the selected dims), this returns coordinates for every WCS axis.
-    # Consider mirroring that: add an `all` kwarg and filter to the current slice.
-    # out = zeros(Float64, wcs(img,wcsn).naxis, size(worldcoords,2))
-    for (i, dim) in enumerate(dims(img))
-        j = wcsax(img, dim)
-        worldcoords_prepared[j, :] = worldcoords[i, :]
-    end
-    for dim in refdims(img)
-        j = wcsax(img, dim)
-        # Non numeric reference dims can be used, e.g. a polarization axis of symbols I, Q, U, etc.
-        if eltype(dim) <: Number
-            z = dim[1]
-        else
-            # Find the index of the symbol into the parent cube
-            parentrefdim = img.wcsdims[findfirst(d -> name(d) == name(dim), img.wcsdims)]
-            z = findfirst(==(first(dim)), collect(parentrefdim)) - 1
-        end
-        worldcoords_prepared[j, :] .= z
-    end
-
-    pixcoords_out = world_to_pixel(wcs(img, wcsn), worldcoords_prepared)
-
+    world = _f64(worldcoords)
+    size(world, 1) == length(dims(img)) || throw(
+        DimensionMismatch(
+            "Got $(size(world, 1)) world coordinates but the image has $(length(dims(img))) dimensions."
+        )
+    )
     if !parent
-        coordoffsets = zeros(wcs(img, wcsn).naxis)
-        coordsteps = zeros(wcs(img, wcsn).naxis)
-        for (i, dim) in enumerate(dims(img))
-            j = wcsax(img, dim)
-            coordoffsets[j] = first(dims(img)[i])
-            coordsteps[j] = step(dims(img)[i])
-        end
-        for dim in refdims(img)
-            j = wcsax(img, dim)
-            # Non numeric reference dims can be used, e.g. a polarization axis of symbols I, Q, U, etc.
-            if eltype(dim) <: Number
-                coordoffsets[j] = first(dim)
-                coordsteps[j] = step(dim)
-            else
-                # Find the index of the symbol into the parent cube
-                parentrefdim = img.wcsdims[findfirst(d -> name(d) == name(dim), img.wcsdims)]
-                z = findfirst(==(first(dim)), collect(parentrefdim))
-                coordoffsets[j] = z - 1
-                coordsteps[j] = 1
-            end
-        end
-
-        # `world_to_pixel` returns an immutable `SVector` for single-coordinate
-        # (vector) inputs, so apply the parent-frame correction as a fresh
-        # broadcast rather than mutating `pixcoords_out` in place.
-        pixcoords_out = (pixcoords_out .- coordoffsets .+ 1) ./ coordsteps
+        # Delegate to a `SlicedWCSTransform`, which fills axes frozen by slicing
+        # with their exact world values and returns slice-local pixel coordinates
+        # for the kept axes. Requires each selected dim to correspond to exactly
+        # one surviving world axis (`world_keep == pixel_keep`).
+        sw = _slicedwcs(img, wcsn)
+        sw.world_keep == sw.pixel_keep || throw(
+            ArgumentError(
+                "The current slice drops pixel axes that the remaining world axes depend on (e.g. one axis of a celestial lon/lat pair), so " *
+                "$(length(dims(img))) world coordinates do not determine pixel coordinates." *
+                " Invert through the full transform instead: `world_to_pixel(wcs(img, wcsn), fullworldcoords)`."
+            )
+        )
+        perm = _sliceperm(img)
+        return _permrows(world_to_pixel(sw, _permrows(world, invperm(perm))), perm)
     end
-    return pixcoords_out
+    # parent = true: fill a full world-coordinate buffer.
+    # User values for the selected dims, exact frozen-axis world values elsewhere
+    # (evaluated with one forward transform), and invert through the parent-frame transform.
+    w = wcs(img, wcsn)
+    W = ndims(world) > 1 ? zeros(w.naxis, size(world, 2)) : zeros(w.naxis)
+    if w.naxis > length(dims(img))
+        W .= pixel_to_world(img, ones(length(dims(img))); wcsn, all = true)
+    end
+    for (i, d) in enumerate(dims(img))
+        W[wcsax(img, d), :] .= world[i, :]
+    end
+    return world_to_pixel(w, W)
 end
 
 
