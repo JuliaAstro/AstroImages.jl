@@ -7,7 +7,7 @@ authors = ["Mosè Giordano", "Rohit Kumar", "William Thompson"]
 projects = ["test", "docs"]
 
 [sources]
-AstroAngles = {url = "https://github.com/JuliaAstro/AstroAngles.jl", rev = "format-angle-nparts"}
+AstroAngles = {url = "https://github.com/JuliaAstro/AstroAngles.jl"}
 DimensionalData = {url = "https://github.com/icweaver/DimensionalData.jl", rev = "makie-0.25"}
 FITSFiles = {url = "https://github.com/JuliaAstro/FITSFiles.jl"}
 FITSWCS = {url = "https://github.com/JuliaAstro/FITSWCS.jl"}
