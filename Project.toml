@@ -7,7 +7,7 @@ authors = ["Mosè Giordano", "Rohit Kumar", "William Thompson"]
 projects = ["test", "docs"]
 
 [sources]
-FITSFiles = {url = "https://github.com/JuliaAstro/FITSFiles.jl"}
+FITSFiles = {url = "https://github.com/icweaver/FITSFiles.jl", rev = "undef"}
 FITSWCS = {url = "https://github.com/JuliaAstro/FITSWCS.jl"}
 
 [deps]

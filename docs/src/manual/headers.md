@@ -12,66 +12,109 @@ Here are some examples of how to set and read keys, comments, and history.
 
 We'll start by making a blank image:
 
-```@repl 1
+```@example 1
 img = AstroImage(zeros(10, 10))
 ```
 
 Set keys to values with different data types:
 
-```@repl 1
+```@example 1
 img["KEY1"] = 2   # Integer
 img["KEY2"] = 2.0 # Float
+```
+
+!!! note
+    Floating point values are formatted as ASCII strings when written to the FITS files, so the precision may be limited.
+
+``` @example 1
 img["KEY3"] = "STRING"
 img["KEY4"] = true
 img["KEY5"] = false
-img["KEY6"] = nothing
+img["KEY6"] = nothing # Undefined value
+nothing # hide
 ```
 
-Set comments:
+!!! note
+    A keyword may be present in a header with no value at all. Assigning `nothing` (or `missing`) creates such a card, and it reads back as `missing`:
 
-```@repl 1
-img["KEY1", Comment] = "A key with an integer value"
+    ```@example 1
+    img["KEY6"]
+    ```
+
+    A key that is not present in the header instead reads back as `nothing`, so the two cases can be told apart:
+
+    ```@example 1
+    isnothing(img["KEY7"])
+    ```
+
+
+We can set comments:
+
+```@example 1
+img["KEY1", Comment] = "A key with an integer value";
+nothing # hide
+```
+
+and view:
+
+```@example 1
+header(img)
 ```
 
 Read keys:
 
-```@repl 1
+```@example 1
 a = img["KEY3"]
 ```
 
-
 Read comment:
- 
-```@repl 1
+
+```@example 1
 com = img["KEY1", Comment]
 ```
 
 Add long-form COMMENT:
 
-```@repl 1
+```@example 1
 push!(img, Comment, """
-We now describe how to add a long form comment to the end of a header.
+We now describe how to
+add a long form comment
+to the end of a header.
 """)
+
+header(img)
 ```
 
 Add HISTORY entry:
 
-```@repl 1
+```@example 1
 push!(img, History, """
-We now describe how to add a long form history to the end of a header.
+We now describe how to
+add a long form history
+to the end of a header.
 """)
+
+header(img)
 ```
 
-Retrieve long form comments/ history:
+A COMMENT or HISTORY card stores its text in columns 9-80, so it can hold at most 72 characters and cannot contain a newline. Multi-line text is therefore split into one card per line, and any line too long to fit on a single card is wrapped across as many cards as it needs:
 
-```@repl 1
+```@example 1
+push!(img, Comment, """
+This comment spans two lines, the second of which is long enough that it will not fit on a single card.
+""")
+header(img)
+```
+
+We can retrieve long form comments/history by indexing them directly:
+
+```@example 1
 comment_strings = img[Comment]
+```
+
+```@example 1
 history_strings = img[History]
 ```
-
-Note that floating point values are formatted as ASCII strings when written to the FITS files, so the precision may be limited.
-
-`AstroImage` objects wrap a vector of FITSFiles.jl `Card`s. If necessary, you can recover it using `header(img)`; however, in most cases you can access header keywords directly from the image.
 
 API docs:
 - [`Comment`](@ref Comment)
