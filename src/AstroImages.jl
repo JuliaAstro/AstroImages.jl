@@ -431,25 +431,66 @@ end
 Index for accessing a comment associated with a header keyword
 or COMMENT entry.
 
-Example:
-```julia
-img = AstroImage(randn(10,10))
-img["ABC"] = 1
-img["ABC", Comment] = "A comment describing this key"
+# Examples
 
-push!(img, Comment, "The purpose of this file is to demonstrate comments")
-img[Comment] # ["The purpose of this file is to demonstrate comments"]
+```jldoctest
+julia> img = AstroImage(randn(10, 10));
+
+julia> img["ABC"] = 1
+1
+
+julia> img["ABC", Comment] = "A comment describing this key"
+"A comment describing this key"
+
+julia> push!(img, Comment, "The purpose of this file is to demonstrate comments")
+
+julia> img[Comment]
+1-element Vector{String}:
+ "The purpose of this file is to demonstrate comments"
+
+julia> header(img)
+2-element Vector{FITSFiles.Card}:
+ ABC     =                    1 / A comment describing this key
+ COMMENT The purpose of this file is to demonstrate comments
+```
+
+A COMMENT card holds at most 72 characters and cannot contain a newline. Multi-line
+text is therefore split into one card per line, and lines too long to fit on a single
+card are wrapped:
+
+```jldoctest
+julia> img = AstroImage(randn(10, 10));
+
+julia> push!(img, Comment, \"\"\"
+       Multi-line comment
+       spanning two lines.
+       \"\"\")
+
+julia> img[Comment]
+2-element Vector{String}:
+ "Multi-line comment"
+ "spanning two lines."
 ```
 """
 struct Comment end
 
 """
-Allows accessing and setting HISTORY header entries
+Allows accessing and setting HISTORY header entries.
 
-```julia
-img = AstroImage(randn(10,10))
-push!(img, History, "2023-04-19: Added history entry.")
-img[History] # ["2023-04-19: Added history entry."]
+# Examples
+
+```jldoctest
+julia> img = AstroImage(randn(10, 10));
+
+julia> push!(img, History, "2023-04-19: Added history entry.")
+
+julia> img[History]
+1-element Vector{String}:
+ "2023-04-19: Added history entry."
+
+julia> header(img)
+1-element Vector{FITSFiles.Card}:
+ HISTORY 2023-04-19: Added history entry.
 ```
 """
 struct History end
@@ -467,12 +508,18 @@ const HeaderValUnion = Union{Bool, Integer, AbstractFloat, AbstractString, Nothi
 
 _findcard(cards::FITSHeader, key::AbstractString) =
     findfirst(c -> uppercase(c.key) == uppercase(key), cards)
+
+# FITS allows a keyword to be present with an *undefined* (blank) value. FITSFiles
+# spells that `missing`; accept `nothing` as a synonym when assigning.
+_cardvalue(value) = value
+_cardvalue(::Nothing) = missing
+
 function _setcardvalue!(cards::FITSHeader, key::AbstractString, value)
     i = _findcard(cards, key)
     if isnothing(i)
-        push!(cards, Card(key, value))
+        push!(cards, Card(key, _cardvalue(value)))
     else
-        cards[i] = Card(key, value, cards[i].comment)
+        cards[i] = Card(key, _cardvalue(value), cards[i].comment)
     end
     return value
 end
@@ -513,13 +560,52 @@ Base.getindex(img::AstroImage, ::Type{History}) =
     [c.value for c in header(img) if uppercase(c.key) == "HISTORY"]
 Base.getindex(img::AstroImage, ::Type{Comment}) =
     [c.value for c in header(img) if uppercase(c.key) == "COMMENT"]
-# Adding new comment and history entries
+# Adding new comment and history entries.
+# A COMMENT/HISTORY card carries its text in columns 9-80, so it holds at most 72
+# characters and cannot contain a newline (FITS restricts card text to printable
+# ASCII). Split the text into one card per line, wrapping lines that are too long
+# rather than letting them be silently truncated.
+const COMMENTARY_WIDTH = 72
+
+function _wrapcommentary!(lines::Vector{String}, line::AbstractString)
+    s = rstrip(line)
+    while true
+        if length(s) <= COMMENTARY_WIDTH
+            push!(lines, String(s))
+            return lines
+        end
+        # Take one character beyond the card so that a break falling exactly at the
+        # card boundary is found.
+        head = first(s, COMMENTARY_WIDTH + 1)
+        i = findlast(isspace, head)
+        if isnothing(i)
+            # A single word longer than a card: split it mid-word.
+            push!(lines, String(first(s, COMMENTARY_WIDTH)))
+            s = SubString(s, nextind(s, 0, COMMENTARY_WIDTH + 1))
+        else
+            push!(lines, String(rstrip(SubString(head, 1, prevind(head, i)))))
+            s = lstrip(SubString(s, i))
+        end
+    end
+end
+
+function _pushcommentary!(cards::FITSHeader, key::AbstractString, text::AbstractString)
+    lines = String[]
+    for line in split(chomp(text), '\n')
+        _wrapcommentary!(lines, line)
+    end
+    for line in lines
+        push!(cards, Card(key, line))
+    end
+    return cards
+end
+
 function Base.push!(img::AstroImage, ::Type{Comment}, comment::AbstractString)
-    push!(header(img), Card("COMMENT", comment))
+    _pushcommentary!(header(img), "COMMENT", comment)
     return
 end
 function Base.push!(img::AstroImage, ::Type{History}, history::AbstractString)
-    push!(header(img), Card("HISTORY", history))
+    _pushcommentary!(header(img), "HISTORY", history)
     return
 end
 

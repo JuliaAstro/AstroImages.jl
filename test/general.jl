@@ -1,6 +1,6 @@
 using AstroImages:
     Percent, Zscale, clampednormedview, composecolors, imview, load, render, wcs, refdims, Pol, At, _float, _loadhdu,
-    header, shareheader, Centered, dims, name, Comment,
+    header, shareheader, Centered, dims, name, Comment, History,
     # Stretches
     sqrtstretch, asinhstretch, powerdiststretch, logstretch, powstretch, squarestretch, sinhstretch
 
@@ -156,6 +156,88 @@ end
     @test !getfield(imgw, :wcs_stale)[]
     imgw["CRVAL1"] = 1.5
     @test getfield(imgw, :wcs_stale)[]
+end
+
+@testset "undefined header values" begin
+    # FITS allows a keyword to be present with no value. FITSFiles spells that
+    # `missing`; `nothing` is accepted as a synonym when assigning.
+    img = AstroImage(zeros(4, 4))
+    img["FIELD1"] = nothing
+    @test ismissing(img["FIELD1"])
+    @test ismissing(only(header(img)).value)
+
+    # An absent key still reads back as `nothing`, so the two cases stay distinguishable.
+    @test isnothing(img["ABSENTKEY"])
+
+    # Overwriting an existing key with `nothing` undefines it in place, keeping its comment.
+    img["ABC"] = 1
+    img["ABC", Comment] = "the answer"
+    img["ABC"] = nothing
+    @test ismissing(img["ABC"])
+    @test img["ABC", Comment] == "the answer"
+    @test count(c -> uppercase(c.key) == "ABC", header(img)) == 1
+
+    # `missing` may be assigned directly, and undefined values survive a round trip
+    # to disk with their comments intact.
+    img["DEF"] = missing
+    @test ismissing(img["DEF"])
+
+    fname = tempname() * ".fits"
+    AstroImages.save(fname, img)
+    img2 = AstroImages.load(fname)
+    @test ismissing(img2["FIELD1"])
+    @test ismissing(img2["ABC"])
+    @test img2["ABC", Comment] == "the answer"
+    rm(fname, force = true)
+end
+
+@testset "COMMENT and HISTORY entries" begin
+    # A COMMENT/HISTORY card holds at most 72 characters and cannot contain a
+    # newline, so commentary text is split into one card per line and wrapped.
+    img = AstroImage(zeros(4, 4))
+
+    push!(img, Comment, "A single line")
+    @test img[Comment] == ["A single line"]
+    @test count(c -> uppercase(c.key) == "COMMENT", header(img)) == 1
+
+    # Multi-line text becomes one card per line. A trailing newline (as produced by
+    # a triple-quoted string) does not add a blank card, but interior blanks remain.
+    img = AstroImage(zeros(4, 4))
+    push!(img, Comment, """
+    First line
+
+    Third line
+    """)
+    @test img[Comment] == ["First line", "", "Third line"]
+
+    # Lines longer than a card are wrapped at whitespace rather than truncated.
+    img = AstroImage(zeros(4, 4))
+    long = "The quick brown fox jumps over the lazy dog. "^3
+    push!(img, Comment, long)
+    lines = img[Comment]
+    @test length(lines) > 1
+    @test all(l -> length(l) <= 72, lines)
+    @test join(lines, " ") == strip(long)
+
+    # A word too long to fit on any card is split mid-word instead of being dropped.
+    img = AstroImage(zeros(4, 4))
+    word = "x"^100
+    push!(img, History, word)
+    @test img[History] == [word[1:72], word[73:100]]
+
+    # Comments and history are kept separate, and survive a round trip to disk.
+    img = AstroImage(zeros(4, 4))
+    push!(img, Comment, "line one\nline two")
+    push!(img, History, "step one\nstep two")
+    @test img[Comment] == ["line one", "line two"]
+    @test img[History] == ["step one", "step two"]
+
+    fname = tempname() * ".fits"
+    AstroImages.save(fname, img)
+    img2 = AstroImages.load(fname)
+    @test img2[Comment] == ["line one", "line two"]
+    @test img2[History] == ["step one", "step two"]
+    rm(fname, force = true)
 end
 
 @testset "multi wcs AstroImage" begin
