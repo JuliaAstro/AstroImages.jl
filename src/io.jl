@@ -20,16 +20,19 @@ Given a FITSFiles HDU, load it as an AstroImage.
 AstroImage(hdu::HDU, args...; kwargs...) = _loadhdu(hdu, args...; kwargs...)
 
 """
-    img = AstroImage(filename::AbstractString, ext::Integer=1)
+    img = AstroImage(filename::AbstractString, ext::Integer=1; scale=true)
 
 Load an image HDU `ext` from the FITS file at `filename` as an AstroImage.
+
+Set `scale=false` to load the data exactly as stored on disk, without applying
+the `BSCALE` and `BZERO` keywords.
 """
-function AstroImage(filename::AbstractString, ext::Integer, args...; kwargs...)
-    hdus = fits(filename)
+function AstroImage(filename::AbstractString, ext::Integer, args...; scale = true, kwargs...)
+    hdus = fits(filename; scale)
     return AstroImage(hdus[ext], args...; kwargs...)
 end
 """
-    img1, img2 = AstroImage(filename::AbstractString, exts)
+    img1, img2 = AstroImage(filename::AbstractString, exts; scale=true)
 
 Load multiple image HDUs `exts` from an FITS file at `filename` as an AstroImage.
 `exts` must be a tuple, range, :, or array of Integers.
@@ -46,20 +49,21 @@ function AstroImage(
         filename::AbstractString,
         exts::Union{NTuple{N, <:Integer}, AbstractArray{<:Integer}},
         args...;
+        scale = true,
         kwargs...
     ) where {N}
-    hdus = fits(filename)
+    hdus = fits(filename; scale)
     return map(exts) do ext
         return AstroImage(hdus[ext], args...; kwargs...)
     end
 end
-function AstroImage(filename::AbstractString; kwargs...)
-    hdus = fits(filename)
+function AstroImage(filename::AbstractString; scale = true, kwargs...)
+    hdus = fits(filename; scale)
     ext = indexer(hdus)
     return AstroImage(hdus[ext]; kwargs...)
 end
-function AstroImage(filename::AbstractString, ::Colon, args...; kwargs...)
-    hdus = fits(filename)
+function AstroImage(filename::AbstractString, ::Colon, args...; scale = true, kwargs...)
+    hdus = fits(filename; scale)
     return map(hdus) do hdu
         return AstroImage(hdu, args...; kwargs...)
     end
@@ -88,23 +92,27 @@ returned as AstroImage, and table HDUs are returned as column tables.
 Read and return the data from the HDUs given by `exts`. Image HDUs are
 returned as AstroImage, and table HDUs are returned as column tables.
 
+All of these accept a `scale` keyword, forwarded to FITSFiles. It defaults to
+`true`, applying the `BSCALE` and `BZERO` keywords to the data; pass
+`scale=false` to read the values exactly as stored on disk.
+
 !!! Currently any header on table HDUs are not supported and are ignored.
 """
-function fileio_load(f::File{format"FITS"}, ext::Union{Int, Nothing} = nothing, args...; kwargs...)
-    hdus = fits(f.filename)
+function fileio_load(f::File{format"FITS"}, ext::Union{Int, Nothing} = nothing, args...; scale = true, kwargs...)
+    hdus = fits(f.filename; scale)
     if isnothing(ext)
         ext = indexer(hdus)
     end
     return _loadhdu(hdus[ext], args...; kwargs...)
 end
-function fileio_load(f::File{format"FITS"}, exts::Union{NTuple{N, <:Integer}, AbstractArray{<:Integer}}, args...; kwargs...) where {N}
-    hdus = fits(f.filename)
+function fileio_load(f::File{format"FITS"}, exts::Union{NTuple{N, <:Integer}, AbstractArray{<:Integer}}, args...; scale = true, kwargs...) where {N}
+    hdus = fits(f.filename; scale)
     return map(exts) do ext
         _loadhdu(hdus[ext], args...; kwargs...)
     end
 end
-function fileio_load(f::File{format"FITS"}, ::Colon, args...; kwargs...)
-    hdus = fits(f.filename)
+function fileio_load(f::File{format"FITS"}, ::Colon, args...; scale = true, kwargs...)
+    hdus = fits(f.filename; scale)
     return map(hdus) do hdu
         _loadhdu(hdu, args...; kwargs...)
     end
