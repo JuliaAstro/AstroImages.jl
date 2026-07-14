@@ -115,6 +115,36 @@ end
     rm(fname, force = true)
 end
 
+@testset "scale keyword" begin
+    # BSCALE/BZERO are applied by FITSFiles when reading, unless `scale=false` is
+    # forwarded to it, in which case the raw stored values are returned.
+    fname = tempname() * ".fits"
+    raw = reshape(Int16[1:20;], 4, 5)
+    cards = Card[Card("BZERO", 100.0), Card("BSCALE", 2.0)]
+    write(fname, HDU[HDU(Primary, raw, cards)])
+
+    scaled = 100 .+ 2 .* raw
+    for img in (AstroImage(fname), AstroImage(fname, 1), load(fname), load(fname, 1))
+        @test eltype(img) === Float32
+        @test img == scaled
+    end
+    for img in (
+            AstroImage(fname; scale = false), AstroImage(fname, 1; scale = false),
+            load(fname; scale = false), load(fname, 1; scale = false),
+        )
+        @test eltype(img) === Int16
+        @test img == raw
+    end
+
+    # Multi-HDU forms take the keyword too.
+    @test all(==(raw), AstroImage(fname, (1, 1); scale = false))
+    @test all(==(raw), AstroImage(fname, :; scale = false))
+    @test all(==(raw), load(fname, (1, 1); scale = false))
+    @test all(==(raw), load(fname, :; scale = false))
+
+    rm(fname, force = true)
+end
+
 @testset "Utility functions" begin
     @test size(AstroImage(rand(10, 10))) == (10, 10)
     @test length(AstroImage(rand(10, 10))) == 100
