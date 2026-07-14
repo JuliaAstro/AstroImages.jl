@@ -54,6 +54,16 @@ hdu1, hdu2, hdu3 = load("multiext.fits", :); # Can also unpack multiple HDUs
 
 There is also limited support for table HDUs. In this case, a bare-bones Tables.jl compatible object is returned.
 
+## Scaled Data
+
+Many instruments store integer pixel values along with the `BSCALE` and `BZERO` keywords that convert them to physical units. By default, FITSFiles.jl applies this conversion as the file is read, so the image you get back holds the physical values. Pass `scale = false` to any of the loading functions to read the values exactly as they are stored on disk instead:
+
+```julia
+img = load("myfitsimg.fits"; scale = false)
+
+img = AstroImage("myfitsimg.fits", 1; scale = false)
+```
+
 ## Dimension Names
 
 You may have noticed the entries above the image array:
