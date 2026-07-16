@@ -14,7 +14,6 @@ Images = "916415d5-f1e6-5110-898d-aaa5f9f070e0"
 Photometry = "af68cb61-81ac-52ed-8703-edc140936be4"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 Reproject = "d1dcc2e6-806e-11e9-2897-3f99785db2ae"
-Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 
 [compat]
 Contour = "0.6.3"
