@@ -1,6 +1,3 @@
-using Revise
-Revise.revise()
-
 using AstroImages
 using Photometry, Reproject, Images
 using Documenter, DocumenterInterLinks
