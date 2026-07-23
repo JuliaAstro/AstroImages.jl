@@ -101,15 +101,11 @@ We'll define a circular apperture for each source:
 aps = CircularAperture.(sources.x, sources.y, 6)[1:1000] # just brightest thousand point sources
 ```
 
-We can overplot them on our original image by drawing a marker for each aperture, sized in data coordinates. Note that Photometry.jl's `x`/`y` coordinates refer to the second/first array axis respectively (the matrix row/column convention), while `implot` displays the first array axis along x — so we swap the coordinates when overplotting:
+We can overplot them on our original image: loading Photometry.jl together with a Makie backend activates Photometry's Makie extension, which knows how to draw every aperture type (and a whole vector of them in a single call). Note that Photometry.jl's `x`/`y` coordinates refer to the second/first array axis respectively (the matrix row/column convention), while `implot` displays the first array axis along x — so we transpose the image when overplotting:
 
 ```@example phot
-fig, ax, plt = implot(subt)
-scatter!(
-    ax, [ap.y for ap in aps], [ap.x for ap in aps];
-    marker = Circle, markersize = [2 * ap.r for ap in aps], markerspace = :data,
-    color = :transparent, strokecolor = :cyan, strokewidth = 1,
-)
+fig, ax, plt = implot(subt')
+lines!(ax, aps; color = :cyan, linewidth = 0.8)
 fig
 ```
 

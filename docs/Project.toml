@@ -23,6 +23,7 @@ ComputePipeline = {url = "https://github.com/MakieOrg/Makie.jl", rev = "ff/break
 DimensionalData = {url = "https://github.com/icweaver/DimensionalData.jl", rev = "makie-0.25"}
 FITSWCS = {url = "https://github.com/JuliaAstro/FITSWCS.jl"}
 Makie = {url = "https://github.com/MakieOrg/Makie.jl", rev = "ff/breaking-0.25", subdir = "Makie"}
+Photometry = {url = "https://github.com/JuliaAstro/Photometry.jl", rev = "makie-docs"}
 
 [compat]
 Contour = "0.6.3"
