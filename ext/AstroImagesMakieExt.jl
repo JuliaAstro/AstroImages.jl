@@ -1,0 +1,661 @@
+# Makie plotting extension for AstroImages.jl.
+#
+# Implements `implot`/`implot!` and `polquiver`/`polquiver!` as Makie recipes
+# (requires Makie 0.25+, i.e. the compute-graph recipe API).
+#
+# Unlike the old Plots.jl recipe, images are *not* pre-rendered to RGBA with
+# `imview`. Instead the raw data is passed through Makie's colormapping
+# pipeline: `clims` become `colorrange`, `stretch` becomes a `colorscale`
+# (a `ReversibleScale` applied to the clims-normalized value, matching the
+# DS9/`imview` convention), and `contrast`/`bias` are folded into a resampled
+# colormap. This means `Makie.Colorbar(fig[1, 2], plt)` works natively and
+# shows data values with correctly-placed ticks under non-linear stretches.
+module AstroImagesMakieExt
+
+using AstroImages
+using Makie
+using Makie: automatic, Automatic, ReversibleScale, DataAspect, Point2f, Aspect, Auto
+
+using AstroImages: AstroImageMat, WCSGrid, wcsgridspec, wcsgridlines, wcslabels, wcsax,
+    ctype_label, _resolve_clims, _default_clims, _default_stretch, _default_cmap,
+    _stokes_name, _stokes_symbol, Colorant
+using AstroImages.DimensionalData: name
+using AstroImages.Statistics: mean, quantile
+using AstroImages.Printf: @sprintf
+import AstroImages: implot, implot!, implotview, polquiver, polquiver!
+
+# ---------------------------------------------------------------------------
+# Colormapping helpers: translate the imview clims/stretch/cmap/contrast/bias
+# pipeline into Makie colorrange/colorscale/colormap.
+# ---------------------------------------------------------------------------
+
+# Inverses of the stretch functions exported by AstroImages (each maps [0,1]
+# back to [0,1]); used to build ReversibleScales so Colorbar can place ticks.
+stretchinverse(::typeof(identity)) = identity
+stretchinverse(::typeof(logstretch)) = y -> expm1(y * log(1000)) / 1000
+stretchinverse(::typeof(powstretch)) = y -> log1p(1000 * y) / log(1000)
+stretchinverse(::typeof(sqrtstretch)) = y -> y^2
+stretchinverse(::typeof(squarestretch)) = sqrt
+stretchinverse(::typeof(asinhstretch)) = y -> sinh(3y) / 10
+stretchinverse(::typeof(sinhstretch)) = y -> asinh(10y) / 3
+stretchinverse(::typeof(powerdiststretch)) = y -> log1p(999 * y) / log(1000)
+stretchinverse(::Any) = nothing
+
+# Apply `stretch` to the clims-normalized (and clamped) value, following the
+# SAO DS9 / `imview` convention. Note this differs from passing e.g. a log
+# scale directly as `colorscale`, which Makie would apply to the raw data.
+struct NormStretch{F} <: Function
+    stretch::F
+    lo::Float64
+    hi::Float64
+end
+(s::NormStretch)(x) = s.stretch(clamp((x - s.lo) / (s.hi - s.lo), 0.0, 1.0))
+
+struct InvNormStretch{F} <: Function
+    invstretch::F
+    lo::Float64
+    hi::Float64
+end
+(s::InvNormStretch)(y) = s.lo + (s.hi - s.lo) * s.invstretch(y)
+
+function stretchscale(stretch, lo, hi)
+    stretch isa Automatic && (stretch = _default_stretch[])
+    stretch === identity && return identity
+    limits = (lo, hi)
+    if stretch isa ReversibleScale
+        # Re-normalize a Makie scale (e.g. Makie.LuptonAsinhScale()) to the
+        # clims interval so it behaves like the other stretches.
+        return ReversibleScale(
+            NormStretch(stretch.forward, lo, hi), InvNormStretch(stretch.inverse, lo, hi);
+            limits, name = stretch.name
+        )
+    end
+    fwd = NormStretch(stretch, lo, hi)
+    inv = stretchinverse(stretch)
+    if isnothing(inv)
+        # Still usable for plotting, but Colorbar won't be able to invert it
+        # to place ticks.
+        return fwd
+    end
+    return ReversibleScale(fwd, InvNormStretch(inv, lo, hi); limits, name = Symbol(stretch))
+end
+
+function resolvedcolorrange(data, clims)
+    clims isa Automatic && (clims = _default_clims[])
+    lo, hi = Float64.(_resolve_clims(data, clims))
+    if !(hi > lo) # degenerate or empty data guard
+        lo, hi = lo - 0.5, lo + 0.5
+    end
+    return (lo, hi)
+end
+
+# Resolve the AstroImages `cmap` (Symbol / colorant / ColorScheme / nothing)
+# to a Makie colormap, folding in the DS9-style contrast/bias parameters by
+# resampling: imview colors a stretched value s with cmap[(s-bias)*contrast+0.5].
+function adjustedcolormap(cmap, contrast, bias)
+    cmap isa Automatic && (cmap = _default_cmap[])
+    isnothing(cmap) && (cmap = :grays)
+    cmap isa AstroImages.ColorSchemes.ColorScheme && (cmap = cmap.colors)
+    base = Makie.to_colormap(cmap)
+    (contrast == 1 && bias == 0.5) && return base
+    cg = Makie.cgrad(base)
+    ts = clamp.((range(0, 1, length = length(base)) .- bias) .* contrast .+ 0.5, 0, 1)
+    return Makie.to_colormap([cg[t] for t in ts])
+end
+
+# Convert image data to a plain Float32 matrix Makie can colormap, mapping
+# missing to NaN (rendered as `nan_color`, matching imview).
+plotdata(data::AbstractMatrix{<:Real}) = Float32.(data)
+plotdata(data::AbstractMatrix) = Float32[ismissing(x) ? NaN32 : Float32(x) for x in data]
+plotdata(data::AbstractMatrix{<:Colorant}) = collect(data)
+
+# Pixel-centered extent of the image in (possibly platescale-multiplied)
+# pixel coordinates: (xmin, xmax, ymin, ymax).
+function imgextent(img, platescale = 1)
+    d1, d2 = dims(img, 1), dims(img, 2)
+    return (first(d1) - 0.5, last(d1) + 0.5, first(d2) - 0.5, last(d2) + 0.5) .* platescale
+end
+
+haswcsaxes(img, wcsn) = !all(==(""), wcs(img, wcsn).ctype)
+
+# ---------------------------------------------------------------------------
+# implot recipe
+# ---------------------------------------------------------------------------
+
+"""
+Display an `AstroImage` with Makie, with support for astronomical image
+rendering (clims/stretch/colormap) and world coordinate system (WCS) axes.
+
+See the AstroImages.jl documentation for details.
+"""
+@recipe ImPlot (img::AstroImageMat,) begin
+    "Color limits: a (lo, hi) tuple or a callable like `Percent(99.5)` or `Zscale()` applied to the finite data values."
+    clims = automatic
+    "Monotonic function applied to the clims-normalized data, e.g. `asinhstretch` or `logstretch`."
+    stretch = automatic
+    "Colormap: any Makie colormap, ColorScheme, or colorant. `nothing` for grayscale."
+    cmap = automatic
+    "DS9-style colormap contrast."
+    contrast = 1.0
+    "DS9-style colormap bias."
+    bias = 0.5
+    "Which WCS transform in the headers to use (`' '` primary, `'A'`-`'Z'` alternates)."
+    wcsn = ' '
+    "Display ticks, labels, and title in world coordinates (applies when the Axis is created by this plot)."
+    wcsticks = true
+    "When slicing a cube, display the location along unseen axes in the axis title."
+    wcstitle = true
+    "Overplot the (possibly curved) WCS coordinate grid. `automatic`: on when WCS headers are present."
+    wcsgrid = automatic
+    "Pixel-coordinate extent (xmin, xmax, ymin, ymax) the WCS grid overlay is computed for. `automatic`: the full image. ImPlotView keeps this in sync with the axis limits."
+    viewextent = automatic
+    "Color of the WCS grid lines."
+    gridcolor = :lightgray
+    "Line width of the WCS grid lines."
+    gridwidth = 1.0
+    "Scale the underlying pixel coordinates to ease overplotting."
+    platescale = 1.0
+    "Sets whether colors should be interpolated between pixels."
+    interpolate = false
+    "The color for NaN and missing pixels."
+    nan_color = :transparent
+    "The color for any value below the color range."
+    lowclip = automatic
+    "The color for any value above the color range."
+    highclip = automatic
+    "The alpha value of the colormap."
+    alpha = 1.0
+    Makie.mixin_generic_plot_attributes()...
+end
+
+Makie.convert_arguments(::Type{<:ImPlot}, img::AbstractMatrix) = (AstroImage(img),)
+function Makie.convert_arguments(::Type{<:ImPlot}, img::AbstractArray)
+    throw(ArgumentError("`implot` requires a two-dimensional image. Got ndims=$(ndims(img)). Slice the cube first, e.g. `implot(cube[:, :, 1])`."))
+end
+
+Makie.plottype(::AstroImageMat) = ImPlot
+
+# Common compute nodes shared by the plot! methods.
+function registerextents!(p)
+    return map!(p.attributes, [:img, :platescale], [:xext, :yext]) do img, platescale
+        ext = imgextent(img, platescale)
+        return ((ext[1], ext[2]), (ext[3], ext[4]))
+    end
+end
+
+# Overplot the WCS coordinate grid as (possibly curved) lines in pixel coords.
+function wcsgridoverlay!(p)
+    attr = p.attributes
+    map!(attr, [:img, :wcsn, :wcsgrid, :platescale, :viewextent], [:gridpoints, :gridvisible]) do img, wcsn, wcsgrid, platescale, viewextent
+        show = wcsgrid isa Automatic ? haswcsaxes(img, wcsn) : (wcsgrid && haswcsaxes(img, wcsn))
+        show || return (Point2f[], false)
+        ext = viewextent isa Automatic ? Float64.(imgextent(img)) : Float64.(viewextent)
+        gs = wcsgridspec(WCSGrid(img, ext, wcsn))
+        xs, ys = wcsgridlines(gs)
+        return (Point2f.(xs .* platescale, ys .* platescale), true)
+    end
+    lines!(
+        p, p.gridpoints;
+        color = p.gridcolor, linewidth = p.gridwidth, visible = p.gridvisible,
+        inspectable = false,
+    )
+    return
+end
+
+function Makie.plot!(p::ImPlot{<:Tuple{<:AstroImageMat{<:Union{Real, Missing}}}})
+    attr = p.attributes
+    registerextents!(p)
+    map!(img -> plotdata(parent(img)), attr, :img, :rawdata)
+    map!(attr, [:img, :clims], :computed_colorrange) do img, clims
+        return resolvedcolorrange(parent(img), clims)
+    end
+    map!(attr, [:stretch, :computed_colorrange], :computed_colorscale) do stretch, crange
+        return stretchscale(stretch, crange...)
+    end
+    map!(adjustedcolormap, attr, [:cmap, :contrast, :bias], :computed_colormap)
+    image!(
+        p, p.attributes, p.xext, p.yext, p.rawdata;
+        colormap = p.computed_colormap,
+        colorrange = p.computed_colorrange,
+        colorscale = p.computed_colorscale,
+    )
+    wcsgridoverlay!(p)
+    return p
+end
+
+# Colorant-valued images (e.g. from imview or composecolors) are displayed
+# directly without colormapping.
+function Makie.plot!(p::ImPlot{<:Tuple{<:AstroImageMat{<:Colorant}}})
+    registerextents!(p)
+    map!(img -> plotdata(parent(img)), p.attributes, :img, :rawdata)
+    image!(p, p.attributes, p.xext, p.yext, p.rawdata)
+    wcsgridoverlay!(p)
+    return p
+end
+
+# Tell Colorbar which of our compute nodes hold the colormapping, so that
+# `Makie.Colorbar(fig[1, 2], plt)` works on the recipe as a whole (it cannot
+# choose automatically between the image and grid-line children).
+function Makie._extract_colormap(p::ImPlot{<:Tuple{<:AstroImageMat{<:Union{Real, Missing}}}})
+    return Dict{Symbol, Any}(
+        :color => p.rawdata,
+        :colormap => p.computed_colormap,
+        :colorrange => p.computed_colorrange,
+        :colorscale => p.computed_colorscale,
+        :lowclip => p.lowclip,
+        :highclip => p.highclip,
+    )
+end
+
+function Makie.plot!(::ImPlot{<:Tuple{<:AstroImageMat{<:Complex}}})
+    throw(
+        ArgumentError(
+            "`implot` of complex-valued images is not supported with Makie yet. " *
+                "Plot the magnitude and phase separately, e.g. `implot(abs.(img))` and `implot(angle.(img), clims=(-pi, pi))`."
+        )
+    )
+end
+
+# ---------------------------------------------------------------------------
+# WCSTicks: dynamic WCS tick locator/formatter hooked into Makie's
+# `get_ticks` protocol, so tick positions and labels recompute from the
+# current axis limits on zoom/pan.
+#
+# Tick positions along one axis depend on the extent of *both* axes (they are
+# the intersections of world-coordinate grid lines with the axis edge), but
+# `get_ticks` only receives the limits of its own dimension. The x and y
+# WCSTicks therefore share one mutable extent state, which each call refreshes
+# for its own dimension. During continuous zoom/pan both dimensions recompute
+# every frame, so the cross-dimension range is at most one interaction stale;
+# ImPlotView additionally syncs the state from the axis `finallimits`.
+# ---------------------------------------------------------------------------
+
+mutable struct WCSTickState
+    # Current full displayed extent in pixel coordinates (xmin, xmax, ymin, ymax)
+    extent::NTuple{4, Float64}
+end
+
+struct WCSTicks
+    img::AstroImage
+    axnum::Int  # 1 = x, 2 = y
+    wcsn::Char
+    platescale::Float64
+    state::WCSTickState
+end
+
+function Makie.get_ticks(t::WCSTicks, scale, formatter, vmin, vmax)
+    # `scale` is ignored: non-identity axis scales make no sense for WCS axes.
+    lo, hi = Float64(vmin) / t.platescale, Float64(vmax) / t.platescale
+    hi > lo || return (Float64[], String[])
+    ext = t.state.extent
+    ext = t.axnum == 1 ? (lo, hi, ext[3], ext[4]) : (ext[1], ext[2], lo, hi)
+    t.state.extent = ext
+    gs = wcsgridspec(WCSGrid(t.img, ext, t.wcsn))
+    pos = (t.axnum == 1 ? gs.tickpos1x : gs.tickpos2x) .* t.platescale
+    wvals = t.axnum == 1 ? gs.tickpos1w : gs.tickpos2w
+    # Label in screen order (world order can be reversed, e.g. RA), so that
+    # wcslabels puts the full-length anchor label at the axis start and only
+    # truncated labels after it.
+    perm = sortperm(pos)
+    pos, wvals = pos[perm], wvals[perm]
+    labels = if formatter isa Makie.Automatic
+        # Stack wide context-bearing labels onto two lines along x, where
+        # neighboring labels can crowd horizontally.
+        wcslabels(wcs(t.img, t.wcsn), wcsax(t.img, dims(t.img, t.axnum)), wvals; stacked = t.axnum == 1)
+    else
+        Makie.get_ticklabels(formatter, wvals)
+    end
+    return pos, labels
+end
+
+# ---------------------------------------------------------------------------
+# Axis integration: when implot creates the Axis, configure it with WCS
+# ticks, labels, title, and tight, aspect-correct limits.
+# ---------------------------------------------------------------------------
+
+# Attribute access on a partially initialized plot, with fallback.
+function plotattr(p, s::Symbol, default)
+    return try
+        x = getproperty(p, s)[]
+        x isa Automatic ? default : x
+    catch
+        default
+    end
+end
+
+# Describe our position along sliced-away dimensions (matches the Plots recipe).
+function refdimstitle(img, wcsn, usewcs)
+    return join(
+        map(refdims(img)) do d
+            if usewcs
+                i = wcsax(img, d)
+                w = wcs(img, wcsn)
+                ct = AstroImages.stripfitsstr(w.ctype[i])
+                label = ctype_label(ct, w.radesys)
+                if label == "NONE"
+                    label = string(name(d))
+                end
+                value = pixel_to_world(img, [1, 1]; wcsn, all = true, parent = true)[i]
+                if ct == "STOKES"
+                    return _stokes_name(_stokes_symbol(value))
+                else
+                    return @sprintf("%s = %.5g %s", label, value, AstroImages.axisunit(w, i))
+                end
+            else
+                return "$(name(d))= $(d[1])"
+            end
+        end, ", "
+    )
+end
+
+function Makie.preferred_axis_attributes(::Type{Makie.Axis}, p::ImPlot, img)
+    if !(img isa AstroImageMat)
+        img isa AbstractMatrix || return NamedTuple()
+        img = AstroImage(img)
+    end
+    return wcsaxisattributes(
+        img;
+        wcsn = plotattr(p, :wcsn, ' '),
+        platescale = plotattr(p, :platescale, 1),
+        wcsticks = plotattr(p, :wcsticks, true),
+        wcstitle = plotattr(p, :wcstitle, true),
+    )
+end
+
+# Axis attributes (ticks, labels, title, limits, aspect) appropriate for
+# displaying `img`. Usable directly for manually created axes:
+# `Axis(fig[1, 1]; AstroImagesMakieExt.wcsaxisattributes(img)...)`.
+function wcsaxisattributes(img::AstroImageMat; wcsn = ' ', platescale = 1, wcsticks = true, wcstitle = true)
+    haswcs = haswcsaxes(img, wcsn)
+    showticks = wcsticks && haswcs
+    showtitle = wcstitle && haswcs && !isempty(refdims(img))
+
+    extent = Float64.(imgextent(img))
+    attrs = Dict{Symbol, Any}(
+        :limits => ((extent[1], extent[2]) .* platescale, (extent[3], extent[4]) .* platescale),
+    )
+    # Equal data aspect when both plotted axes share angular units (pixels are
+    # sky-square), except when the axes have wildly different scales. Mixed
+    # frames (e.g. a longitude/velocity slice) get Makie's automatic aspect.
+    w = wcs(img, wcsn)
+    bothangular = !haswcs || all(d -> AstroImages.isangular(w, wcsax(img, d)), dims(img))
+    ratio = (extent[2] - extent[1]) / (extent[4] - extent[3])
+    if bothangular && 1 / 7 < ratio < 7
+        attrs[:aspect] = DataAspect()
+    end
+    if !isempty(refdims(img))
+        attrs[:title] = refdimstitle(img, wcsn, showtitle)
+    end
+    if showticks
+        w = wcs(img, wcsn)
+        ax1, ax2 = wcsax(img, dims(img, 1)), wcsax(img, dims(img, 2))
+        state = WCSTickState(extent)
+        attrs[:xticks] = WCSTicks(img, 1, wcsn, platescale, state)
+        attrs[:yticks] = WCSTicks(img, 2, wcsn, platescale, state)
+        attrs[:xlabel] = ctype_label(w.ctype[ax1], w.radesys)
+        attrs[:ylabel] = ctype_label(w.ctype[ax2], w.radesys)
+        # The straight Axis grid would be drawn at the tick positions; the
+        # correct (possibly curved) WCS grid is overplotted by the recipe.
+        attrs[:xgridvisible] = false
+        attrs[:ygridvisible] = false
+    end
+    return attrs
+end
+
+# ---------------------------------------------------------------------------
+# ImPlotView: a complex recipe block (new in Makie 0.25) bundling an Axis with
+# WCS ticks and a Colorbar — what the Plots.jl recipe approximated with
+# @layout. Usage: `fig, iv = ImPlotView(img)` or `ImPlotView(fig[1, 1], img)`.
+# ---------------------------------------------------------------------------
+
+# Gap between the image and the colorbar, in px (Makie's layout default of 18 is
+# noticeably loose for an image panel).
+const COLORBAR_GAP = 8
+
+@Block ImPlotView (img,) begin
+    @attributes begin
+        "Color limits, see `implot`."
+        clims = automatic
+        "Stretch function, see `implot`."
+        stretch = automatic
+        "Colormap, see `implot`."
+        cmap = automatic
+        "DS9-style colormap contrast."
+        contrast = 1.0
+        "DS9-style colormap bias."
+        bias = 0.5
+        "Which WCS transform in the headers to use."
+        wcsn = ' '
+        "Display ticks, labels, and title in world coordinates."
+        wcsticks = true
+        "Display the location along sliced-away axes in the title."
+        wcstitle = true
+        "Overplot the WCS coordinate grid."
+        wcsgrid = automatic
+        "Color of the WCS grid lines."
+        gridcolor = :lightgray
+        "Scale the underlying pixel coordinates."
+        platescale = 1.0
+        "Interpolate colors between pixels."
+        interpolate = false
+        "Display a colorbar."
+        colorbar = true
+        "Colorbar label. Defaults to the UNIT/BUNIT header if present."
+        colorbar_label = automatic
+        "Attributes forwarded to the created Axis, overriding the WCS defaults, e.g. `axis = (; title = \"M42\")`."
+        axis = (;)
+    end
+end
+
+function Makie.convert_arguments(::Type{<:ImPlotView}, img::AbstractMatrix)
+    return (img isa AstroImageMat ? img : AstroImage(img),)
+end
+
+function implotview(args...; kwargs...)
+    res = ImPlotView(args...; kwargs...)
+    # Called without a figure position, `ImPlotView` creates its own Figure, whose
+    # default size has nothing to do with the image: an aspect-locked panel then
+    # sits in it surrounded by whitespace. Shrink the figure onto its content
+    # instead. An explicit `figure = (; size = ...)` wins, and a view placed into
+    # someone else's figure never resizes it.
+    if res isa Makie.FigureBlock && !(:size in keys(get(kwargs, :figure, (;))))
+        fittofigure!(res.figure, res.block)
+    end
+    return res
+end
+
+# `resize_to_layout!` cannot do this for us: an `Aspect` row or column leaves the
+# enclosing layout's size undetermined, so a block containing one reports no
+# preferred size to the figure and the figure has nothing to shrink onto. But the
+# gap between the figure and the block's cell (padding and protrusions) is fixed,
+# so the size the content wants can be recovered from the block's own layout.
+function fittofigure!(fig::Makie.Figure, bl::ImPlotView)
+    Makie.update_state_before_display!(fig)
+    # `tight_bbox` would read the inner layout's `suggestedbbox`, which a Block
+    # never sets — it drives `align_to_bbox!` from its `computedbbox` instead.
+    have = bl.layoutobservables.computedbbox[]
+    _, cells = Makie.GridLayoutBase.compute_rowcols(bl.layout, have)
+    want = (cells.rights[end] - cells.lefts[1], cells.tops[1] - cells.bottoms[end])
+    size = Makie.widths(Makie.viewport(fig.scene)[]) .+ want .- Makie.widths(have)
+    all(>(0), size) && Makie.resize!(fig, round.(Int, size)...)
+    return fig
+end
+
+function Makie.initialize_block!(bl::ImPlotView)
+    img = bl.img[]
+    axattrs = wcsaxisattributes(
+        img;
+        wcsn = bl.wcsn[], platescale = bl.platescale[],
+        wcsticks = bl.wcsticks[], wcstitle = bl.wcstitle[],
+    )
+    # User-provided axis attributes override the WCS-derived defaults
+    for (k, v) in pairs(bl.axis[])
+        axattrs[k] = v
+    end
+    ax = Makie.Axis(bl[1, 1]; axattrs...)
+    plt = implot!(
+        ax, bl.img;
+        clims = bl.clims, stretch = bl.stretch, cmap = bl.cmap,
+        contrast = bl.contrast, bias = bl.bias, wcsn = bl.wcsn,
+        wcsgrid = bl.wcsgrid, gridcolor = bl.gridcolor,
+        platescale = bl.platescale, interpolate = bl.interpolate,
+    )
+    cb = nothing
+    if bl.colorbar[] && !(eltype(img) <: Colorant)
+        label = bl.colorbar_label[]
+        if label isa Automatic
+            label = string(something(img["UNIT"], img["BUNIT"], ""))
+        end
+        cb = Makie.Colorbar(bl[1, 2], plt; label)
+        Makie.colgap!(bl.layout, COLORBAR_GAP)
+    end
+    # Keep the WCS ticks' shared extent state and the grid overlay in sync
+    # with the displayed region, so both refine on zoom/pan.
+    xt = get(axattrs, :xticks, nothing)
+    if xt isa WCSTicks
+        Makie.on(ax.finallimits) do rect
+            ps = bl.platescale[]
+            o, w = rect.origin, rect.widths
+            ext = (o[1], o[1] + w[1], o[2], o[2] + w[2]) ./ ps
+            xt.state.extent = ext
+            plt.viewextent = ext
+            return
+        end
+    end
+    ratio = cellaspectratio(axattrs)
+    isnothing(ratio) || lockcellaspect!(bl, ax, cb, ratio)
+    return
+end
+
+# The width:height the *axis box* should have, given the attributes it was
+# created with, or `nothing` if it is free to fill its cell.
+function cellaspectratio(axattrs)
+    aspect = get(axattrs, :aspect, nothing)
+    aspect isa Real && return Float64(aspect)
+    aspect isa DataAspect || return nothing
+    lims = get(axattrs, :limits, nothing)
+    lims isa NTuple{4, Any} && (lims = ((lims[1], lims[2]), (lims[3], lims[4])))
+    lims isa Tuple{Any, Any} || return nothing
+    x, y = lims
+    (x isa Tuple{Any, Any} && y isa Tuple{Any, Any}) || return nothing
+    any(isnothing, (x..., y...)) && return nothing
+    return (x[2] - x[1]) / (y[2] - y[1])
+end
+
+# An `Axis` `aspect` shrinks the axis *inside* its layout cell, so the cell keeps
+# whatever shape the layout gives it and the leftover space shows up as a gap
+# between the image and the colorbar. Give the cell itself the right shape
+# instead — then the axis fills it and the colorbar sits flush against the image.
+# (This is the approach in Makie's "Aspect ratios and automatic figure sizes"
+# tutorial.) `Aspect` derives one cell dimension from the other, and the derived
+# one is unbounded: deriving the width from the height overflows the layout for
+# wide images, deriving the height from the width overflows it for tall ones. So
+# pick the direction that fits in the space the block was actually given, and
+# revisit it whenever that space changes.
+function lockcellaspect!(bl::ImPlotView, ax::Makie.Axis, cb, ratio::Real)
+    layout = bl.layout
+    # The block's bbox is already net of protrusions (tick labels, axis labels,
+    # colorbar labels), so the only thing between the axis cell and the block's
+    # right edge is the colorbar column and the gap before it.
+    function reservedwidth()
+        isnothing(cb) && return 0.0
+        bar = something(cb.layoutobservables.autosize[][1], 0.0f0)
+        gap = max(ax.layoutobservables.protrusions[].right, cb.layoutobservables.protrusions[].left)
+        return bar + gap + COLORBAR_GAP
+    end
+    function relayout(bbox)
+        w, h = Makie.widths(bbox)
+        availw = max(w - reservedwidth(), 1.0)
+        availh = max(h, 1.0)
+        colsize, rowsize = if availw / availh >= ratio
+            Aspect(1, ratio), Auto()   # height binds: derive the width from it
+        else
+            Auto(), Aspect(1, 1 / ratio)   # width binds: derive the height from it
+        end
+        (layout.colsizes[1] == colsize && layout.rowsizes[1] == rowsize) && return
+        # Both must change together: an Aspect row and an Aspect column cannot be
+        # resolved at the same time, so the layout errors on the intermediate state.
+        Makie.GridLayoutBase.with_updates_suspended(layout) do
+            layout.colsizes[1] = colsize
+            layout.rowsizes[1] = rowsize
+        end
+        return
+    end
+    relayout(bl.layoutobservables.computedbbox[])
+    Makie.on(relayout, bl.layoutobservables.computedbbox)
+    return
+end
+
+# ---------------------------------------------------------------------------
+# polquiver recipe
+# ---------------------------------------------------------------------------
+
+# Block-average (bin down) a matrix by an integer factor. NaNs propagate.
+function blockmean(A::AbstractMatrix, b::Int)
+    b <= 1 && return float.(collect(A))
+    m, n = cld.(size(A), b)
+    out = Matrix{Float64}(undef, m, n)
+    for j in 1:n, i in 1:m
+        is = ((i - 1) * b + 1):min(i * b, size(A, 1))
+        js = ((j - 1) * b + 1):min(j * b, size(A, 2))
+        out[i, j] = mean(float(A[i′, j′]) for i′ in is, j′ in js)
+    end
+    return out
+end
+
+"""
+Plot a vector field of linear polarization data from a cube with a `Pol` axis
+holding at least the `:I`, `:Q`, and `:U` Stokes parameters.
+
+See the AstroImages.jl documentation for details.
+"""
+@recipe PolQuiver (cube::AstroImage{<:Any, 3},) begin
+    "Bin the polarization data down by this factor before drawing the segments."
+    bins = 4
+    "Length of the 98th-percentile segment, in pixels. Defaults to `bins`."
+    ticklen = automatic
+    "Hide segments shorter than `minpol` times the 98th-percentile intensity."
+    minpol = 0.1
+    "Colormap for the linear polarization fraction."
+    colormap = :turbo
+    "Line width of the segments."
+    linewidth = 1.5
+    Makie.mixin_generic_plot_attributes()...
+end
+
+function Makie.plot!(p::PolQuiver)
+    attr = p.attributes
+    map!(attr, [:cube, :bins, :ticklen, :minpol], [:segments, :segcolors]) do cube, bins, ticklen, minpol
+        i = cube[Pol = At(:I)]
+        q = cube[Pol = At(:Q)]
+        u = cube[Pol = At(:U)]
+        polinten = @. sqrt(q^2 + u^2)
+        linpolfrac = polinten ./ i
+
+        b = max(1, round(Int, bins))
+        xs = blockmean([float(x) for x in dims(cube, 1), _ in dims(cube, 2)], b)
+        ys = blockmean([float(y) for _ in dims(cube, 1), y in dims(cube, 2)], b)
+        qx = blockmean(parent(q), b)
+        qy = blockmean(parent(u), b)
+        qlinpolfrac = blockmean(parent(linpolfrac), b)
+        qpolinten = blockmean(parent(polinten), b)
+
+        # By default the longest segments are about one bin long.
+        qmaxlen = quantile(filter(isfinite, vec(qpolinten)), 0.98)
+        a = (ticklen isa Automatic ? b : ticklen) / qmaxlen
+        # Only show segments where the data is finite and long enough.
+        mask = isfinite.(qpolinten) .& (qpolinten .>= minpol .* qmaxlen)
+
+        segments = Point2f[]
+        colors = Float32[]
+        for (x, y, qxi, qyi, c) in zip(xs[mask], ys[mask], qx[mask], qy[mask], qlinpolfrac[mask])
+            push!(segments, Point2f(x, y), Point2f(x + a * qxi, y + a * qyi))
+            push!(colors, c, c)
+        end
+        return (segments, colors)
+    end
+    linesegments!(p, p.attributes, p.segments; color = p.segcolors)
+    return p
+end
+
+end # module

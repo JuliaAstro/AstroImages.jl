@@ -21,7 +21,7 @@ Let's see how this works with a 2D image with RA & DEC coordinates:
 
 ```@example coords
 using AstroImages
-using Plots
+using CairoMakie
 using Downloads: download
 
 # Download a Hubble image of the Eagle nebula
@@ -50,27 +50,25 @@ world_to_pixel(eagle, world) # Bottom left corner
 
 These pixel coordinates do not necessarily have to lie within the bounds of the original image, and in general lie at a fractional pixel position.
 
-If an image contains WCS headers, we can visualize them using [`implot`](@ref):
+If an image contains WCS headers, we can visualize them using [`implotview`](@ref):
 
 ```@example coords
-implot(eagle)
+implotview(eagle)
 ```
 
 We can adjust the color of the grid:
 
 ```@example coords
-implot(eagle; gridcolor = :cyan)
+implotview(eagle; gridcolor = :cyan)
 ```
 
 If these aren't desired, we can turn off the grid or the WCS tick marks:
 
 ```@example coords
-plot(
-  implot(eagle; grid = false),
-  implot(eagle, wcsticks = false);
-  size = (900, 300),
-  bottommargin = 10Plots.mm,
-)
+fig = Figure(size = (900, 400))
+implot(fig[1, 1], eagle; wcsgrid = false)
+implot(fig[1, 2], eagle; wcsticks = false)
+fig
 ```
 
 Since AstroImages are based on DimensionalData's AbstractDimArray, the mapping between pixel coordinates and world coordinates are preserved when slicing an AstroImage:
@@ -78,12 +76,10 @@ Since AstroImages are based on DimensionalData's AbstractDimArray, the mapping b
 ```@example coords
 slice1 = eagle[1:800, 1:800]
 slice2 = eagle[800:1600, 1:800]
-plot(
-  implot(slice1),
-  implot(slice2);
-  size = (900, 300),
-  bottommargin = 10Plots.mm,
-)
+fig = Figure(size = (900, 400))
+implot(fig[1, 1], slice1)
+implot(fig[1, 2], slice2)
+fig
 ```
 
 World coordinate queries from that slice are aware of their position in the parent image:
@@ -144,24 +140,24 @@ Notice how the cube is not displayed automatically. We have to pick a specific s
 HIcube[Z = 228]
 ```
 
-Using [`implot`](@ref), the world coordinates are displayed automatically:
+Using [`implotview`](@ref), the world coordinates are displayed automatically:
 
 ```@example coords
-implot(HIcube[Z = 228]; cmap = :turbo)
+implotview(HIcube[Z = 228]; cmap = :turbo)
 ```
 
-The plot automatically reflects the world coordinates embeded in the file. It displays the x axis in galactic longitude, the y-axis in galactic latitude, and even shows the curved projection from pixel coordinates to galactic coordinates. The title is automatically set to the world coordinate along the Z axis in units of velocity. It also picks up the unit of the data (Kelvins) to display on the colorbar.
+The plot automatically reflects the world coordinates embeded in the file. It displays the x axis in galactic longitude, the y-axis in galactic latitude, and even shows the curved projection from pixel coordinates to galactic coordinates. The title is automatically set to the world coordinate along the Z axis in units of velocity. It also picks up the unit of the data (Kelvins) to display on the colorbar. (Use [`implot`](@ref) instead for just the axis, without the colorbar.)
 
 If we pick another slice, the title updates accordingly:
 
 ```@example coords
-implot(HIcube[Z = 308]; cmap = :turbo)
+implotview(HIcube[Z = 308]; cmap = :turbo)
 ```
 
 This works for other slices through the cube as well:
 
 ```@example coords
-implot(HIcube[Y = 45]; cmap = :turbo, aspectratio = 0.3)
+implotview(HIcube[Y = 45]; cmap = :turbo)
 ```
 
 ## Custom Dimensions
@@ -207,11 +203,11 @@ eagle_cen = recenter(eagle, 801, 801);
 Unlike an OffsetArray, `eagle_cen[1,1]` still refers to the bottom left of the image. This also has no effect on broadcasting; `eagle_cen .+ ones(1600,1600)` is perfectly valid. However, we see the new centered dimensions when we go to plot the image:
 
 ```@example coords
-implot(eagle_cen; wcsticks = false)
+implot(eagle_cen; wcsticks = false, wcsgrid = false)
 ```
 
 And we can query positions using the offset dimensions:
 
 ```@example coords
-implot(eagle_cen[X=-300..300, Y=-300..300]; wcsticks = false)
+implot(eagle_cen[X=-300..300, Y=-300..300]; wcsticks = false, wcsgrid = false)
 ```

@@ -3,14 +3,14 @@
 ```@setup 1
 using AstroImages
 using AstroImages: restrict
-using Plots
+using CairoMakie
 
 AstroImages.set_clims!(Percent(99.5))
 AstroImages.set_cmap!(:magma)
 AstroImages.set_stretch!(identity)
 ```
 
-The `imview` and `implot` functions are very similar. Both allow any abstract array of numbers to be rendered into an image or a Plots.jl image series. `implot` is largely a superset of `imview` because it also supports colorbars, tick marks, WCS grid lines, overplotting other data & shapes, and automatic axis and title naming (from the FITS header if available).
+The `imview` and `implotview` functions are very similar. Both allow any abstract array of numbers to be rendered into an image or a Makie figure. `implotview` is largely a superset of `imview` because it also supports colorbars, tick marks, WCS grid lines, overplotting other data & shapes, and automatic axis and title naming (from the FITS header if available).
 
 ## `imview`
 
@@ -111,14 +111,25 @@ iv
 
 `iv` will reflect the changes to `data` when it is displayed the second time.
 
-## `implot`
+## `implotview` and `implot`
 
-`implot` is a Plots.jl recipe, which means before you can use it you first have to load `Plots.jl`. It accepts all the arguments `imview` does for controlling how data is rendered to the screen:
+`implotview` and `implot` are Makie recipes, which means before you can use them you first have to load a Makie backend like `CairoMakie` or `GLMakie`. They accept all the arguments `imview` does for controlling how data is rendered to the screen.
+
+`implotview` produces a complete figure panel: an axis with coordinates, plus a colorbar labeled from the FITS `UNIT`/`BUNIT` header when present:
 
 ```@example 1
-using Plots
+using CairoMakie
 
-implot(img; clims = Percent(99.5), cmap = :magma, stretch = identity, contrast = 1.0, bias = 0.5)
+implotview(img; clims = Percent(99.5), cmap = :magma, stretch = identity, contrast = 1.0, bias = 0.5)
 ```
 
-For more on `implot`, including offset dimensions and world coordinates, see [Dimensions and World Coordinates](@ref).
+`implot` and `implot!` instead plot the image into a single axis without a colorbar, which makes them the right tool for composing multi-panel figures or overplotting other data:
+
+```@example 1
+fig = Figure(size = (800, 400))
+implot(fig[1, 1], img)
+implot(fig[1, 2], img; cmap = :ice)
+fig
+```
+
+For more, including offset dimensions and world coordinates, see [Dimensions and World Coordinates](@ref).

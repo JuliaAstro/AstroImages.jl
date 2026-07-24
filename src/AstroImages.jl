@@ -1,7 +1,7 @@
 module AstroImages
 
 using AbstractFFTs: AbstractFFTs
-using AstroAngles: AstroAngles, deg2dms, deg2hms
+using AstroAngles: AstroAngles, deg2dms, deg2hms, format_angle
 using ColorSchemes: ColorSchemes, get
 using DimensionalData: DimensionalData, AbstractDimArray, At, Dim, Lookups,
     Dimensions, Near, (..), Ti, X, Y, Z, dims, name, rebuild, refdims
@@ -22,7 +22,6 @@ using PlotUtils: PlotUtils
 using PlotUtils: optimize_ticks, AbstractColorList
 using PrecompileTools: PrecompileTools, @compile_workload, @setup_workload
 using Printf: Printf, @printf, @sprintf
-using RecipesBase: RecipesBase, @layout, @recipe, @series, @userplot
 using Statistics: Statistics, mean, quantile
 using Tables: Tables
 using UUIDs: UUIDs # can remove once reigstered with FileIO
@@ -68,6 +67,12 @@ export load,
     recenter,
     pixel_to_world,
     world_to_pixel,
+    # Plotting (implemented in the Makie package extension)
+    implot,
+    implot!,
+    implotview,
+    polquiver,
+    polquiver!,
     # Deprecated: renamed to pixel_to_world / world_to_pixel
     pix_to_world,
     world_to_pix,
@@ -720,7 +725,8 @@ include("wcs.jl")
 include("io.jl")
 include("imview.jl")
 include("showmime.jl")
-include("plot-recipes.jl")
+include("wcs-grid.jl")
+include("plot-interface.jl")
 include("contrib/images.jl")
 include("contrib/abstract-ffts.jl")
 # include("contrib/reproject.jl")

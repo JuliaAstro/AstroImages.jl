@@ -7,6 +7,7 @@ AstroImages.AstroImage
 AstroImages.Centered
 AstroImages.imview
 AstroImages.implot
+AstroImages.implotview
 AstroImages.Comment
 AstroImages.History
 AstroImages.header

@@ -7,6 +7,8 @@ authors = ["Mosè Giordano", "Rohit Kumar", "William Thompson"]
 projects = ["test", "docs"]
 
 [sources]
+AstroAngles = {url = "https://github.com/JuliaAstro/AstroAngles.jl"}
+DimensionalData = {url = "https://github.com/icweaver/DimensionalData.jl", rev = "makie-0.25"}
 FITSFiles = {url = "https://github.com/JuliaAstro/FITSFiles.jl"}
 FITSWCS = {url = "https://github.com/JuliaAstro/FITSWCS.jl"}
 
@@ -26,27 +28,32 @@ MappedArrays = "dbb5928d-eab1-5f90-85c2-b9b0edb7c900"
 PlotUtils = "995b91a9-d308-5afd-9ec6-746e21dbc043"
 PrecompileTools = "aea7be01-6a6a-4083-8856-8a6e6704d82a"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
-RecipesBase = "3cdcf5f2-1ef4-517c-9805-6587b60abb01"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 Tables = "bd369af6-aec1-5ad0-b16a-f7cc5008161c"
 UUIDs = "cf7118a7-6976-5b1a-9a39-7adc72f591a4"
 
+[weakdeps]
+Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
+
+[extensions]
+AstroImagesMakieExt = "Makie"
+
 [compat]
 AbstractFFTs = "1.1"
-AstroAngles = "0.1, 0.2"
+AstroAngles = "0.3"
 ColorSchemes = "3.18"
 DimensionalData = "0.27, 0.29, 0.30"
-FITSFiles = "0.2, 0.3"
+FITSFiles = "0.2, 0.3, 0.4"
 FITSWCS = "0.1"
 FileIO = "1.15"
 ImageAxes = "0.6"
 ImageBase = "^0.1.5"
 ImageIO = "0.6"
 ImageShow = "0.3"
+Makie = "0.25"
 MappedArrays = "0.4"
 PlotUtils = "1.2"
 PrecompileTools = "1"
-RecipesBase = "1.2"
 Statistics = "1"
 Tables = "1.7"
 julia = "1.10"

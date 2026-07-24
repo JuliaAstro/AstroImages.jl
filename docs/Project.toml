@@ -1,5 +1,7 @@
 [deps]
 AstroImages = "fe3fc30c-9b16-11e9-1c73-17dabf39f4ad"
+CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
+ComputePipeline = "95dc2771-c249-4cd0-9c9f-1f3b4330693c"
 Contour = "d38c429a-6771-53c6-b99e-75d170b6e991"
 DimensionalData = "0703355e-b756-11e9-17c0-8b28908087d0"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
@@ -11,9 +13,17 @@ ImageFiltering = "6a3955dd-da59-5b1f-98d4-e7296123deb5"
 ImageIO = "82e4d734-157c-48bb-816b-45c225c6df19"
 ImageTransformations = "02fcd773-0e25-5acc-982a-7f6622650795"
 Images = "916415d5-f1e6-5110-898d-aaa5f9f070e0"
+Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
 Photometry = "af68cb61-81ac-52ed-8703-edc140936be4"
-Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 Reproject = "d1dcc2e6-806e-11e9-2897-3f99785db2ae"
+
+[sources]
+CairoMakie = {url = "https://github.com/MakieOrg/Makie.jl", rev = "ff/breaking-0.25", subdir = "CairoMakie"}
+ComputePipeline = {url = "https://github.com/MakieOrg/Makie.jl", rev = "ff/breaking-0.25", subdir = "ComputePipeline"}
+DimensionalData = {url = "https://github.com/icweaver/DimensionalData.jl", rev = "makie-0.25"}
+FITSWCS = {url = "https://github.com/JuliaAstro/FITSWCS.jl"}
+Makie = {url = "https://github.com/MakieOrg/Makie.jl", rev = "ff/breaking-0.25", subdir = "Makie"}
+Photometry = {url = "https://github.com/JuliaAstro/Photometry.jl", rev = "makie-docs"}
 
 [compat]
 Contour = "0.6.3"
@@ -27,5 +37,4 @@ ImageIO = "0.6.9"
 ImageTransformations = "0.10.2"
 Images = "0.26.2"
 Photometry = "0.9.8"
-Plots = "1.41.6"
 Reproject = "0.3.3"

@@ -22,7 +22,7 @@ AstroImages.set_stretch!(identity)
 ```@example phot
 using Photometry
 using AstroImages
-using Plots # optional, for implot functionality
+using CairoMakie # optional, for implot functionality
 using Downloads: download
 
 # Download our image, courtesy of astropy
@@ -47,23 +47,15 @@ imview([image; clipped])
 imview([bkg; bkg_rms])
 ```
 
-Or all together with Plots.jl:
+Or all together with Makie:
 
 ```@example phot
-using Plots
-
-AstroImages.set_clims!(Percent(99.5))
-AstroImages.set_cmap!(:magma)
-AstroImages.set_stretch!(identity)
-
-plot(
-    implot(image; title = "Original"),
-    implot(clipped; title = "Sigma-Clipped"),
-    implot(bkg; title = "Background"),
-    implot(bkg_rms; title = "Background RMS");
-    layout = (2, 2),
-    ticks = false,
-)
+fig = Figure(size = (900, 900))
+implot(fig[1, 1], image; axis = (; title = "Original"))
+implot(fig[1, 2], clipped; axis = (; title = "Sigma-Clipped"))
+implot(fig[2, 1], bkg; axis = (; title = "Background"))
+implot(fig[2, 2], bkg_rms; axis = (; title = "Background RMS"))
+fig
 ```
 
 We could apply a median filter, too, by specifying `filter_size`:
@@ -73,14 +65,12 @@ We could apply a median filter, too, by specifying `filter_size`:
 bkg_f, bkg_rms_f = estimate_background(clipped, 50; filter_size = 5)
 
 # plot
-plot(
-    implot(bkg; title = "Unfiltered", ylabel = "Background"),
-    implot(bkg_f; title = "Filtered"),
-    implot(bkg_rms; ylabel = "RMS"),
-    implot(bkg_rms_f);
-    layout = (2, 2),
-    ticks = false,
-)
+fig = Figure(size = (900, 900))
+implot(fig[1, 1], bkg; axis = (; title = "Unfiltered", ylabel = "Background"))
+implot(fig[1, 2], bkg_f; axis = (; title = "Filtered"))
+implot(fig[2, 1], bkg_rms; axis = (; ylabel = "RMS"))
+implot(fig[2, 2], bkg_rms_f)
+fig
 ```
 
 Now we can see our image after subtracting the filtered background and ready for Aperture Photometry!
@@ -88,11 +78,10 @@ Now we can see our image after subtracting the filtered background and ready for
 ```@example phot
 subt = image .- bkg_f[axes(image)...]
 clims = extrema(vcat(vec(image), vec(subt)))
-plot(
-    implot(image; title = "Original", clims),
-    implot(subt; title = "Subtracted", clims);
-    size = (1600, 1000),
-)
+fig = Figure(size = (1000, 500))
+implot(fig[1, 1], image; clims, axis = (; title = "Original"))
+implot(fig[1, 2], subt; clims, axis = (; title = "Subtracted"))
+fig
 ```
 
 ## Source Extraction
@@ -112,11 +101,12 @@ We'll define a circular apperture for each source:
 aps = CircularAperture.(sources.x, sources.y, 6)[1:1000] # just brightest thousand point sources
 ```
 
-We can overplot them on our original image. The coordinate sytem used by the Photometry.jl plot recipes (but not the actual return values) doesn't match AstroImages, so we must transpose our image:
+We can overplot them on our original image: loading Photometry.jl together with a Makie backend activates Photometry's Makie extension, which knows how to draw every aperture type (and a whole vector of them in a single call). Note that Photometry.jl's `x`/`y` coordinates refer to the second/first array axis respectively (the matrix row/column convention), while `implot` displays the first array axis along x — so we transpose the image when overplotting:
 
 ```@example phot
-implot(subt'; colorbar = false)
-plot!(aps)
+fig, ax, plt = implot(subt')
+lines!(ax, aps; color = :cyan, linewidth = 0.8)
+fig
 ```
 
 ## Measuring Photometry
@@ -130,13 +120,11 @@ table = photometry(aps, subt)
 And plot them:
 
 ```@example phot
-scatter(table.xcenter, table.ycenter;
-    aspectratio = 1,
-    marker_z = table.aperture_sum,
-    markerstrokewidth = 0,
-    label = "",
-    framestyle = :box,
-    background_inside = :black,
-    color = :white,
+fig = Figure()
+ax = Axis(fig[1, 1]; aspect = DataAspect(), backgroundcolor = :black)
+scatter!(
+    ax, table.ycenter, table.xcenter;
+    color = table.aperture_sum, colormap = :hot, markersize = 4,
 )
+fig
 ```
