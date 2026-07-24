@@ -537,10 +537,13 @@ end
 Base.getindex(img::AstroImage, ind::AbstractString) = get(header(img), ind, nothing) # accessing header using strings
 function Base.setindex!(img::AstroImage, v, ind::AbstractString)  # modifying header using a string
     _setcardvalue!(header(img), ind, v)
-    # Mark the WCS object as being out of date if this was a WCS header keyword
-    if ind ∈ WCS_HEADERS
-        getfield(img, :wcs_stale)[] = true
-    end
+    # Any header write marks the cached WCS transform as stale. It is lazily
+    # re-parsed on next access. Re-parsing is cheap and header writes are rare,
+    # whereas an exact WCS-keyword filter cannot be complete: the keywords span
+    # WCS Papers I-IV plus legacy conventions, with unbounded axis indices and
+    # A-Z alternate-system suffixes (a previous keyword table silently missed
+    # e.g. CRPIX5 and CRPIX1A, leaving a stale transform in use).
+    getfield(img, :wcs_stale)[] = true
     return
 end
 Base.getindex(img::AstroImage, inds::Symbol...) = getindex(img, string.(inds)...)::HeaderValUnion # accessing header using symbol

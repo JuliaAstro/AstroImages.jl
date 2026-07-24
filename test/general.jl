@@ -180,12 +180,19 @@ end
     @test count(c -> uppercase(c.key) == "FOO", header(img1)) == 1
     @test img1["FOO", Comment] == "the answer"
 
-    # Setting a WCS header keyword marks the cached WCS as stale so it is rebuilt.
+    # Any header write marks the cached WCS as stale so it is rebuilt on next
+    # access. An exact WCS-keyword filter can't be complete. The old keyword
+    # table silently missed axis indices above 4 and uppercase alternate-system
+    # suffixes, leaving a stale transform in use.
     imgw = AstroImage(data)
-    wcs(imgw)  # force the (lazy) WCS to build, clearing the stale flag
-    @test !getfield(imgw, :wcs_stale)[]
-    imgw["CRVAL1"] = 1.5
-    @test getfield(imgw, :wcs_stale)[]
+    # CRPIX1A last: once written, the next (re)parse warns about the sparse
+    # alternate-'A' system it implies, and no further wcs() call follows it.
+    for key in ("CRVAL1", "CRPIX5", "NOTWCS", "CRPIX1A")
+        wcs(imgw) # Force the (lazy) WCS to build, clearing the stale flag
+        @test !getfield(imgw, :wcs_stale)[]
+        imgw[key] = 1.5
+        @test getfield(imgw, :wcs_stale)[]
+    end
 end
 
 @testset "undefined header values" begin
