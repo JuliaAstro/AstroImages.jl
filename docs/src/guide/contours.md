@@ -50,7 +50,7 @@ fig
 
 ## Using Contour.jl
 
-Makie draws contours, but it does not expose the computed contour lines themselves. When we need the contour geometry, for example to transform it into other coordinate systems or to measure it, compute the contours directly with the [Contour.jl](https://juliageometry.github.io/Contour.jl/stable/) package. Its marching-squares algorithm is the same one uses internally in Makie, so the lines you get match what `contour` draws exactly. Several of its names (`Contour`, `lines`, `coordinates`) clash with Makie exports, so we `import` it and qualify its functions:
+Makie draws contours, but it does not expose the computed contour lines themselves. When we need the contour geometry, for example to transform it into other coordinate systems or to measure it, compute the contours directly with the [Contour.jl](https://juliageometry.github.io/Contour.jl/stable/) package. Its marching-squares algorithm is the same one used internally in Makie, so the lines you get match what `contour` draws exactly. Several of its names (`Contour`, `lines`, `coordinates`) clash with Makie exports, so we `import` it and qualify its functions:
 
 ```@example contours
 import Contour
