@@ -90,21 +90,21 @@ From the background-subtracted image, we can detect all sources in the image:
 ```@example phot
 # We specify the uncertainty in the pixel data. We'll set it equal to zero.
 errs = zeros(axes(subt))
-sources = extract_sources(PeakMesh(), subt, errs, true) # sort from brightest to darkest
+sources = extract_sources(PeakMesh(), subt, errs) # Sorted from brightest to darkest
 ```
 
 There's over 60,000 sources!
 
-We'll define a circular apperture for each source:
+We'll define a circular aperture for each source. The `x`/`y` positions reported by `extract_sources` follow the same coordinate convention as the apertures (and `implot`), so they can be passed through directly:
 
 ```@example phot
 aps = CircularAperture.(sources.x, sources.y, 6)[1:1000] # just brightest thousand point sources
 ```
 
-We can overplot them on our original image: loading Photometry.jl together with a Makie backend activates Photometry's Makie extension, which knows how to draw every aperture type (and a whole vector of them in a single call). Note that Photometry.jl's `x`/`y` coordinates refer to the second/first array axis respectively (the matrix row/column convention), while `implot` displays the first array axis along x — so we transpose the image when overplotting:
+We can overplot them on our original image: loading Photometry.jl together with a Makie backend activates Photometry's Makie extension, which knows how to draw every aperture type (and a whole vector of them in a single call):
 
 ```@example phot
-fig, ax, plt = implot(subt')
+fig, ax, plt = implot(subt)
 lines!(ax, aps; color = :cyan, linewidth = 0.8)
 fig
 ```
@@ -123,7 +123,7 @@ And plot them:
 fig = Figure()
 ax = Axis(fig[1, 1]; aspect = DataAspect(), backgroundcolor = :black)
 scatter!(
-    ax, table.ycenter, table.xcenter;
+    ax, table.xcenter, table.ycenter;
     color = table.aperture_sum, colormap = :hot, markersize = 4,
 )
 fig
