@@ -21,7 +21,6 @@ makedocs(;
     sitename = "AstroImages.jl",
     format = Documenter.HTML(;
         assets = [
-            "assets/theme.css",
             "assets/favicon.ico",
         ],
         example_size_threshold = 0,

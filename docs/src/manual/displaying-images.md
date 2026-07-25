@@ -123,12 +123,13 @@ using CairoMakie
 implotview(img; clims = Percent(99.5), cmap = :magma, stretch = identity, contrast = 1.0, bias = 0.5)
 ```
 
-`implot` and `implot!` instead plot the image into a single axis without a colorbar, which makes them the right tool for composing multi-panel figures or overplotting other data:
+`implot` and `implot!` instead plot the image into a single axis without a colorbar. This is useful when a colorbar isn't wanted or when full control of the axis is needed:
 
 ```@example 1
-fig = Figure(size = (800, 400))
-implot(fig[1, 1], img)
-implot(fig[1, 2], img; cmap = :ice)
+fig = Figure()
+implot(fig[1, 1], img; width = 350)
+implot(fig[1, 2], img; cmap = :ice, width = 350)
+resize_to_layout!(fig)
 fig
 ```
 

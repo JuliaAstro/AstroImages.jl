@@ -16,25 +16,25 @@ using Downloads: download
 herca = load(download("https://www.chandra.harvard.edu/photo/2014/archives/fits/herca/herca_radio.fits"))
 ```
 
-Create a contour plot
+Create a contour plot:
 
 ```@example contours
 contour(herca)
 ```
 
-Create a filled contour plot
+Create a filled contour plot:
 
 ```@example contours
 contourf(herca)
 ```
 
-Specify the number of levels
+Specify the number of levels:
 
 ```@example contours
 contour(herca; levels = 5)
 ```
 
-Specify specific levels
+Specify specific levels:
 
 ```@example contours
 contour(herca; levels = [1, 1000, 5000])
@@ -43,19 +43,20 @@ contour(herca; levels = [1, 1000, 5000])
 Overplot contours on image:
 
 ```@example contours
-fig, ax, plt = implot(herca)
-contour!(ax, herca; levels = 4, color = :cyan)
+fig, iv = implotview(herca)
+contour!(iv.ax, herca; levels = 4, color = :cyan)
 fig
 ```
 
 ## Using Contour.jl
 
-For more control over how contours are calculated and plotted, you can use the [Contour.jl](https://juliageometry.github.io/Contour.jl/stable/) package. Several of its names (`Contour`, `lines`, `coordinates`) clash with Makie exports, so we `import` it and qualify its functions:
+Makie draws contours, but it does not expose the computed contour lines themselves. When we need the contour geometry, for example to transform it into other coordinate systems or to measure it, compute the contours directly with the [Contour.jl](https://juliageometry.github.io/Contour.jl/stable/) package. Its marching-squares algorithm is the very one Makie vendors internally, so the lines you get match what `contour` draws exactly. Several of its names (`Contour`, `lines`, `coordinates`) clash with Makie exports, so we `import` it and qualify its functions:
 
 ```@example contours
 import Contour
 
-fig, ax, plt = implot(herca; cmap = nothing)
+fig, iv = implotview(herca; cmap = nothing)
+ax = iv.ax
 
 # Note: Contour.jl only supports float inputs.
 # See https://github.com/JuliaGeometry/Contour.jl/issues/73
