@@ -50,23 +50,22 @@ fig
 
 ## Using Contour.jl
 
-Makie draws contours, but it does not expose the computed contour lines themselves. When we need the contour geometry, for example to transform it into other coordinate systems or to measure it, compute the contours directly with the [Contour.jl](https://juliageometry.github.io/Contour.jl/stable/) package. Its marching-squares algorithm is the very one Makie vendors internally, so the lines you get match what `contour` draws exactly. Several of its names (`Contour`, `lines`, `coordinates`) clash with Makie exports, so we `import` it and qualify its functions:
+Makie draws contours, but it does not expose the computed contour lines themselves. When we need the contour geometry, for example to transform it into other coordinate systems or to measure it, compute the contours directly with the [Contour.jl](https://juliageometry.github.io/Contour.jl/stable/) package. Its marching-squares algorithm is the same one uses internally in Makie, so the lines you get match what `contour` draws exactly. Several of its names (`Contour`, `lines`, `coordinates`) clash with Makie exports, so we `import` it and qualify its functions:
 
 ```@example contours
 import Contour
 
-fig, iv = implotview(herca; cmap = nothing)
-ax = iv.ax
+fig, ax, p = implot(herca; cmap = nothing)
 
-# Note: Contour.jl only supports float inputs.
-# See https://github.com/JuliaGeometry/Contour.jl/issues/73
-cls = Contour.levels(Contour.contours(dims(herca)..., float.(herca)))
-crange = extrema(Contour.level.(cls))
+cls = Contour.levels(Contour.contours(dims(herca)..., herca))
+colormap = :viridis
+colorrange = extrema(Contour.level.(cls))
+
 for cl in cls
     lvl = Contour.level(cl) # the z-value of this contour level
     for line in Contour.lines(cl)
         xs, ys = Contour.coordinates(line) # coordinates of this line segment
-        lines!(ax, xs, ys; color = lvl, colormap = :viridis, colorrange = crange)
+        lines!(ax, xs, ys; color = lvl, colormap, colorrange)
     end
 end
 
@@ -88,10 +87,12 @@ for cl in cls
         end
         lines!(
             ax, getindex.(worldcoords, 1), getindex.(worldcoords, 2);
-            color = lvl, colormap = :viridis, colorrange = crange,
+            color = lvl, colormap, colorrange,
         )
     end
 end
+
+Colorbar(fig[1, 2]; colormap, colorrange)
 
 fig
 ```
