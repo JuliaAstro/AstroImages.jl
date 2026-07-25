@@ -32,72 +32,72 @@ implot(fig[1, 1], image; clims, axis = (; title = &quot;Original&quot;))
 implot(fig[1, 2], subt; clims, axis = (; title = &quot;Subtracted&quot;))
 fig</code></pre><img src="7247153f.png" alt="Example block output"/><h2 id="Source-Extraction"><a class="docs-heading-anchor" href="#Source-Extraction">Source Extraction</a><a id="Source-Extraction-1"></a><a class="docs-heading-anchor-permalink" href="#Source-Extraction" title="Permalink"></a></h2><p>From the background-subtracted image, we can detect all sources in the image:</p><pre><code class="language-julia hljs"># We specify the uncertainty in the pixel data. We&#39;ll set it equal to zero.
 errs = zeros(axes(subt))
-sources = extract_sources(PeakMesh(), subt, errs, true) # sort from brightest to darkest</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Table with 3 columns and 57255 rows:
+sources = extract_sources(PeakMesh(), subt, errs) # Sorted from brightest to darkest</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Table with 3 columns and 57255 rows:
       x     y     value
     ┌────────────────────
- 1  │ 255   226   9762.42
- 2  │ 940   681   9661.5
- 3  │ 219   924   9653.78
- 4  │ 38    678   9647.93
- 5  │ 245   85    9637.55
- 6  │ 44    1001  9633.13
- 7  │ 503   904   9627.34
- 8  │ 819   775   9625.92
- 9  │ 610   62    9617.79
- 10 │ 133   110   9616.88
- 11 │ 592   123   9614.86
- 12 │ 1055  248   9612.46
- 13 │ 424   86    9611.86
- 14 │ 558   125   9585.93
- 15 │ 125   1021  9582.11
- 16 │ 112   637   9579.71
- 17 │ 196   2     9579.49
- ⋮  │  ⋮     ⋮       ⋮</code></pre><p>There&#39;s over 60,000 sources!</p><p>We&#39;ll define a circular apperture for each source:</p><pre><code class="language-julia hljs">aps = CircularAperture.(sources.x, sources.y, 6)[1:1000] # just brightest thousand point sources</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">1000-element Vector{CircularAperture{Int64}}:
- CircularAperture(255, 226, r=6)
- CircularAperture(940, 681, r=6)
- CircularAperture(219, 924, r=6)
- CircularAperture(38, 678, r=6)
- CircularAperture(245, 85, r=6)
- CircularAperture(44, 1001, r=6)
- CircularAperture(503, 904, r=6)
- CircularAperture(819, 775, r=6)
- CircularAperture(610, 62, r=6)
- CircularAperture(133, 110, r=6)
+ 1  │ 226   255   9762.42
+ 2  │ 681   940   9661.5
+ 3  │ 924   219   9653.78
+ 4  │ 678   38    9647.93
+ 5  │ 85    245   9637.55
+ 6  │ 1001  44    9633.13
+ 7  │ 904   503   9627.34
+ 8  │ 775   819   9625.92
+ 9  │ 62    610   9617.79
+ 10 │ 110   133   9616.88
+ 11 │ 123   592   9614.86
+ 12 │ 248   1055  9612.46
+ 13 │ 86    424   9611.86
+ 14 │ 125   558   9585.93
+ 15 │ 1021  125   9582.11
+ 16 │ 637   112   9579.71
+ 17 │ 2     196   9579.49
+ ⋮  │  ⋮     ⋮       ⋮</code></pre><p>There&#39;s over 60,000 sources!</p><p>We&#39;ll define a circular aperture for each source. The <code>x</code>/<code>y</code> positions reported by <code>extract_sources</code> follow the same coordinate convention as the apertures (and <code>implot</code>), so they can be passed through directly:</p><pre><code class="language-julia hljs">aps = CircularAperture.(sources.x, sources.y, 6)[1:1000] # just brightest thousand point sources</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">1000-element Vector{CircularAperture{Int64}}:
+ CircularAperture(226, 255, r=6)
+ CircularAperture(681, 940, r=6)
+ CircularAperture(924, 219, r=6)
+ CircularAperture(678, 38, r=6)
+ CircularAperture(85, 245, r=6)
+ CircularAperture(1001, 44, r=6)
+ CircularAperture(904, 503, r=6)
+ CircularAperture(775, 819, r=6)
+ CircularAperture(62, 610, r=6)
+ CircularAperture(110, 133, r=6)
  ⋮
- CircularAperture(73, 686, r=6)
- CircularAperture(622, 510, r=6)
- CircularAperture(753, 777, r=6)
- CircularAperture(309, 957, r=6)
- CircularAperture(285, 844, r=6)
- CircularAperture(728, 634, r=6)
- CircularAperture(1000, 548, r=6)
- CircularAperture(409, 98, r=6)
- CircularAperture(544, 501, r=6)</code></pre><p>We can overplot them on our original image: loading Photometry.jl together with a Makie backend activates Photometry&#39;s Makie extension, which knows how to draw every aperture type (and a whole vector of them in a single call). Note that Photometry.jl&#39;s <code>x</code>/<code>y</code> coordinates refer to the second/first array axis respectively (the matrix row/column convention), while <code>implot</code> displays the first array axis along x — so we transpose the image when overplotting:</p><pre><code class="language-julia hljs">fig, ax, plt = implot(subt&#39;)
+ CircularAperture(686, 73, r=6)
+ CircularAperture(510, 622, r=6)
+ CircularAperture(777, 753, r=6)
+ CircularAperture(957, 309, r=6)
+ CircularAperture(844, 285, r=6)
+ CircularAperture(634, 728, r=6)
+ CircularAperture(548, 1000, r=6)
+ CircularAperture(98, 409, r=6)
+ CircularAperture(501, 544, r=6)</code></pre><p>We can overplot them on our original image: loading Photometry.jl together with a Makie backend activates Photometry&#39;s Makie extension, which knows how to draw every aperture type (and a whole vector of them in a single call):</p><pre><code class="language-julia hljs">fig, ax, plt = implot(subt)
 lines!(ax, aps; color = :cyan, linewidth = 0.8)
-fig</code></pre><img src="69454009.png" alt="Example block output"/><h2 id="Measuring-Photometry"><a class="docs-heading-anchor" href="#Measuring-Photometry">Measuring Photometry</a><a id="Measuring-Photometry-1"></a><a class="docs-heading-anchor-permalink" href="#Measuring-Photometry" title="Permalink"></a></h2><p>Finally we can extract the source photometry:</p><pre><code class="language-julia hljs">table = photometry(aps, subt)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Table with 3 columns and 1000 rows:
+fig</code></pre><img src="04399e29.png" alt="Example block output"/><h2 id="Measuring-Photometry"><a class="docs-heading-anchor" href="#Measuring-Photometry">Measuring Photometry</a><a id="Measuring-Photometry-1"></a><a class="docs-heading-anchor-permalink" href="#Measuring-Photometry" title="Permalink"></a></h2><p>Finally we can extract the source photometry:</p><pre><code class="language-julia hljs">table = photometry(aps, subt)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Table with 3 columns and 1000 rows:
       xcenter  ycenter  aperture_sum
     ┌───────────────────────────────
- 1  │ 255      226      20542.4
- 2  │ 940      681      7125.31
- 3  │ 219      924      14741.0
- 4  │ 38       678      31056.4
- 5  │ 245      85       -910.259
- 6  │ 44       1001     2792.65
- 7  │ 503      904      6954.07
- 8  │ 819      775      -3136.63
- 9  │ 610      62       4338.13
- 10 │ 133      110      22219.1
- 11 │ 592      123      18562.3
- 12 │ 1055     248      3277.36
- 13 │ 424      86       255299.0
- 14 │ 558      125      6659.06
- 15 │ 125      1021     11524.1
- 16 │ 112      637      1349.8
- 17 │ 196      2        -797.479
+ 1  │ 226      255      2.68695e5
+ 2  │ 681      940      2.35489e5
+ 3  │ 924      219      3.65716e5
+ 4  │ 678      38       2.21709e5
+ 5  │ 85       245      2.4336e5
+ 6  │ 1001     44       1.98733e5
+ 7  │ 904      503      2.25028e5
+ 8  │ 775      819      3.59414e5
+ 9  │ 62       610      2.36377e5
+ 10 │ 110      133      1.60012e5
+ 11 │ 123      592      3.0983e5
+ 12 │ 248      1055     2.48006e5
+ 13 │ 86       424      3.69146e5
+ 14 │ 125      558      2.87415e5
+ 15 │ 1021     125      1.83522e5
+ 16 │ 637      112      2.90848e5
+ 17 │ 2        196      2.56751e5
  ⋮  │    ⋮        ⋮          ⋮</code></pre><p>And plot them:</p><pre><code class="language-julia hljs">fig = Figure()
 ax = Axis(fig[1, 1]; aspect = DataAspect(), backgroundcolor = :black)
 scatter!(
-    ax, table.ycenter, table.xcenter;
+    ax, table.xcenter, table.ycenter;
     color = table.aperture_sum, colormap = :hot, markersize = 4,
 )
-fig</code></pre><img src="beb1cbb3.png" alt="Example block output"/></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../reproject/">« Reprojecting Images</a><a class="docs-footer-nextpage" href="../contours/">Plotting Contours »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Friday 24 July 2026 23:26">Friday 24 July 2026</span>. Using Julia version 1.12.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+fig</code></pre><img src="c8dfc2a9.png" alt="Example block output"/></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../reproject/">« Reprojecting Images</a><a class="docs-footer-nextpage" href="../contours/">Plotting Contours »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Saturday 25 July 2026 10:37">Saturday 25 July 2026</span>. Using Julia version 1.12.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
