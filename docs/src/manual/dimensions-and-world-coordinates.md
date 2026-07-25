@@ -65,9 +65,10 @@ implotview(eagle; gridcolor = :cyan)
 If these aren't desired, we can turn off the grid or the WCS tick marks:
 
 ```@example coords
-fig = Figure(size = (900, 400))
-implot(fig[1, 1], eagle; wcsgrid = false)
-implot(fig[1, 2], eagle; wcsticks = false)
+fig = Figure()
+implot(fig[1, 1], eagle; wcsgrid = false, width = 400)
+implot(fig[1, 2], eagle; wcsticks = false, width = 400)
+resize_to_layout!(fig)
 fig
 ```
 
@@ -76,9 +77,10 @@ Since AstroImages are based on DimensionalData's AbstractDimArray, the mapping b
 ```@example coords
 slice1 = eagle[1:800, 1:800]
 slice2 = eagle[800:1600, 1:800]
-fig = Figure(size = (900, 400))
-implot(fig[1, 1], slice1)
-implot(fig[1, 2], slice2)
+fig = Figure()
+implot(fig[1, 1], slice1; width = 400)
+implot(fig[1, 2], slice2; width = 400)
+resize_to_layout!(fig)
 fig
 ```
 

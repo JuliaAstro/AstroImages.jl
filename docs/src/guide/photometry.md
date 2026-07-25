@@ -40,21 +40,24 @@ nothing # hide
 We can take a look at each of our processed images with `imview`:
 
 ```@example phot
-imview([image; clipped])
+using Images: mosaic
+
+mosaic(
+    imview(image), imview(clipped; nan_color = :black),
+    imview(bkg), imview(bkg_rms);
+    nrow = 2, rowmajor = true,
+)
 ```
 
-```@example phot
-imview([bkg; bkg_rms])
-```
-
-Or all together with Makie:
+Or all together with Makie. Giving each panel a fixed axis `width` (the height is derived from the image aspect) lets `resize_to_layout!` shrink-wrap the figure around the panels:
 
 ```@example phot
-fig = Figure(size = (900, 900))
-implot(fig[1, 1], image; axis = (; title = "Original"))
-implot(fig[1, 2], clipped; axis = (; title = "Sigma-Clipped"))
-implot(fig[2, 1], bkg; axis = (; title = "Background"))
-implot(fig[2, 2], bkg_rms; axis = (; title = "Background RMS"))
+fig = Figure()
+implotview(fig[1, 1], image; axis = (; title = "Original", width = 400))
+implotview(fig[1, 2], clipped; nan_color = :black, axis = (; title = "Sigma-Clipped", width = 400))
+implotview(fig[2, 1], bkg; axis = (; title = "Background", width = 400))
+implotview(fig[2, 2], bkg_rms; axis = (; title = "Background RMS", width = 400))
+resize_to_layout!(fig)
 fig
 ```
 
@@ -65,11 +68,12 @@ We could apply a median filter, too, by specifying `filter_size`:
 bkg_f, bkg_rms_f = estimate_background(clipped, 50; filter_size = 5)
 
 # plot
-fig = Figure(size = (900, 900))
-implot(fig[1, 1], bkg; axis = (; title = "Unfiltered", ylabel = "Background"))
-implot(fig[1, 2], bkg_f; axis = (; title = "Filtered"))
-implot(fig[2, 1], bkg_rms; axis = (; ylabel = "RMS"))
-implot(fig[2, 2], bkg_rms_f)
+fig = Figure()
+implotview(fig[1, 1], bkg; axis = (; title = "Unfiltered", ylabel = "Background", width = 400))
+implotview(fig[1, 2], bkg_f; axis = (; title = "Filtered", width = 400))
+implotview(fig[2, 1], bkg_rms; axis = (; ylabel = "RMS", width = 400))
+implotview(fig[2, 2], bkg_rms_f; axis = (; width = 400))
+resize_to_layout!(fig)
 fig
 ```
 
@@ -78,9 +82,10 @@ Now we can see our image after subtracting the filtered background and ready for
 ```@example phot
 subt = image .- bkg_f[axes(image)...]
 clims = extrema(vcat(vec(image), vec(subt)))
-fig = Figure(size = (1000, 500))
-implot(fig[1, 1], image; clims, axis = (; title = "Original"))
-implot(fig[1, 2], subt; clims, axis = (; title = "Subtracted"))
+fig = Figure()
+implotview(fig[1, 1], image; clims, axis = (; title = "Original", width = 400))
+implotview(fig[1, 2], subt; clims, axis = (; title = "Subtracted", width = 400))
+resize_to_layout!(fig)
 fig
 ```
 
@@ -90,22 +95,22 @@ From the background-subtracted image, we can detect all sources in the image:
 ```@example phot
 # We specify the uncertainty in the pixel data. We'll set it equal to zero.
 errs = zeros(axes(subt))
-sources = extract_sources(PeakMesh(), subt, errs, true) # sort from brightest to darkest
+sources = extract_sources(PeakMesh(), subt, errs) # Sorted from brightest to darkest
 ```
 
 There's over 60,000 sources!
 
-We'll define a circular apperture for each source:
+We'll define a circular aperture for each source. The `x`/`y` positions reported by `extract_sources` follow the same coordinate convention as the apertures (and `implot`), so they can be passed through directly:
 
 ```@example phot
 aps = CircularAperture.(sources.x, sources.y, 6)[1:1000] # just brightest thousand point sources
 ```
 
-We can overplot them on our original image: loading Photometry.jl together with a Makie backend activates Photometry's Makie extension, which knows how to draw every aperture type (and a whole vector of them in a single call). Note that Photometry.jl's `x`/`y` coordinates refer to the second/first array axis respectively (the matrix row/column convention), while `implot` displays the first array axis along x — so we transpose the image when overplotting:
+We can overplot them on our original image: loading Photometry.jl together with a Makie backend activates Photometry's Makie extension, which knows how to draw every aperture type (and a whole vector of them in a single call):
 
 ```@example phot
-fig, ax, plt = implot(subt')
-lines!(ax, aps; color = :cyan, linewidth = 0.8)
+fig, iv = implotview(subt)
+lines!(iv.ax, aps; color = :cyan, linewidth = 0.8)
 fig
 ```
 
@@ -122,9 +127,7 @@ And plot them:
 ```@example phot
 fig = Figure()
 ax = Axis(fig[1, 1]; aspect = DataAspect(), backgroundcolor = :black)
-scatter!(
-    ax, table.ycenter, table.xcenter;
-    color = table.aperture_sum, colormap = :hot, markersize = 4,
-)
+sc = scatter!(ax, table.xcenter, table.ycenter; color = table.aperture_sum)
+Colorbar(fig[1, 2], sc; label = "Aperture sum")
 fig
 ```

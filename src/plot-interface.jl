@@ -50,6 +50,14 @@ allowing you to overplot lines, regions, etc. using pixel coordinates
 * `platescale` (default `1`) scales the underlying pixel coordinates to ease
   overplotting
 
+### Panel Sizing
+* `width`, `height` (default: fill the layout cell) fix the created axis's
+  size in layout units. When only one is given, the other is derived from the
+  image extent so the panel matches the data aspect. Fixed panel sizes keep
+  the figure layout fully determined, so `resize_to_layout!(fig)` shrink-wraps
+  the figure around its panels — sizing the panels instead of the figure is
+  the convenient direction when composing multi-panel figures.
+
 ### Defaults
 The default values of `clims`, `stretch`, and `cmap` may be altered using
 `AstroImages.set_clims!`, `AstroImages.set_stretch!`, and
@@ -72,13 +80,13 @@ header when present. Accepts the rendering and WCS keyword arguments of
 * `axis` (default `(;)`) attributes forwarded to the created Axis, overriding
   the WCS defaults, e.g. `axis = (; title = "M42")`
 
-Called with just an image, returns `(fig, iv)` like other Makie blocks;
-called with a figure or grid position (e.g. `implotview(fig[1, 2], img)`),
-places the panel there and returns it.
+Passing an axis `width` and/or `height` (e.g. `axis = (; height = 300)`) fixes the panel's image-box size, deriving a missing dimension from the image extent. A sized view reports its footprint to the layout, so `resize_to_layout!(fig)` shrink-wraps a figure composed of sized views, and a standalone sized view shrink-wraps its own figure automatically. An unsized view instead fills whatever space it is given, keeping the image aspect-locked with the colorbar flush against it. This is the right behavior for interactive windows.
+
+Called with just an image, returns `(fig, iv)` like other Makie blocks. Called with a figure or grid position (e.g., `implotview(fig[1, 2], img)`), places the panel there and returns it. The created Axis is available as
+`iv.ax` for overplotting (e.g., `lines!(iv.ax, ...)`), and the image plot as `iv.plt`.
 
 !!! note
-    Requires a Makie backend (e.g. `using CairoMakie` or `using GLMakie`) to
-    be loaded.
+    Requires a Makie backend (e.g., `using CairoMakie` or `using GLMakie`) to be loaded.
 """
 function implotview end
 

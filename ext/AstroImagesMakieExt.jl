@@ -155,6 +155,10 @@ See the AstroImages.jl documentation for details.
     gridwidth = 1.0
     "Scale the underlying pixel coordinates to ease overplotting."
     platescale = 1.0
+    "Fixed axis width in layout units (applies when the Axis is created by this plot). When only one of `width`/`height` is given, the other is derived from the image extent so the panel matches the data aspect. Fixed panel sizes make the layout fully determined, so `resize_to_layout!` can shrink-wrap a figure around its panels instead of the panels depending on the figure size."
+    width = automatic
+    "Fixed axis height in layout units, see `width`."
+    height = automatic
     "Sets whether colors should be interpolated between pixels."
     interpolate = false
     "The color for NaN and missing pixels."
@@ -359,13 +363,15 @@ function Makie.preferred_axis_attributes(::Type{Makie.Axis}, p::ImPlot, img)
         platescale = plotattr(p, :platescale, 1),
         wcsticks = plotattr(p, :wcsticks, true),
         wcstitle = plotattr(p, :wcstitle, true),
+        width = plotattr(p, :width, automatic),
+        height = plotattr(p, :height, automatic),
     )
 end
 
 # Axis attributes (ticks, labels, title, limits, aspect) appropriate for
 # displaying `img`. Usable directly for manually created axes:
 # `Axis(fig[1, 1]; AstroImagesMakieExt.wcsaxisattributes(img)...)`.
-function wcsaxisattributes(img::AstroImageMat; wcsn = ' ', platescale = 1, wcsticks = true, wcstitle = true)
+function wcsaxisattributes(img::AstroImageMat; wcsn = ' ', platescale = 1, wcsticks = true, wcstitle = true, width = automatic, height = automatic)
     haswcs = haswcsaxes(img, wcsn)
     showticks = wcsticks && haswcs
     showtitle = wcstitle && haswcs && !isempty(refdims(img))
@@ -399,7 +405,23 @@ function wcsaxisattributes(img::AstroImageMat; wcsn = ' ', platescale = 1, wcsti
         attrs[:xgridvisible] = false
         attrs[:ygridvisible] = false
     end
+    width isa Automatic || (attrs[:width] = width)
+    height isa Automatic || (attrs[:height] = height)
+    derivepanelsize!(attrs, extent)
     return attrs
+end
+
+# Fixed axis sizes keep the layout fully determined (so `resize_to_layout!`
+# works around any arrangement of panels); an `Aspect`-shaped row or column
+# does not. When only one of width/height is fixed, derive the other from the
+# image extent, so the panel matches the aspect the data would be displayed at.
+function derivepanelsize!(axattrs, extent)
+    ratio = (extent[2] - extent[1]) / (extent[4] - extent[3])
+    w = get(axattrs, :width, nothing)
+    h = get(axattrs, :height, nothing)
+    isnothing(w) && h isa Real && (axattrs[:width] = h * ratio)
+    isnothing(h) && w isa Real && (axattrs[:height] = w / ratio)
+    return axattrs
 end
 
 # ---------------------------------------------------------------------------
@@ -413,6 +435,8 @@ end
 const COLORBAR_GAP = 8
 
 @Block ImPlotView (img,) begin
+    ax::Makie.Axis
+    plt::Makie.Plot
     @attributes begin
         "Color limits, see `implot`."
         clims = automatic
@@ -438,6 +462,14 @@ const COLORBAR_GAP = 8
         platescale = 1.0
         "Interpolate colors between pixels."
         interpolate = false
+        "The color for NaN and missing pixels."
+        nan_color = :transparent
+        "The color for any value below the color range."
+        lowclip = automatic
+        "The color for any value above the color range."
+        highclip = automatic
+        "The alpha value of the colormap."
+        alpha = 1.0
         "Display a colorbar."
         colorbar = true
         "Colorbar label. Defaults to the UNIT/BUNIT header if present."
@@ -459,7 +491,14 @@ function implotview(args...; kwargs...)
     # instead. An explicit `figure = (; size = ...)` wins, and a view placed into
     # someone else's figure never resizes it.
     if res isa Makie.FigureBlock && !(:size in keys(get(kwargs, :figure, (;))))
-        fittofigure!(res.figure, res.block)
+        Makie.update_state_before_display!(res.figure)
+        if all(!isnothing, res.block.layoutobservables.autosize[])
+            # An explicitly sized view (fixed axis width/height) reports its
+            # own footprint, so the standard shrink-wrap applies directly.
+            Makie.resize_to_layout!(res.figure)
+        else
+            fittofigure!(res.figure, res.block)
+        end
     end
     return res
 end
@@ -470,7 +509,6 @@ end
 # gap between the figure and the block's cell (padding and protrusions) is fixed,
 # so the size the content wants can be recovered from the block's own layout.
 function fittofigure!(fig::Makie.Figure, bl::ImPlotView)
-    Makie.update_state_before_display!(fig)
     # `tight_bbox` would read the inner layout's `suggestedbbox`, which a Block
     # never sets — it drives `align_to_bbox!` from its `computedbbox` instead.
     have = bl.layoutobservables.computedbbox[]
@@ -492,6 +530,8 @@ function Makie.initialize_block!(bl::ImPlotView)
     for (k, v) in pairs(bl.axis[])
         axattrs[k] = v
     end
+    # e.g. `implotview(img; axis = (; height = 400))`: derive the width to match
+    derivepanelsize!(axattrs, Float64.(imgextent(img, bl.platescale[])))
     ax = Makie.Axis(bl[1, 1]; axattrs...)
     plt = implot!(
         ax, bl.img;
@@ -499,6 +539,8 @@ function Makie.initialize_block!(bl::ImPlotView)
         contrast = bl.contrast, bias = bl.bias, wcsn = bl.wcsn,
         wcsgrid = bl.wcsgrid, gridcolor = bl.gridcolor,
         platescale = bl.platescale, interpolate = bl.interpolate,
+        nan_color = bl.nan_color, lowclip = bl.lowclip, highclip = bl.highclip,
+        alpha = bl.alpha,
     )
     cb = nothing
     if bl.colorbar[] && !(eltype(img) <: Colorant)
@@ -522,8 +564,14 @@ function Makie.initialize_block!(bl::ImPlotView)
             return
         end
     end
+    # An explicitly sized axis already has its shape: the Aspect-based cell
+    # shaping below would fight it, and Aspect rows/columns make the layout
+    # nondeterminable, which is exactly what fixed sizes are used to avoid.
+    sized = haskey(axattrs, :width) || haskey(axattrs, :height)
     ratio = cellaspectratio(axattrs)
-    isnothing(ratio) || lockcellaspect!(bl, ax, cb, ratio)
+    (sized || isnothing(ratio)) || lockcellaspect!(bl, ax, cb, ratio)
+    bl.ax = ax
+    bl.plt = plt
     return
 end
 
