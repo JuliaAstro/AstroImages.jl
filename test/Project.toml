@@ -1,6 +1,8 @@
 [deps]
 AstroImages = "fe3fc30c-9b16-11e9-1c73-17dabf39f4ad"
+ComputePipeline = "95dc2771-c249-4cd0-9c9f-1f3b4330693c"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
 FITSFiles = "358a0a88-3548-4ad6-b652-8bdbf64af8e5"
 FITSWCS = "b9a10f0d-c86c-4e01-8e2e-1f1d7c5fb3f2"
 ImageBase = "c817782e-172a-44cc-b673-b171935fbb9e"
@@ -10,8 +12,10 @@ Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [sources]
+ComputePipeline = {url = "https://github.com/MakieOrg/Makie.jl", rev = "ff/breaking-0.25", subdir = "ComputePipeline"}
 FITSFiles = {url = "https://github.com/JuliaAstro/FITSFiles.jl"}
 FITSWCS = {url = "https://github.com/JuliaAstro/FITSWCS.jl"}
+Makie = {url = "https://github.com/MakieOrg/Makie.jl", rev = "ff/breaking-0.25", subdir = "Makie"}
 
 [compat]
 Documenter = "1"
