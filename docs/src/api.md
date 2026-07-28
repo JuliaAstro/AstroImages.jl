@@ -28,6 +28,7 @@ AstroImages.shareheader
 AstroImages.recenter
 AstroImages.pixel_to_world
 AstroImages.world_to_pixel
+AstroImages.world_transform
 ```
 
 ## DimensionalData
