@@ -91,6 +91,42 @@ Called with just an image, returns `(fig, iv)` like other Makie blocks. Called w
 function implotview end
 
 """
+    world_transform(img::AstroImage; wcsn = ' ', platescale = 1)
+    world_transform(plt_or_view)
+
+Return a `Makie.Transformation` that maps world coordinates of the image's two
+plotted dimensions (in the WCS's native world units, typically degrees for
+celestial axes) to the pixel coordinate space that [`implot`](@ref) draws in.
+Pass it to a Makie plotting function via the `transformation` keyword to plot
+world-coordinate data directly over an image.
+
+```julia
+fig, iv = implotview(img)
+scatter!(iv.ax, ra_deg, dec_deg; transformation = world_transform(iv))
+```
+
+Called with the plot returned by [`implot`](@ref) or the view returned by
+[`implotview`](@ref), as above, the image, `wcsn`, and `platescale` are taken
+from it directly. When called with an image, pass the same `wcsn` and
+`platescale` values as the image plot.
+
+The transformed positions feed Makie's autolimits, so overplotted
+world-coordinate data co-registers with the image without manual
+[`world_to_pixel`](@ref) calls. The transformation is invertible
+(`Makie.inverse_transform`), so interactive tools that need the reverse
+mapping keep working.
+
+!!! note
+    Wrap-around of angular coordinates (e.g., right ascension crossing 0°/360°)
+    is not special-cased.
+
+!!! note
+    Requires a Makie backend (e.g., `using CairoMakie` or `using GLMakie`) to
+    be loaded.
+"""
+function world_transform end
+
+"""
     polquiver(polcube::AstroImage; kwargs...)
     polquiver!([ax], polcube::AstroImage; kwargs...)
 
