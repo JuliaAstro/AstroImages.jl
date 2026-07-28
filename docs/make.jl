@@ -3,9 +3,6 @@ using Photometry, Reproject, Images
 using Documenter, DocumenterInterLinks
 using Documenter.Remotes: GitHub
 
-# Deps for examples
-ENV["GKSwstype"] = "nul"
-
 links = InterLinks(
     "DimensionalData" => (
         "https://rafaqz.github.io/DimensionalData.jl/stable/",
@@ -24,7 +21,6 @@ makedocs(;
     sitename = "AstroImages.jl",
     format = Documenter.HTML(;
         assets = [
-            "assets/theme.css",
             "assets/favicon.ico",
         ],
         example_size_threshold = 0,

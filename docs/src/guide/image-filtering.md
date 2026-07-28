@@ -48,12 +48,12 @@ imview(herca_highpass;
 )
 ```
 
-If you have Plots.jl loaded, we can add a colorbar and coordinate axes by switching to `implot`:
+If you have a Makie backend loaded, we can add a colorbar and coordinate axes by switching to `implotview`:
 
 ```@example ex1
-using Plots
+using CairoMakie
 
-implot(herca_highpass;
+implotview(herca_highpass;
     cmap = :seaborn_rocket_gradient,
     clims = (-50, 1500),
     stretch = asinhstretch

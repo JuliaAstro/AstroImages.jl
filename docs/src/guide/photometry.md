@@ -22,7 +22,7 @@ AstroImages.set_stretch!(identity)
 ```@example phot
 using Photometry
 using AstroImages
-using Plots # optional, for implot functionality
+using CairoMakie # optional, for implot functionality
 using Downloads: download
 
 # Download our image, courtesy of astropy
@@ -40,30 +40,25 @@ nothing # hide
 We can take a look at each of our processed images with `imview`:
 
 ```@example phot
-imview([image; clipped])
-```
+using Images: mosaic
 
-```@example phot
-imview([bkg; bkg_rms])
-```
-
-Or all together with Plots.jl:
-
-```@example phot
-using Plots
-
-AstroImages.set_clims!(Percent(99.5))
-AstroImages.set_cmap!(:magma)
-AstroImages.set_stretch!(identity)
-
-plot(
-    implot(image; title = "Original"),
-    implot(clipped; title = "Sigma-Clipped"),
-    implot(bkg; title = "Background"),
-    implot(bkg_rms; title = "Background RMS");
-    layout = (2, 2),
-    ticks = false,
+mosaic(
+    imview(image), imview(clipped; nan_color = :black),
+    imview(bkg), imview(bkg_rms);
+    nrow = 2, rowmajor = true,
 )
+```
+
+Or all together with Makie. Giving each panel a fixed axis `width` (the height is derived from the image aspect) lets `resize_to_layout!` shrink-wrap the figure around the panels:
+
+```@example phot
+fig = Figure()
+implotview(fig[1, 1], image; axis = (; title = "Original", width = 400))
+implotview(fig[1, 2], clipped; nan_color = :black, axis = (; title = "Sigma-Clipped", width = 400))
+implotview(fig[2, 1], bkg; axis = (; title = "Background", width = 400))
+implotview(fig[2, 2], bkg_rms; axis = (; title = "Background RMS", width = 400))
+resize_to_layout!(fig)
+fig
 ```
 
 We could apply a median filter, too, by specifying `filter_size`:
@@ -73,14 +68,13 @@ We could apply a median filter, too, by specifying `filter_size`:
 bkg_f, bkg_rms_f = estimate_background(clipped, 50; filter_size = 5)
 
 # plot
-plot(
-    implot(bkg; title = "Unfiltered", ylabel = "Background"),
-    implot(bkg_f; title = "Filtered"),
-    implot(bkg_rms; ylabel = "RMS"),
-    implot(bkg_rms_f);
-    layout = (2, 2),
-    ticks = false,
-)
+fig = Figure()
+implotview(fig[1, 1], bkg; axis = (; title = "Unfiltered", ylabel = "Background", width = 400))
+implotview(fig[1, 2], bkg_f; axis = (; title = "Filtered", width = 400))
+implotview(fig[2, 1], bkg_rms; axis = (; ylabel = "RMS", width = 400))
+implotview(fig[2, 2], bkg_rms_f; axis = (; width = 400))
+resize_to_layout!(fig)
+fig
 ```
 
 Now we can see our image after subtracting the filtered background and ready for Aperture Photometry!
@@ -88,11 +82,11 @@ Now we can see our image after subtracting the filtered background and ready for
 ```@example phot
 subt = image .- bkg_f[axes(image)...]
 clims = extrema(vcat(vec(image), vec(subt)))
-plot(
-    implot(image; title = "Original", clims),
-    implot(subt; title = "Subtracted", clims);
-    size = (1600, 1000),
-)
+fig = Figure()
+implotview(fig[1, 1], image; clims, axis = (; title = "Original", width = 400))
+implotview(fig[1, 2], subt; clims, axis = (; title = "Subtracted", width = 400))
+resize_to_layout!(fig)
+fig
 ```
 
 ## Source Extraction
@@ -101,22 +95,23 @@ From the background-subtracted image, we can detect all sources in the image:
 ```@example phot
 # We specify the uncertainty in the pixel data. We'll set it equal to zero.
 errs = zeros(axes(subt))
-sources = extract_sources(PeakMesh(), subt, errs, true) # sort from brightest to darkest
+sources = extract_sources(PeakMesh(), subt, errs) # Sorted from brightest to darkest
 ```
 
 There's over 60,000 sources!
 
-We'll define a circular apperture for each source:
+We'll define a circular aperture for each source. The `x`/`y` positions reported by `extract_sources` follow the same coordinate convention as the apertures (and `implot`), so they can be passed through directly:
 
 ```@example phot
 aps = CircularAperture.(sources.x, sources.y, 6)[1:1000] # just brightest thousand point sources
 ```
 
-We can overplot them on our original image. The coordinate sytem used by the Photometry.jl plot recipes (but not the actual return values) doesn't match AstroImages, so we must transpose our image:
+We can overplot them on our original image: loading Photometry.jl together with a Makie backend activates Photometry's Makie extension, which knows how to draw every aperture type (and a whole vector of them in a single call):
 
 ```@example phot
-implot(subt'; colorbar = false)
-plot!(aps)
+fig, iv = implotview(subt)
+lines!(iv.ax, aps; color = :cyan, linewidth = 0.8)
+fig
 ```
 
 ## Measuring Photometry
@@ -130,13 +125,9 @@ table = photometry(aps, subt)
 And plot them:
 
 ```@example phot
-scatter(table.xcenter, table.ycenter;
-    aspectratio = 1,
-    marker_z = table.aperture_sum,
-    markerstrokewidth = 0,
-    label = "",
-    framestyle = :box,
-    background_inside = :black,
-    color = :white,
-)
+fig = Figure()
+ax = Axis(fig[1, 1]; aspect = DataAspect(), backgroundcolor = :black)
+sc = scatter!(ax, table.xcenter, table.ycenter; color = table.aperture_sum)
+Colorbar(fig[1, 2], sc; label = "Aperture sum")
+fig
 ```
