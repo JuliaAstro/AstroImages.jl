@@ -71,6 +71,7 @@ export load,
     implot,
     implot!,
     implotview,
+    world_transform,
     polquiver,
     polquiver!,
     # Deprecated: renamed to pixel_to_world / world_to_pixel

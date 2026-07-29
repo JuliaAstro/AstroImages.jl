@@ -283,6 +283,66 @@ end
     end
 end
 
+@testset "makie: world_transform" begin
+    img = wcsimg()
+    tr = world_transform(img)
+    @test tr isa Makie.Transformation
+    t = tr.transform_func[]
+    @test t isa MExt.WCSWorldTransform
+
+    # points forward-transform to the same pixels world_to_pixel reports
+    w = pixel_to_world(img, [3.0, 4.0])
+    p = Makie.apply_transform(t, Makie.Point2d(w...))
+    @test collect(p) ≈ [3.0, 4.0] atol = 1.0e-6
+
+    # platescale scales the output like the image extent
+    t2 = world_transform(img; platescale = 2).transform_func[]
+    @test collect(Makie.apply_transform(t2, Makie.Point2d(w...))) ≈ [6.0, 8.0] atol = 1.0e-6
+
+    # 3D points pass z through untouched
+    p3 = Makie.apply_transform(t, Makie.Point3d(w..., 7.5))
+    @test p3[3] == 7.5
+    @test collect(p3)[1:2] ≈ [3.0, 4.0] atol = 1.0e-6
+
+    # non-finite input maps to NaN instead of throwing
+    @test all(isnan, Makie.apply_transform(t, Makie.Point2d(NaN, 0.0)))
+
+    # the inverse transform round-trips
+    it = Makie.inverse_transform(t)
+    @test it isa MExt.WCSPixelTransform
+    @test collect(Makie.apply_transform(it, p)) ≈ collect(w) atol = 1.0e-6
+    @test Makie.inverse_transform(it) isa MExt.WCSWorldTransform
+
+    # densified Rect bounds contain every interior sample
+    r = Makie.Rect2d(w[1] - 0.05, w[2] - 0.05, 0.1, 0.1)
+    tr_r = Makie.apply_transform(t, r)
+    for x in range(w[1] - 0.05, w[1] + 0.05, 5), y in range(w[2] - 0.05, w[2] + 0.05, 5)
+        q = Makie.apply_transform(t, Makie.Point2d(x, y))
+        @test tr_r.origin[1] - 1.0e-8 <= q[1] <= tr_r.origin[1] + tr_r.widths[1] + 1.0e-8
+        @test tr_r.origin[2] - 1.0e-8 <= q[2] <= tr_r.origin[2] + tr_r.widths[2] + 1.0e-8
+    end
+
+    # integration: a world-coordinate scatter over implot lands on the right pixel
+    fig, ax, plt = implot(img)
+    sc = Makie.scatter!(ax, [w[1]], [w[2]]; transformation = world_transform(img))
+    bb = Makie.boundingbox(sc)
+    center = bb.origin .+ bb.widths ./ 2
+    @test center[1] ≈ 3.0 atol = 1.0e-3
+    @test center[2] ≈ 4.0 atol = 1.0e-3
+
+    # the transform can be derived from the plot or view directly, inheriting
+    # its image, wcsn, and platescale
+    tp = world_transform(plt).transform_func[]
+    @test tp isa MExt.WCSWorldTransform
+    @test collect(Makie.apply_transform(tp, Makie.Point2d(w...))) ≈ [3.0, 4.0] atol = 1.0e-6
+
+    _, iv = implotview(img; platescale = 2)
+    tiv = world_transform(iv).transform_func[]
+    @test tiv isa MExt.WCSWorldTransform
+    @test tiv.platescale == 2.0
+    @test collect(Makie.apply_transform(tiv, Makie.Point2d(w...))) ≈ [6.0, 8.0] atol = 1.0e-6
+end
+
 @testset "makie: polquiver" begin
     @testset "blockmean" begin
         A = reshape(1.0:20.0, 4, 5)

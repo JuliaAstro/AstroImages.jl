@@ -18,11 +18,11 @@ using Makie: automatic, Automatic, ReversibleScale, DataAspect, Point2f, Aspect,
 
 using AstroImages: AstroImageMat, WCSGrid, wcsgridspec, wcsgridlines, wcslabels, wcsax,
     ctype_label, _resolve_clims, _default_clims, _default_stretch, _default_cmap,
-    _stokes_name, _stokes_symbol, Colorant
+    _stokes_name, _stokes_symbol, _world_to_plotted_pixel, Colorant
 using AstroImages.DimensionalData: name
 using AstroImages.Statistics: mean, quantile
 using AstroImages.Printf: @sprintf
-import AstroImages: implot, implot!, implotview, polquiver, polquiver!
+import AstroImages: implot, implot!, implotview, world_transform, polquiver, polquiver!
 
 # ---------------------------------------------------------------------------
 # Colormapping helpers: translate the imview clims/stretch/cmap/contrast/bias
@@ -425,6 +425,84 @@ function derivepanelsize!(axattrs, extent)
 end
 
 # ---------------------------------------------------------------------------
+# world_transform: plot world-coordinate data directly over an image, the
+# equivalent of matplotlib WCSAxes' `transform=ax.get_transform("world")`.
+# See the docstring in src/plot-interface.jl.
+# ---------------------------------------------------------------------------
+
+# World coordinates of the two plotted dims -> the (platescale-scaled,
+# parent-frame) pixel space implot draws in.
+struct WCSWorldTransform{T<:AstroImageMat}
+    img::T
+    wcsn::Char
+    platescale::Float64
+end
+
+# The inverse map: scaled parent-frame pixels -> world coordinates.
+struct WCSPixelTransform{T<:AstroImageMat}
+    img::T
+    wcsn::Char
+    platescale::Float64
+end
+
+const WCSPointTransform = Union{WCSWorldTransform, WCSPixelTransform}
+
+world_transform(img::AstroImageMat; wcsn::Char = ' ', platescale::Real = 1) =
+    Makie.Transformation(WCSWorldTransform(img, wcsn, Float64(platescale)))
+
+# Derive the image, wcsn, and platescale from an existing image plot, so they
+# cannot fall out of sync with what is displayed. (The ImPlotView method lives
+# below the block's definition.)
+world_transform(p::ImPlot) = world_transform(p.img[]; wcsn = p.wcsn[], platescale = p.platescale[])
+
+function Makie.apply_transform(t::WCSWorldTransform, pt::V) where {V<:Makie.VecTypes{N,T}} where {N,T<:Number}
+    (isfinite(pt[1]) && isfinite(pt[2])) || return V(NaN)
+    xy = try
+        t.platescale .* _world_to_plotted_pixel(t.img, t.wcsn, Float64[pt[1], pt[2]])
+    catch
+        return V(NaN)
+    end
+    return N == 2 ? V(xy[1], xy[2]) : V(xy[1], xy[2], pt[3])
+end
+
+function Makie.apply_transform(t::WCSPixelTransform, pt::V) where {V<:Makie.VecTypes{N,T}} where {N,T<:Number}
+    (isfinite(pt[1]) && isfinite(pt[2])) || return V(NaN)
+    uv = try
+        pixel_to_world(t.img, Float64[pt[1], pt[2]] ./ t.platescale; wcsn = t.wcsn, parent = true)
+    catch
+        return V(NaN)
+    end
+    return N == 2 ? V(uv[1], uv[2]) : V(uv[1], uv[2], pt[3])
+end
+
+# Nonlinear transforms must densify Rect bounds instead of mapping the two
+# corners like Makie's generic fallback does; these Rects feed autolimits.
+function sampledbounds(t, (xmin, xmax), (ymin, ymax), n = 21)
+    umin, umax, vmin, vmax = Inf, -Inf, Inf, -Inf
+    for x in range(xmin, xmax, n), y in range(ymin, ymax, n)
+        u, v = Makie.apply_transform(t, Makie.Vec2d(x, y))
+        isfinite(u) && ((umin, umax) = (min(umin, u), max(umax, u)))
+        isfinite(v) && ((vmin, vmax) = (min(vmin, v), max(vmax, v)))
+    end
+    return (umin, umax), (vmin, vmax)
+end
+
+function Makie.apply_transform(t::WCSPointTransform, r::Makie.Rect2{T}) where {T}
+    xmin, ymin = minimum(r)
+    xmax, ymax = maximum(r)
+    (umin, umax), (vmin, vmax) = sampledbounds(t, (xmin, xmax), (ymin, ymax))
+    return Makie.Rect2{T}(Makie.Vec2{T}(umin, vmin), Makie.Vec2{T}(umax - umin, vmax - vmin))
+end
+
+function Makie.apply_transform(t::WCSPointTransform, r::Makie.Rect3{T}) where {T}
+    tr2 = Makie.apply_transform(t, Makie.Rect2{T}(r))
+    return Makie.Rect3{T}((tr2.origin..., r.origin[3]), (tr2.widths..., r.widths[3]))
+end
+
+Makie.inverse_transform(t::WCSWorldTransform) = WCSPixelTransform(t.img, t.wcsn, t.platescale)
+Makie.inverse_transform(t::WCSPixelTransform) = WCSWorldTransform(t.img, t.wcsn, t.platescale)
+
+# ---------------------------------------------------------------------------
 # ImPlotView: a complex recipe block (new in Makie 0.25) bundling an Axis with
 # WCS ticks and a Colorbar — what the Plots.jl recipe approximated with
 # @layout. Usage: `fig, iv = ImPlotView(img)` or `ImPlotView(fig[1, 1], img)`.
@@ -633,6 +711,10 @@ function lockcellaspect!(bl::ImPlotView, ax::Makie.Axis, cb, ratio::Real)
     Makie.on(relayout, bl.layoutobservables.computedbbox)
     return
 end
+
+# Derive the world transform from the view's inner image plot; see the
+# world_transform section above.
+world_transform(iv::ImPlotView) = world_transform(iv.plt)
 
 # ---------------------------------------------------------------------------
 # polquiver recipe
