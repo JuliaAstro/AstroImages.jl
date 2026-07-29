@@ -1,6 +1,6 @@
 name = "AstroImages"
 uuid = "fe3fc30c-9b16-11e9-1c73-17dabf39f4ad"
-version = "0.5.1"
+version = "0.5.2"
 authors = ["Mosè Giordano", "Rohit Kumar", "William Thompson"]
 
 [workspace]
