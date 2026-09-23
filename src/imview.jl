@@ -166,6 +166,9 @@ _lookup_cmap(acl::AbstractColorList) = acl
 _lookup_cmap(colorant::Colorant) = PlotUtils.cgrad([:black, colorant])
 _lookup_cmap(colorant::String) = PlotUtils.cgrad([:black, colorant])
 
+_lookup_nancolor(c::Colorant) = convert(RGBA{N0f8}, c)
+_lookup_nancolor(c::Union{AbstractString, Symbol}) = convert(RGBA{N0f8}, parse(Colorant, String(c)))
+
 function _resolve_clims(img::AbstractArray, clims)
     # Tuple or abstract array
     if typeof(clims) <: AbstractArray || typeof(clims) <: Tuple
@@ -183,7 +186,7 @@ end
 
 
 """
-    imview(img; clims=Percent(99.5), stretch=identity, cmap=:magma, contrast=1.0, bias=0.5)
+    imview(img; clims=Percent(99.5), stretch=identity, cmap=:magma, contrast=1.0, bias=0.5, nan_color=:transparent)
 
 Create a read only view of an array or AstroImageMat mapping its data values
 to Colors according to `clims`, `stretch`, and `cmap`.
@@ -223,15 +226,17 @@ Arrays wrapped by `AstroImageMat()` get displayed as images automatically by cal
 `imview` on them with the default settings when using displays that support showing PNG images.
 
 ### Missing data
-Pixels that are `NaN` or `missing` will be displayed as transparent when `cmap` is set
-or black if.
-+/- Inf will be displayed as black or white respectively.
+Pixels that are `NaN` or `missing` are displayed as `nan_color`, which defaults to fully transparent. Pass any `Colorant` or color name (e.g., `nan_color = :black`) to render them opaque instead. Useful when the transparent default would otherwise show whatever backdrop the image is composited against. +/- Inf will be displayed as black or white respectively.
 
 ### Exporting Images
+
 The view returned by `imview` can be saved using general `FileIO.save` methods.
+
 Example:
+
 ```julia
 v = imview(data, cmap=:magma, stretch=asinhstretch, clims=Percent(95))
+
 save("output.png", v)
 ```
 """
@@ -241,7 +246,8 @@ function imview(
         stretch = _default_stretch[],
         cmap = _default_cmap[],
         contrast = 1.0,
-        bias = 0.5
+        bias = 0.5,
+        nan_color = RGBA{N0f8}(0, 0, 0, 0),
     )
 
     # Create flipped view of to match conventions of other programs.
@@ -263,15 +269,16 @@ function imview(
     end
     # Users will occaisionally pass in data that is 0D, filled with NaN, or filled with missing.
     # We still need to do something reasonable in those caes.
+    nancolor = _lookup_nancolor(nan_color)
     nonempty = any(x -> !ismissing(x) && isfinite(x), imgT)
     if !nonempty
         @warn "imview called with all missing or non-finite values"
-        return map(px -> RGBA{N0f8}(0, 0, 0, 0), imgT)
+        return map(px -> nancolor, imgT)
     end
 
     imgmin, imgmax = _resolve_clims(imgT, clims)
     normed = clampednormedview(imgT, (imgmin, imgmax))
-    return _imview(imgT, normed, stretch, _lookup_cmap(cmap), contrast, bias)
+    return _imview(imgT, normed, stretch, _lookup_cmap(cmap), contrast, bias, nancolor)
 end
 
 
@@ -302,15 +309,15 @@ end
 # Also, this reduces the number of methods we need to compile for imview by standardizing types
 # earlier on. The compiled code for showing an array is the same as an array wrapped by an
 # AstroImage, except for one unwrapping step.
-function _imview(img::AstroImage, normed::AbstractArray, stretch, cmap, contrast, bias)
+function _imview(img::AstroImage, normed::AbstractArray, stretch, cmap, contrast, bias, nancolor)
     p = parent(img)
-    out = _imview(p, normed, stretch, cmap, contrast, bias)
+    out = _imview(p, normed, stretch, cmap, contrast, bias, nancolor)
     # out = shareheader(img, v)
     return out
 end
 
 
-function _imview(img, normed::AbstractArray, stretch, cmap, contrast, bias)
+function _imview(img, normed::AbstractArray, stretch, cmap, contrast, bias, nancolor)
     function colormap(pixr, pixn)::RGBA{N0f8}
         if ismissing(pixr) || !isfinite(pixr) || ismissing(pixn) || !isfinite(pixn)
             # We check pixr in addition to pixn because we want to preserve if the pixels
@@ -320,9 +327,9 @@ function _imview(img, normed::AbstractArray, stretch, cmap, contrast, bias)
             stretched = (stretch(pixn) - bias) * contrast + 0.5
         end
 
-        # We treat NaN/missing values as transparent
+        # NaN/missing values are displayed as `nan_color` (transparent by default)
         pix = if ismissing(stretched) || isnan(stretched)
-            RGBA{N0f8}(0, 0, 0, 0)
+            nancolor
         elseif isinf(stretched) # We treat Inf values as white / -Inf as black
             if stretched > 0
                 RGBA{N0f8}(1, 1, 1, 1)

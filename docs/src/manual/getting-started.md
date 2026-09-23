@@ -9,10 +9,11 @@ pkg> add AstroImages
 To display images and save them in traditional graphics formats like PNG, JPG, GIF, etc., you will also need to add the `ImageIO` package. Once installed, this package doesn't need to be loaded explicitly.
 
 
-For some of the more advanced visualizations you may also want `Plots`:
+For some of the more advanced visualizations you may also want a
+[Makie](https://docs.makie.org/) backend, e.g. `CairoMakie`:
 
 ```julia-repl
-pkg> add Plots
+pkg> add CairoMakie
 ```
 
 To load the package, run:
@@ -21,5 +22,5 @@ To load the package, run:
 using AstroImages
 
 # And if desired:
-using Plots
+using CairoMakie
 ```
