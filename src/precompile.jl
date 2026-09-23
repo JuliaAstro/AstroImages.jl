@@ -19,7 +19,7 @@
             end
             parent(i)
             header(i)
-            wcs(i, 1)
+            wcs(i, ' ')
             wcs(i)
             i["h"] = 1
             i["h"] = 1.0

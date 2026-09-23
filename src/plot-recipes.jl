@@ -12,7 +12,7 @@
         error("Image passed to `implot` must be two-dimensional.  Got ndims(img)=$(ndims(data))")
     end
 
-    wcsn = get(plotattributes, :wcsn, 1)
+    wcsn = get(plotattributes, :wcsn, ' ')
     # Show WCS coordinates if wcsticks is true or unspecified, and has at least one WCS axis present.
     showwcsticks = get(plotattributes, :wcsticks, true) &&  !all(==(""), wcs(data, wcsn).ctype)
     showwcstitle = get(plotattributes, :wcstitle, true) &&  length(refdims(data)) > 0 && !all(==(""), wcs(data, wcsn).ctype)
@@ -113,7 +113,7 @@
                     if label == "NONE"
                         label = name(d)
                     end
-                    value = pix_to_world(imgv, [1, 1]; wcsn, all = true, parent = true)[i]
+                    value = pixel_to_world(imgv, [1, 1]; wcsn, all = true, parent = true)[i]
                     unit = wcs(imgv, wcsn).cunit[i]
                     if ct == "STOKES"
                         return _stokes_name(_stokes_symbol(value))
@@ -327,7 +327,7 @@ to an array of Colors. Equivalent to:
             bias=0.5,
             contrast=1,
         ),
-        wcsn=1,
+        wcsn=' ',
         wcsticks=true,
         wcstitle=true,
         grid=true,
@@ -339,12 +339,13 @@ See `imview` for how data is mapped to RGBA pixel values.
 
 ### WCS & Image Coordinates
 If provided with an AstroImage that has WCS headers set, the tick marks and plot grid
-are calculated using WCS.jl. By default, use the first WCS coordinate system.
+are calculated using FITSWCS.jl. By default, use the primary WCS coordinate system.
 The underlying pixel coordinates are those returned by `dims(img)` multiplied by `platescale`.
 This allows you to overplot lines, regions, etc. using pixel coordinates.
-If you wish to compute the pixel coordinate of a point in world coordinates, see `world_to_pix`.
+If you wish to compute the pixel coordinate of a point in world coordinates, see `world_to_pixel`.
 
-* `wcsn` (default `1`) select which WCS transform in the headers to use for ticks & grid
+* `wcsn` (default `' '`) select which WCS transform in the headers to use for ticks & grid,
+  by version character (`' '` for the primary system, `'A'`–`'Z'` for alternates)
 * `wcsticks` (default `true` if WCS headers present) display ticks and labels, and title
   using world coordinates
 * `wcstitle` (default `true` if WCS headers present and `length(refdims(img))>0`). When
@@ -367,7 +368,7 @@ implot
 struct WCSGrid
     img::AstroImage
     extent::NTuple{4, Float64}
-    wcsn::Int
+    wcsn::Char
 end
 
 
@@ -520,7 +521,7 @@ This function has to work on both plotted axes at once to handle rotation and ge
 curvature of the WCS grid projected on the image coordinates.
 
 """
-function WCSGrid(img::AstroImageMat, wcsn = 1)
+function WCSGrid(img::AstroImageMat, wcsn = ' ')
     minx = first(dims(img, 2))
     maxx = last(dims(img, 2))
     miny = first(dims(img, 1))
@@ -619,7 +620,7 @@ function wcsgridspec(wsg::WCSGrid)
         minx minx maxx maxx
         miny maxy miny maxy
     ]
-    posuv = pix_to_world(wsg.img, posxy; wsg.wcsn, parent = true)
+    posuv = pixel_to_world(wsg.img, posxy; wsg.wcsn, parent = true)
     (minu, maxu), (minv, maxv) = extrema(posuv, dims = 2)
 
     # In general, grid can be curved when plotted back against the image,
@@ -661,7 +662,7 @@ function wcsgridspec(wsg::WCSGrid)
             griduv = repeat(posuv[:, 1], 1, N_points)
             griduv[1, :] .= urange
             griduv[2, :] .= tickv
-            posxy = world_to_pix(wsg.img, griduv; wsg.wcsn, parent = true)
+            posxy = world_to_pixel(wsg.img, griduv; wsg.wcsn, parent = true)
 
             # Now that we have the grid in pixel coordinates,
             # if we find out where the grid intersects the axes we can put
@@ -825,7 +826,7 @@ function wcsgridspec(wsg::WCSGrid)
             griduv = repeat(posuv[:, 1], 1, N_points)
             griduv[1, :] .= ticku
             griduv[2, :] .= vrange
-            posxy = world_to_pix(wsg.img, griduv; wsg.wcsn, parent = true)
+            posxy = world_to_pixel(wsg.img, griduv; wsg.wcsn, parent = true)
 
             # Now that we have the grid in pixel coordinates,
             # if we find out where the grid intersects the axes we can put
@@ -970,7 +971,7 @@ function wcsgridspec(wsg::WCSGrid)
         griduv = posuv[:, 1]
         griduv[1] = ticku
         griduv[2] = mean(vrange)
-        posxy = world_to_pix(wsg.img, griduv; wsg.wcsn, parent = true)
+        posxy = world_to_pixel(wsg.img, griduv; wsg.wcsn, parent = true)
         if !(minx < posxy[1] < maxx) || !(miny < posxy[2] < maxy)
             continue
         end
@@ -981,7 +982,7 @@ function wcsgridspec(wsg::WCSGrid)
         # Now find slope (TODO: stepsize)
         # griduv[ax[2]] -= 1
         griduv[2] += 0.1step(vrange)
-        posxy2 = world_to_pix(wsg.img, griduv; wsg.wcsn, parent = true)
+        posxy2 = world_to_pixel(wsg.img, griduv; wsg.wcsn, parent = true)
         θ = atan(posxy2[2] - posxy[2], posxy2[1] - posxy[1])
         push!(annotations1θ, θ)
     end
@@ -994,7 +995,7 @@ function wcsgridspec(wsg::WCSGrid)
         griduv = posuv[:, 1]
         griduv[1] = mean(urange)
         griduv[2] = tickv
-        posxy = world_to_pix(wsg.img, griduv; wsg.wcsn, parent = true)
+        posxy = world_to_pixel(wsg.img, griduv; wsg.wcsn, parent = true)
         if !(minx < posxy[1] < maxx) || !(miny < posxy[2] < maxy)
             continue
         end
@@ -1003,7 +1004,7 @@ function wcsgridspec(wsg::WCSGrid)
         push!(annotations2y, posxy[2])
 
         griduv[1] += 0.1step(urange)
-        posxy2 = world_to_pix(wsg.img, griduv; wsg.wcsn, parent = true)
+        posxy2 = world_to_pixel(wsg.img, griduv; wsg.wcsn, parent = true)
         θ = atan(posxy2[2] - posxy[2], posxy2[1] - posxy[1])
         push!(annotations2θ, θ)
     end
