@@ -20,7 +20,7 @@ Reproject = "d1dcc2e6-806e-11e9-2897-3f99785db2ae"
 [sources]
 CairoMakie = {url = "https://github.com/MakieOrg/Makie.jl", rev = "ff/breaking-0.25", subdir = "CairoMakie"}
 ComputePipeline = {url = "https://github.com/MakieOrg/Makie.jl", rev = "ff/breaking-0.25", subdir = "ComputePipeline"}
-DimensionalData = {url = "https://github.com/icweaver/DimensionalData.jl", rev = "makie-0.25"}
+DimensionalData = {url = "https://github.com/icweaver/DimensionalData.jl", rev = "compat-makie-0.25"}
 FITSWCS = {url = "https://github.com/JuliaAstro/FITSWCS.jl"}
 Makie = {url = "https://github.com/MakieOrg/Makie.jl", rev = "ff/breaking-0.25", subdir = "Makie"}
 Photometry = {url = "https://github.com/JuliaAstro/Photometry.jl", rev = "compat-makie-0.25"}
