@@ -6,7 +6,7 @@
 
 ## Introduction
 
-`AstroImages.jl` allows you load and visualize  images from a astronomical [`FITS`](https://en.wikipedia.org/wiki/FITS) files using the popular [`Images.jl`](https://github.com/JuliaImages/Images.jl) and [`Plots.jl`](https://github.com/JuliaPlots/Plots.jl) Julia packages. `AstroImages.jl` uses [`FITSIO.jl`](https://github.com/JuliaAstro/FITSIO.jl) to read FITS files.
+`AstroImages.jl` allows you load and visualize  images from a astronomical [`FITS`](https://en.wikipedia.org/wiki/FITS) files using the popular [`Images.jl`](https://github.com/JuliaImages/Images.jl) and [`Plots.jl`](https://github.com/JuliaPlots/Plots.jl) Julia packages. `AstroImages.jl` uses [`FITSFiles.jl`](https://github.com/JuliaAstro/FITSFiles.jl) to read FITS files.
 
 ## Installation
 
@@ -54,7 +54,7 @@ The package provides a  type, `AstroImage` to integrate FITS images with Julia p
 julia> img = AstroImage("file.fits")
 ```
 
-will read the first valid extension from the `file.fits` file. `AstroImage` also works if the file extension is not `.fit` or `.fits`, e.g. if it's a compressed FITS file with extension `.fits.gz`. You can load data in any format supported by [FITSIO.jl](https://juliaastro.github.io/FITSIO.jl/stable/) / [the FITSIO C library](https://heasarc.gsfc.nasa.gov/fitsio/).
+will read the first valid extension from the `file.fits` file. `AstroImage` also works if the file extension is not `.fit` or `.fits`. FITS reading is handled by [FITSFiles.jl](https://github.com/JuliaAstro/FITSFiles.jl), a pure-Julia FITS implementation.
 
 If you are working in a Jupyter notebook, an `AstroImage` object is automatically rendered as a PNG image.
 
@@ -115,15 +115,15 @@ and the image will be displayed as an image series using your favorite backend. 
 
 ## Resolving World Coordinates
 
-If your FITS file contains world coordinate system headers, AstroImages.jl can use WCS.jl to convert between pixel and world coordinates. This works even if you have sliced or your image to select a region of interest:
+If your FITS file contains world coordinate system headers, AstroImages.jl can use FITSWCS.jl to convert between pixel and world coordinates. This works even if you have sliced or your image to select a region of interest:
 
 ```julia-repl
 julia> img_slice = img[100:200,100:200]
 
-julia> coords_world = pix_to_world(img_slice, [5,5])
+julia> coords_world = pixel_to_world(img_slice, [5,5])
 [..., ...]
 
-julia> world_to_pix(img_slice, coords_world)
+julia> world_to_pixel(img_slice, coords_world)
 [5.0,5.0] # approximately
 ```
 

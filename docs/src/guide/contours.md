@@ -79,7 +79,7 @@ for cl in levels(contours(dims(herca)..., float.(herca)))
     for line in lines(cl)
         xs, ys = coordinates(line) # coordinates of this line segment
         worldcoords = map(zip(xs, ys)) do pixcoord
-            pix_to_world(herca, [pixcoord...])
+            pixel_to_world(herca, [pixcoord...])
         end
         plot!(p, getindex.(worldcoords,1), getindex.(worldcoords,2); line_z = lvl, label = "")
     end
