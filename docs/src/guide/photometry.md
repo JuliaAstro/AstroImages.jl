@@ -101,10 +101,10 @@ From the background-subtracted image, we can detect all sources in the image:
 ```@example phot
 # We specify the uncertainty in the pixel data. We'll set it equal to zero.
 errs = zeros(axes(subt))
-sources = extract_sources(PeakMesh(), subt, errs, true) # sort from brightest to darkest
+sources = extract_sources(PeakMesh(), subt, errs; sort = true) # sort from brightest to darkest
 ```
 
-There's over 60,000 sources!
+That's tens of thousands of sources!
 
 We'll define a circular apperture for each source:
 
@@ -112,10 +112,10 @@ We'll define a circular apperture for each source:
 aps = CircularAperture.(sources.x, sources.y, 6)[1:1000] # just brightest thousand point sources
 ```
 
-We can overplot them on our original image. The coordinate sytem used by the Photometry.jl plot recipes (but not the actual return values) doesn't match AstroImages, so we must transpose our image:
+We can overplot them on our original image. Photometry.jl uses the same [axes convention](@ref Axes) as AstroImages, with `x` along the first array axis and `y` along the second, so the apertures line up with the image as-is:
 
 ```@example phot
-implot(subt'; colorbar = false)
+implot(subt; colorbar = false)
 plot!(aps)
 ```
 
