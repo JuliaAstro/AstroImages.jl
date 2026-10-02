@@ -25,7 +25,7 @@ using Plots
 using Downloads: download
 
 # Download a Hubble image of the Eagle nebula
-eagle = load(download("https://ds9.si.edu/download/data/656nmos.fits"))
+eagle = load(download("https://ds9.si.edu/archive/data/656nmos.fits"))
 ```
 
 This image contains world coordinate system headers. AstroImages.jl uses FITSWCS.jl (a pure-Julia implementation of the FITS WCS standard) to parse these headers. We can generate a WCSTransform object to inspect:
