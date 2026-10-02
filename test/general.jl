@@ -587,6 +587,17 @@ end
     @test img_rendered_6[4].alpha == 0
     @test img_rendered_6[5] == RGBA(0, 0, 0, 1)
     @test img_rendered_6[6] == RGBA(1, 1, 1, 1)
+
+    # nan_color: NaN/missing pixels render as the given color instead of transparent
+    for m in (NaN, missing)
+        arrm = [1.0 2.0; m 4.0]
+        @test count(px -> px.alpha == 0, imview(arrm; cmap = :magma)) == 1
+        vblack = imview(arrm; cmap = :magma, nan_color = :black)
+        @test count(px -> px.alpha == 0, vblack) == 0
+        @test count(==(RGBA{N0f8}(0, 0, 0, 1)), vblack) == 1
+        vred = imview(arrm; cmap = :magma, nan_color = RGBA{N0f8}(1, 0, 0, 1))
+        @test count(==(RGBA{N0f8}(1, 0, 0, 1)), vred) == 1
+    end
 end
 
 
