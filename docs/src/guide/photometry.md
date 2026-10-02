@@ -95,10 +95,10 @@ From the background-subtracted image, we can detect all sources in the image:
 ```@example phot
 # We specify the uncertainty in the pixel data. We'll set it equal to zero.
 errs = zeros(axes(subt))
-sources = extract_sources(PeakMesh(), subt, errs) # Sorted from brightest to darkest
+sources = extract_sources(PeakMesh(), subt, errs; sort = true) # Sorted from brightest to darkest
 ```
 
-There's over 60,000 sources!
+That's tens of thousands of sources!
 
 We'll define a circular aperture for each source. The `x`/`y` positions reported by `extract_sources` follow the same coordinate convention as the apertures (and `implot`), so they can be passed through directly:
 
