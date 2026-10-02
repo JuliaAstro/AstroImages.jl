@@ -62,7 +62,7 @@ Let's now switch to an astronomical image:
 ```@example 1
 using Downloads: download
 
-eagle = load(download("https://ds9.si.edu/download/data/656nmos.fits"))
+eagle = load(download("https://ds9.si.edu/archive/data/656nmos.fits"))
 ```
 
 We can apply a non-linear stretch like a log-scale, power-scale, or asinh stretch:
