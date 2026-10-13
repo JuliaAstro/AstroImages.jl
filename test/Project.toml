@@ -13,13 +13,13 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [sources]
 ComputePipeline = {url = "https://github.com/MakieOrg/Makie.jl", rev = "ff/breaking-0.25", subdir = "ComputePipeline"}
-FITSFiles = {url = "https://github.com/JuliaAstro/FITSFiles.jl"}
+FITSFiles = {url = "https://github.com/JuliaAstro/FITSFiles.jl", rev = "hdu-size"}
 FITSWCS = {url = "https://github.com/JuliaAstro/FITSWCS.jl"}
 Makie = {url = "https://github.com/MakieOrg/Makie.jl", rev = "ff/breaking-0.25", subdir = "Makie"}
 
 [compat]
 Documenter = "1"
-FITSFiles = "0.3"
+FITSFiles = "0.3, 0.4"
 ImageBase = "0.1.5"
 ParallelTestRunner = "2.6.2"
 Statistics = "1"
