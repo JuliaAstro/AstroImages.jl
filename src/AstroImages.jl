@@ -730,7 +730,6 @@ include("wcs-grid.jl")
 include("plot-interface.jl")
 include("contrib/images.jl")
 include("contrib/abstract-ffts.jl")
-# include("contrib/reproject.jl")
 include("precompile.jl")
 
 end # module
