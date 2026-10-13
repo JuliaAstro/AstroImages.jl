@@ -7,6 +7,7 @@ AstroImages.AstroImage
 AstroImages.Centered
 AstroImages.imview
 AstroImages.implot
+AstroImages.implotview
 AstroImages.Comment
 AstroImages.History
 AstroImages.header
@@ -27,6 +28,7 @@ AstroImages.shareheader
 AstroImages.recenter
 AstroImages.pixel_to_world
 AstroImages.world_to_pixel
+AstroImages.world_transform
 ```
 
 ## DimensionalData

@@ -8,7 +8,7 @@
 
 AstroImage.jl is a Julia package for loading, manipulating, and visualizing astronomical images.
 
-It supports FITS files ([FITSFiles.jl](https://github.com/JuliaAstro/FITSFiles.jl)), world coordinates ([FITSWCS.jl](https://github.com/JuliaAstro/FITSWCS.jl)), rendering images ([Images.jl](https://github.com/JuliaImages/Images.jl)), and plot recipes ([Plots.jl](https://github.com/JuliaPlots/Plots.jl)).
+It supports FITS files ([FITSFiles.jl](https://github.com/JuliaAstro/FITSFiles.jl)), world coordinates ([FITSWCS.jl](https://github.com/JuliaAstro/FITSWCS.jl)), rendering images ([Images.jl](https://github.com/JuliaImages/Images.jl)), and plot recipes ([Makie.jl](https://github.com/MakieOrg/Makie.jl)).
 
 ## Quickstart
 
