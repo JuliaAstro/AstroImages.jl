@@ -8,7 +8,7 @@ projects = ["test", "docs"]
 
 [sources]
 DimensionalData = {url = "https://github.com/icweaver/DimensionalData.jl", rev = "compat-makie-0.25"}
-FITSFiles = {url = "https://github.com/JuliaAstro/FITSFiles.jl"}
+FITSFiles = {url = "https://github.com/JuliaAstro/FITSFiles.jl", rev = "hdu-size"}
 FITSWCS = {url = "https://github.com/JuliaAstro/FITSWCS.jl"}
 
 [deps]
