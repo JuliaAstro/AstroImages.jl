@@ -8,7 +8,7 @@ projects = ["test", "docs"]
 
 [sources]
 DimensionalData = {url = "https://github.com/icweaver/DimensionalData.jl", rev = "compat-makie-0.25"}
-FITSFiles = {url = "https://github.com/JuliaAstro/FITSFiles.jl"}
+FITSFiles = {url = "https://github.com/JuliaAstro/FITSFiles.jl", rev = "hdu-size"}
 FITSWCS = {url = "https://github.com/JuliaAstro/FITSWCS.jl"}
 
 [deps]
@@ -33,9 +33,11 @@ UUIDs = "cf7118a7-6976-5b1a-9a39-7adc72f591a4"
 
 [weakdeps]
 Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
+Reproject = "d1dcc2e6-806e-11e9-2897-3f99785db2ae"
 
 [extensions]
 AstroImagesMakieExt = "Makie"
+AstroImagesReprojectExt = "Reproject"
 
 [compat]
 AbstractFFTs = "1.1"
@@ -53,6 +55,7 @@ Makie = "0.25"
 MappedArrays = "0.4"
 PlotUtils = "1.2"
 PrecompileTools = "1"
+Reproject = "0.4"
 Statistics = "1"
 Tables = "1.7"
 julia = "1.10"
