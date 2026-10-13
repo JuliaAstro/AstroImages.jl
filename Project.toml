@@ -7,7 +7,7 @@ authors = ["Mosè Giordano", "Rohit Kumar", "William Thompson"]
 projects = ["test", "docs"]
 
 [sources]
-FITSFiles = {url = "https://github.com/JuliaAstro/FITSFiles.jl"}
+FITSFiles = {url = "https://github.com/JuliaAstro/FITSFiles.jl", rev = "hdu-size"}
 FITSWCS = {url = "https://github.com/JuliaAstro/FITSWCS.jl"}
 
 [deps]
@@ -36,7 +36,7 @@ AbstractFFTs = "1.1"
 AstroAngles = "0.1, 0.2, 0.3"
 ColorSchemes = "3.18"
 DimensionalData = "0.27, 0.29, 0.30"
-FITSFiles = "0.2, 0.3"
+FITSFiles = "0.2, 0.3, 0.4"
 FITSWCS = "0.1"
 FileIO = "1.15"
 ImageAxes = "0.6"
